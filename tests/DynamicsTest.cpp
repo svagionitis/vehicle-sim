@@ -3,16 +3,23 @@
 #include <cmath>
 #include <memory>
 
+#include "libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h"
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 
 namespace vehicle_sim::testing {
 
+using vehicle_sim::dynamics::AeroPlaneConfig;
+using vehicle_sim::dynamics::AeroPlaneInput;
+using vehicle_sim::dynamics::AeroPlaneTelemetry;
+using vehicle_sim::dynamics::AerodynamicPlaneDynamics;
 using vehicle_sim::dynamics::ArcadeCarConfig;
 using vehicle_sim::dynamics::ArcadeCarDynamics;
 using vehicle_sim::dynamics::ArcadeCarInput;
@@ -20,6 +27,10 @@ using vehicle_sim::dynamics::DriveType;
 using vehicle_sim::dynamics::EngineConfig;
 using vehicle_sim::dynamics::FacingDirection;
 using vehicle_sim::dynamics::HandbrakeState;
+using vehicle_sim::dynamics::HovercraftConfig;
+using vehicle_sim::dynamics::HovercraftDynamics;
+using vehicle_sim::dynamics::HovercraftInput;
+using vehicle_sim::dynamics::HovercraftTelemetry;
 using vehicle_sim::dynamics::IVehicleDynamics;
 using vehicle_sim::dynamics::MonsterCarConfig;
 using vehicle_sim::dynamics::MonsterCarDynamics;
@@ -35,6 +46,10 @@ using vehicle_sim::dynamics::SideViewCarConfig;
 using vehicle_sim::dynamics::SideViewCarDynamics;
 using vehicle_sim::dynamics::SideViewCarInput;
 using vehicle_sim::dynamics::SideViewPlatform;
+using vehicle_sim::dynamics::TrackedTankConfig;
+using vehicle_sim::dynamics::TrackedTankDynamics;
+using vehicle_sim::dynamics::TrackedTankInput;
+using vehicle_sim::dynamics::TrackedTankTelemetry;
 using vehicle_sim::dynamics::TransmissionConfig;
 using vehicle_sim::dynamics::TurnaroundState;
 using vehicle_sim::math::Vec2;
@@ -1626,4 +1641,563 @@ TEST(RocketDynamicsTest, DeterministicRepeatability)
     EXPECT_DOUBLE_EQ(rocketA.getFuelMass(), rocketB.getFuelMass());
 }
 
+// -----------------------------------------------------------------------------
+// TrackedTankDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(TrackedTankDynamicsTest, DefaultConstructionAndLayout)
+{
+    const TrackedTankDynamics tank { };
+    const TrackedTankConfig& config { tank.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.mass, 12000.0);
+    EXPECT_DOUBLE_EQ(config.trackWidth, 2.4);
+    EXPECT_DOUBLE_EQ(config.maxTrackForce, 40000.0);
+    EXPECT_DOUBLE_EQ(config.maxTrackSpeed, 14.0);
+    EXPECT_DOUBLE_EQ(config.surfaceFriction, 1.0);
+    EXPECT_FALSE(tank.isAirborne());
+    EXPECT_DOUBLE_EQ(tank.getSpeed(), 0.0);
+    EXPECT_DOUBLE_EQ(tank.getYawRate(), 0.0);
+
+    const TrackedTankTelemetry& telem { tank.getTelemetry() };
+    EXPECT_FALSE(telem.isRecoiling);
+    EXPECT_DOUBLE_EQ(telem.recoilTimer, 0.0);
+}
+
+TEST(TrackedTankDynamicsTest, DualTrackStraightAcceleration)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 12000.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+
+    TrackedTankDynamics tank { };
+    TrackedTankInput input { };
+    input.leftTrack = 1.0;
+    input.rightTrack = 1.0;
+    tank.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        tank.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_NEAR(body.getLinearVelocity().y, 0.0, 1e-3);
+    EXPECT_NEAR(body.getAngularVelocity(), 0.0, 1e-3);
+    EXPECT_GT(tank.getSpeed(), 0.0);
+}
+
+TEST(TrackedTankDynamicsTest, NeutralSkidSteerRotationInPlace)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 12000.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+
+    TrackedTankDynamics tank { };
+    TrackedTankInput input { };
+    input.leftTrack = -1.0;
+    input.rightTrack = 1.0; // Counter-rotating tracks for neutral turn
+    tank.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        tank.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    // Chassis should rotate with minimal net linear displacement
+    EXPECT_GT(body.getAngularVelocity(), 0.1);
+    EXPECT_NEAR(body.getLinearVelocity().length(), 0.0, 0.5);
+    EXPECT_GT(tank.getYawRate(), 0.1);
+}
+
+TEST(TrackedTankDynamicsTest, SkidScrubbingResistanceTorque)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 12000.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+    body.setAngularVelocity(2.0); // Initial spin
+
+    TrackedTankDynamics tank { };
+    // Zero throttle commands - tracks should resist yaw rotation
+    tank.setInput(TrackedTankInput { });
+
+    constexpr double dt { 1.0 / 60.0 };
+    tank.step(body, dt);
+
+    const TrackedTankTelemetry& telem { tank.getTelemetry() };
+    // Scrubbing torque should oppose the positive yaw rotation
+    EXPECT_LT(telem.skidTorque, 0.0);
+    EXPECT_LT(body.getAccumulatedTorque(), 0.0);
+}
+
+TEST(TrackedTankDynamicsTest, CannonRecoilImpulseAndOffsetTorque)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 12000.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+
+    TrackedTankConfig config { };
+    config.turretOffset = Vec2 { 0.5, 0.5 }; // Offset from CG
+    TrackedTankDynamics tank { config };
+
+    TrackedTankInput input { };
+    input.fireRecoil = true;
+    input.turretAngle = 0.0; // Firing straight forward
+    tank.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    tank.step(body, dt);
+
+    const TrackedTankTelemetry& telem { tank.getTelemetry() };
+    EXPECT_TRUE(telem.isRecoiling);
+    EXPECT_LT(telem.recoilForce.x, 0.0); // Backward push
+    // Off-center turret offset produces rotational torque
+    EXPECT_NE(body.getAccumulatedTorque(), 0.0);
+}
+
+TEST(TrackedTankDynamicsTest, SurfaceFrictionScaling)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 12000.0;
+    bodyConfig.inertia = 25000.0;
+
+    RigidBody2D normalBody { bodyConfig };
+    RigidBody2D icyBody { bodyConfig };
+
+    TrackedTankDynamics normalTank { };
+    TrackedTankDynamics icyTank { };
+    icyTank.setSurfaceFriction(0.2); // Low friction ice
+
+    TrackedTankInput input { };
+    input.leftTrack = 1.0;
+    input.rightTrack = 1.0;
+    normalTank.setInput(input);
+    icyTank.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    normalTank.step(normalBody, dt);
+    icyTank.step(icyBody, dt);
+
+    EXPECT_GT(normalTank.getTelemetry().leftTrackForce, icyTank.getTelemetry().leftTrackForce);
+}
+
+TEST(TrackedTankDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 12000.0;
+    bodyConfig.inertia = 25000.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    TrackedTankDynamics tankA { };
+    TrackedTankDynamics tankB { };
+
+    TrackedTankInput input { };
+    input.leftTrack = 0.8;
+    input.rightTrack = -0.4;
+    tankA.setInput(input);
+    tankB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        tankA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        tankB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// AerodynamicPlaneDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(AerodynamicPlaneDynamicsTest, DefaultConstructionAndFlightProfile)
+{
+    const AerodynamicPlaneDynamics plane { };
+    const AeroPlaneConfig& config { plane.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.mass, 1800.0);
+    EXPECT_DOUBLE_EQ(config.wingArea, 16.0);
+    EXPECT_DOUBLE_EQ(config.maxThrust, 14000.0);
+    EXPECT_DOUBLE_EQ(config.stallAngle, 0.28);
+    EXPECT_TRUE(plane.isAirborne());
+    EXPECT_DOUBLE_EQ(plane.getAirspeed(), 0.0);
+    EXPECT_DOUBLE_EQ(plane.getAngleOfAttack(), 0.0);
+    EXPECT_FALSE(plane.isStalled());
+}
+
+TEST(AerodynamicPlaneDynamicsTest, ForwardThrustAndAirspeedGain)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1800.0;
+    bodyConfig.inertia = 4000.0;
+    RigidBody2D body { bodyConfig };
+
+    AeroPlaneConfig config { };
+    config.gravity = Vec2::zero(); // Isolate forward thrust
+    AerodynamicPlaneDynamics plane { config };
+
+    AeroPlaneInput input { };
+    input.throttle = 1.0;
+    plane.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        plane.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_GT(plane.getAirspeed(), 0.0);
+    EXPECT_GT(plane.getTelemetry().dynamicPressure, 0.0);
+    EXPECT_GT(plane.getTelemetry().thrustForce, 0.0);
+}
+
+TEST(AerodynamicPlaneDynamicsTest, AngleOfAttackAndLiftGeneration)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1800.0;
+    bodyConfig.inertia = 4000.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 50.0, 0.0 }); // Flying horizontally at 50 m/s (~180 km/h)
+    body.setOrientation(0.1); // Pitched nose up by 0.1 rad (~5.7 deg)
+
+    AeroPlaneConfig config { };
+    config.gravity = Vec2::zero();
+    AerodynamicPlaneDynamics plane { config };
+
+    constexpr double dt { 1.0 / 60.0 };
+    plane.step(body, dt);
+
+    const AeroPlaneTelemetry& telem { plane.getTelemetry() };
+    EXPECT_GT(telem.angleOfAttack, 0.0);
+    EXPECT_GT(telem.liftCoeff, 0.0);
+    EXPECT_GT(telem.liftForce, 0.0);
+    EXPECT_FALSE(plane.isStalled());
+}
+
+TEST(AerodynamicPlaneDynamicsTest, StallSeparationAndLiftDropoff)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1800.0;
+    bodyConfig.inertia = 4000.0;
+
+    RigidBody2D attachedBody { bodyConfig };
+    attachedBody.setLinearVelocity(Vec2 { 50.0, 0.0 });
+    attachedBody.setOrientation(0.20); // 0.20 rad < 0.28 rad stall boundary
+
+    RigidBody2D stalledBody { bodyConfig };
+    stalledBody.setLinearVelocity(Vec2 { 50.0, 0.0 });
+    stalledBody.setOrientation(0.45); // 0.45 rad > 0.28 rad critical stall angle
+
+    AeroPlaneConfig config { };
+    config.gravity = Vec2::zero();
+    AerodynamicPlaneDynamics planeAttached { config };
+    AerodynamicPlaneDynamics planeStalled { config };
+
+    constexpr double dt { 1.0 / 60.0 };
+    planeAttached.step(attachedBody, dt);
+    planeStalled.step(stalledBody, dt);
+
+    EXPECT_FALSE(planeAttached.isStalled());
+    EXPECT_TRUE(planeStalled.isStalled());
+    // Post-stall drag increases dramatically due to flow separation
+    EXPECT_GT(planeStalled.getTelemetry().dragCoeff, planeAttached.getTelemetry().dragCoeff);
+}
+
+TEST(AerodynamicPlaneDynamicsTest, ElevatorPitchAuthorityAndDamping)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1800.0;
+    bodyConfig.inertia = 4000.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 40.0, 0.0 });
+
+    AeroPlaneConfig config { };
+    config.gravity = Vec2::zero();
+    AerodynamicPlaneDynamics plane { config };
+
+    AeroPlaneInput input { };
+    input.elevator = 1.0; // Full pitch up command
+    plane.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    plane.step(body, dt);
+
+    // Dynamic pressure enables elevator pitch torque
+    EXPECT_GT(body.getAccumulatedTorque(), 0.0);
+}
+
+TEST(AerodynamicPlaneDynamicsTest, AirbrakeAndFlapDeploymentDrag)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1800.0;
+    bodyConfig.inertia = 4000.0;
+
+    RigidBody2D cleanBody { bodyConfig };
+    cleanBody.setLinearVelocity(Vec2 { 50.0, 0.0 });
+
+    RigidBody2D brakedBody { bodyConfig };
+    brakedBody.setLinearVelocity(Vec2 { 50.0, 0.0 });
+
+    AeroPlaneConfig config { };
+    config.gravity = Vec2::zero();
+    AerodynamicPlaneDynamics cleanPlane { config };
+    AerodynamicPlaneDynamics brakedPlane { config };
+
+    AeroPlaneInput brakeInput { };
+    brakeInput.flaps = 1.0;
+    brakeInput.airbrake = 1.0;
+    brakedPlane.setInput(brakeInput);
+
+    constexpr double dt { 1.0 / 60.0 };
+    cleanPlane.step(cleanBody, dt);
+    brakedPlane.step(brakedBody, dt);
+
+    EXPECT_GT(brakedPlane.getTelemetry().dragCoeff, cleanPlane.getTelemetry().dragCoeff);
+    EXPECT_GT(brakedPlane.getTelemetry().liftCoeff, cleanPlane.getTelemetry().liftCoeff);
+}
+
+TEST(AerodynamicPlaneDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1800.0;
+    bodyConfig.inertia = 4000.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+    bodyA.setLinearVelocity(Vec2 { 30.0, 5.0 });
+    bodyB.setLinearVelocity(Vec2 { 30.0, 5.0 });
+
+    AerodynamicPlaneDynamics planeA { };
+    AerodynamicPlaneDynamics planeB { };
+
+    AeroPlaneInput input { };
+    input.throttle = 0.8;
+    input.elevator = 0.25;
+    input.flaps = 0.5;
+    planeA.setInput(input);
+    planeB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        planeA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        planeB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// HovercraftDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(HovercraftDynamicsTest, DefaultConstructionAndHoverProfile)
+{
+    const HovercraftDynamics hovercraft { };
+    const HovercraftConfig& config { hovercraft.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.mass, 1200.0);
+    EXPECT_DOUBLE_EQ(config.hoverHeight, 0.35);
+    EXPECT_DOUBLE_EQ(config.maxThrust, 6000.0);
+    EXPECT_DOUBLE_EQ(hovercraft.getSpeed(), 0.0);
+    EXPECT_DOUBLE_EQ(hovercraft.getDriftSpeed(), 0.0);
+    EXPECT_DOUBLE_EQ(hovercraft.getRudderAngle(), 0.0);
+    EXPECT_TRUE(hovercraft.isHovering());
+}
+
+TEST(HovercraftDynamicsTest, AirCushionSuspensionEquilibrium)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2800.0;
+    RigidBody2D body { bodyConfig };
+
+    HovercraftDynamics hovercraft { };
+    HovercraftInput input { };
+    input.liftFanActive = true;
+    input.groundDistance = 0.20; // Cushion compressed below 0.35 m
+    hovercraft.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    hovercraft.step(body, dt);
+
+    const HovercraftTelemetry& telem { hovercraft.getTelemetry() };
+    EXPECT_GT(telem.cushionForce, 0.0);
+    EXPECT_TRUE(telem.isHovering);
+    EXPECT_FALSE(telem.isSkirtScraping);
+}
+
+TEST(HovercraftDynamicsTest, LiftFanPowerOffSkirtDrag)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2800.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 10.0, 0.0 });
+
+    HovercraftDynamics hovercraft { };
+    HovercraftInput input { };
+    input.liftFanActive = false; // Cushion deflated
+    hovercraft.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    hovercraft.step(body, dt);
+
+    const HovercraftTelemetry& telem { hovercraft.getTelemetry() };
+    EXPECT_DOUBLE_EQ(telem.cushionForce, 0.0);
+    EXPECT_FALSE(telem.isHovering);
+    EXPECT_TRUE(telem.isSkirtScraping);
+    // Skirt dragging friction opposes forward motion
+    EXPECT_LT(body.getAccumulatedForce().x, 0.0);
+}
+
+TEST(HovercraftDynamicsTest, VectoredThrustAndRudderYawTorque)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2800.0;
+    RigidBody2D body { bodyConfig };
+
+    HovercraftDynamics hovercraft { };
+    HovercraftInput input { };
+    input.throttle = 1.0;
+    input.steering = 1.0; // Turn rudder
+    hovercraft.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    hovercraft.step(body, dt);
+
+    const HovercraftTelemetry& telem { hovercraft.getTelemetry() };
+    EXPECT_GT(telem.thrustForce, 0.0);
+    EXPECT_GT(hovercraft.getRudderAngle(), 0.0);
+    // Rear fan offset + deflected thrust produces turning torque
+    EXPECT_NE(body.getAccumulatedTorque(), 0.0);
+}
+
+TEST(HovercraftDynamicsTest, LowFrictionHighMomentumDrifting)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2800.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 0.0, 15.0 }); // Pure sideways drift
+
+    HovercraftDynamics hovercraft { };
+    HovercraftInput input { };
+    input.liftFanActive = true;
+    input.groundDistance = 0.35; // Perfect hover cushion
+    hovercraft.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    hovercraft.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    // Hovercraft retains high lateral speed due to low drift friction
+    EXPECT_GT(body.getLinearVelocity().y, 14.0);
+    EXPECT_GT(hovercraft.getDriftSpeed(), 14.0);
+}
+
+TEST(HovercraftDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2800.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    HovercraftDynamics hoverA { };
+    HovercraftDynamics hoverB { };
+
+    HovercraftInput input { };
+    input.throttle = 0.7;
+    input.steering = 0.3;
+    input.groundDistance = 0.30;
+    hoverA.setInput(input);
+    hoverB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        hoverA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        hoverB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// Seven-Way Swappable Coordinator Polymorphism Tests
+// -----------------------------------------------------------------------------
+
+TEST(VehicleDynamicsCoordinatorTest, AllSevenDynamicsModelsPolymorphicSwapping)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2000.0;
+    bodyConfig.inertia = 3500.0;
+    RigidBody2D sharedBody { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+
+    std::unique_ptr<IVehicleDynamics> models[7] {
+        std::make_unique<ArcadeCarDynamics>(),
+        std::make_unique<MonsterCarDynamics>(),
+        std::make_unique<SideViewCarDynamics>(),
+        std::make_unique<RocketDynamics>(),
+        std::make_unique<TrackedTankDynamics>(),
+        std::make_unique<AerodynamicPlaneDynamics>(),
+        std::make_unique<HovercraftDynamics>()
+    };
+
+    for (auto& coordinator : models) {
+        ASSERT_NE(coordinator, nullptr);
+        coordinator->reset();
+        coordinator->step(sharedBody, dt);
+        Integrator2D::integrate(sharedBody, dt);
+        sharedBody.clearForces();
+    }
+}
+
 } // namespace vehicle_sim::testing
+

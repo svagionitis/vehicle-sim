@@ -24,6 +24,12 @@ add_library(VehicleSimCore STATIC
     dynamics/SideViewCarDynamics.cpp
     dynamics/RocketDynamics.h
     dynamics/RocketDynamics.cpp
+    dynamics/TrackedTankDynamics.h
+    dynamics/TrackedTankDynamics.cpp
+    dynamics/AerodynamicPlaneDynamics.h
+    dynamics/AerodynamicPlaneDynamics.cpp
+    dynamics/HovercraftDynamics.h
+    dynamics/HovercraftDynamics.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
