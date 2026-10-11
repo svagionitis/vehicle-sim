@@ -5,12 +5,15 @@
 
 #include "libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h"
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/HelicopterDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
+#include "libs/VehicleSimCore/dynamics/TrialsBikeDynamics.h"
+#include "libs/VehicleSimCore/dynamics/WatercraftDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 
@@ -27,6 +30,10 @@ using vehicle_sim::dynamics::DriveType;
 using vehicle_sim::dynamics::EngineConfig;
 using vehicle_sim::dynamics::FacingDirection;
 using vehicle_sim::dynamics::HandbrakeState;
+using vehicle_sim::dynamics::HelicopterConfig;
+using vehicle_sim::dynamics::HelicopterDynamics;
+using vehicle_sim::dynamics::HelicopterInput;
+using vehicle_sim::dynamics::HelicopterTelemetry;
 using vehicle_sim::dynamics::HovercraftConfig;
 using vehicle_sim::dynamics::HovercraftDynamics;
 using vehicle_sim::dynamics::HovercraftInput;
@@ -51,7 +58,15 @@ using vehicle_sim::dynamics::TrackedTankDynamics;
 using vehicle_sim::dynamics::TrackedTankInput;
 using vehicle_sim::dynamics::TrackedTankTelemetry;
 using vehicle_sim::dynamics::TransmissionConfig;
+using vehicle_sim::dynamics::TrialsBikeConfig;
+using vehicle_sim::dynamics::TrialsBikeDynamics;
+using vehicle_sim::dynamics::TrialsBikeInput;
+using vehicle_sim::dynamics::TrialsBikeTelemetry;
 using vehicle_sim::dynamics::TurnaroundState;
+using vehicle_sim::dynamics::WatercraftConfig;
+using vehicle_sim::dynamics::WatercraftDynamics;
+using vehicle_sim::dynamics::WatercraftInput;
+using vehicle_sim::dynamics::WatercraftTelemetry;
 using vehicle_sim::math::Vec2;
 using vehicle_sim::physics::Integrator2D;
 using vehicle_sim::physics::RigidBody2D;
@@ -2168,10 +2183,560 @@ TEST(HovercraftDynamicsTest, DeterministicRepeatability)
 }
 
 // -----------------------------------------------------------------------------
-// Seven-Way Swappable Coordinator Polymorphism Tests
+// WatercraftDynamics Tests
 // -----------------------------------------------------------------------------
 
-TEST(VehicleDynamicsCoordinatorTest, AllSevenDynamicsModelsPolymorphicSwapping)
+TEST(WatercraftDynamicsTest, DefaultConstructionAndWaterline)
+{
+    const WatercraftDynamics boat { };
+    const WatercraftConfig& config { boat.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.mass, 1500.0);
+    EXPECT_DOUBLE_EQ(config.draft, 0.6);
+    EXPECT_DOUBLE_EQ(config.waterlineY, 0.0);
+    EXPECT_DOUBLE_EQ(config.maxPropellerThrust, 8500.0);
+    EXPECT_DOUBLE_EQ(boat.getSpeed(), 0.0);
+    EXPECT_DOUBLE_EQ(boat.getRudderAngle(), 0.0);
+    EXPECT_FALSE(boat.isPlaning());
+    EXPECT_FALSE(boat.isAirborne());
+    EXPECT_TRUE(boat.isSubmerged());
+}
+
+TEST(WatercraftDynamicsTest, ArchimedesBuoyancyAndHeaveEquilibrium)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1500.0;
+    bodyConfig.inertia = 3200.0;
+    bodyConfig.position = Vec2 { 0.0, -0.6 }; // Settled at draft depth
+    RigidBody2D body { bodyConfig };
+
+    WatercraftDynamics boat { };
+    constexpr double dt { 1.0 / 60.0 };
+    boat.step(body, dt);
+
+    const WatercraftTelemetry& telem { boat.getTelemetry() };
+    EXPECT_GT(telem.buoyancyForce, 0.0);
+    EXPECT_TRUE(telem.isSubmerged);
+    // At equilibrium draft, buoyancy balances vehicle gravity
+    EXPECT_NEAR(telem.buoyancyForce, bodyConfig.mass * 9.80665, 10.0);
+}
+
+TEST(WatercraftDynamicsTest, PlaningModeHydrodynamicLift)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1500.0;
+    bodyConfig.inertia = 3200.0;
+    bodyConfig.position = Vec2 { 0.0, -0.4 };
+
+    RigidBody2D slowBody { bodyConfig };
+    slowBody.setLinearVelocity(Vec2 { 4.0, 0.0 }); // 4 m/s < 6 m/s planing threshold
+
+    RigidBody2D fastBody { bodyConfig };
+    fastBody.setLinearVelocity(Vec2 { 14.0, 0.0 }); // 14 m/s > 6 m/s planing threshold
+
+    WatercraftDynamics slowBoat { };
+    WatercraftDynamics fastBoat { };
+
+    constexpr double dt { 1.0 / 60.0 };
+    slowBoat.step(slowBody, dt);
+    fastBoat.step(fastBody, dt);
+
+    EXPECT_FALSE(slowBoat.isPlaning());
+    EXPECT_TRUE(fastBoat.isPlaning());
+    EXPECT_GT(fastBoat.getTelemetry().planingLift, 0.0);
+}
+
+TEST(WatercraftDynamicsTest, WaterRudderPropellerThrustVectoring)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1500.0;
+    bodyConfig.inertia = 3200.0;
+    bodyConfig.position = Vec2 { 0.0, -0.5 };
+    RigidBody2D body { bodyConfig };
+
+    WatercraftDynamics boat { };
+    WatercraftInput input { };
+    input.throttle = 1.0;
+    input.rudder = 1.0; // Steer rudder hard over
+    boat.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    boat.step(body, dt);
+
+    const WatercraftTelemetry& telem { boat.getTelemetry() };
+    EXPECT_GT(telem.thrustForce, 0.0);
+    EXPECT_GT(boat.getRudderAngle(), 0.0);
+    // Deflected rudder at stern offset produces turning moment
+    EXPECT_NE(body.getAccumulatedTorque(), 0.0);
+}
+
+TEST(WatercraftDynamicsTest, WaveJumpingAirborneDetachment)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1500.0;
+    bodyConfig.inertia = 3200.0;
+    bodyConfig.position = Vec2 { 0.0, 1.5 }; // Flown completely out of water
+    RigidBody2D body { bodyConfig };
+
+    WatercraftDynamics boat { };
+    WatercraftInput input { };
+    input.throttle = 1.0;
+    boat.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    boat.step(body, dt);
+
+    const WatercraftTelemetry& telem { boat.getTelemetry() };
+    EXPECT_TRUE(boat.isAirborne());
+    EXPECT_FALSE(telem.isSubmerged);
+    EXPECT_DOUBLE_EQ(telem.buoyancyForce, 0.0);
+    // Propeller ventilates with minimal thrust outside water
+    EXPECT_LT(telem.thrustForce, boat.getConfig().maxPropellerThrust * 0.1);
+}
+
+TEST(WatercraftDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1500.0;
+    bodyConfig.inertia = 3200.0;
+    bodyConfig.position = Vec2 { 0.0, -0.5 };
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    WatercraftDynamics boatA { };
+    WatercraftDynamics boatB { };
+
+    WatercraftInput input { };
+    input.throttle = 0.8;
+    input.rudder = 0.35;
+    boatA.setInput(input);
+    boatB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        boatA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        boatB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// TrialsBikeDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(TrialsBikeDynamicsTest, DefaultConstructionAndGeometry)
+{
+    const TrialsBikeDynamics bike { };
+    const TrialsBikeConfig& config { bike.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.mass, 110.0);
+    EXPECT_DOUBLE_EQ(config.riderMass, 75.0);
+    EXPECT_DOUBLE_EQ(config.wheelbase, 1.35);
+    EXPECT_DOUBLE_EQ(bike.getSpeed(), 0.0);
+    EXPECT_FALSE(bike.isWheelie());
+    EXPECT_FALSE(bike.isStoppie());
+    EXPECT_FALSE(bike.isAirborne());
+}
+
+TEST(TrialsBikeDynamicsTest, FrontAndRearSuspensionCompression)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 185.0;
+    bodyConfig.inertia = 65.0;
+    RigidBody2D body { bodyConfig };
+
+    TrialsBikeDynamics bike { };
+    TrialsBikeInput input { };
+    input.groundDistanceFront = 0.20; // Compressed by 0.15m below 0.35m radius
+    input.groundDistanceRear = 0.20;
+    bike.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    bike.step(body, dt);
+
+    const TrialsBikeTelemetry& telem { bike.getTelemetry() };
+    EXPECT_GT(telem.frontNormalForce, 0.0);
+    EXPECT_GT(telem.rearNormalForce, 0.0);
+    EXPECT_TRUE(telem.frontContact);
+    EXPECT_TRUE(telem.rearContact);
+    EXPECT_FALSE(bike.isAirborne());
+}
+
+TEST(TrialsBikeDynamicsTest, RiderWeightLeanGeneratesWheelieAndStoppie)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 185.0;
+    bodyConfig.inertia = 65.0;
+
+    // Test Wheelie: lean backward lifts front wheel
+    RigidBody2D wheelieBody { bodyConfig };
+    TrialsBikeDynamics wheelieBike { };
+    TrialsBikeInput wheelieInput { };
+    wheelieInput.riderLean = -1.0; // Hard lean backward
+    wheelieInput.groundDistanceFront = 0.40; // Front wheel unloaded above ground
+    wheelieInput.groundDistanceRear = 0.25; // Rear wheel compressed
+    wheelieBike.setInput(wheelieInput);
+
+    constexpr double dt { 1.0 / 60.0 };
+    wheelieBike.step(wheelieBody, dt);
+
+    EXPECT_TRUE(wheelieBike.isWheelie());
+    EXPECT_FALSE(wheelieBike.isStoppie());
+    EXPECT_FALSE(wheelieBike.isAirborne());
+
+    // Test Stoppie: lean forward lifts rear wheel
+    RigidBody2D stoppieBody { bodyConfig };
+    TrialsBikeDynamics stoppieBike { };
+    TrialsBikeInput stoppieInput { };
+    stoppieInput.riderLean = 1.0; // Hard lean forward
+    stoppieInput.groundDistanceFront = 0.25; // Front wheel compressed
+    stoppieInput.groundDistanceRear = 0.40; // Rear wheel unloaded
+    stoppieBike.setInput(stoppieInput);
+
+    stoppieBike.step(stoppieBody, dt);
+
+    EXPECT_TRUE(stoppieBike.isStoppie());
+    EXPECT_FALSE(stoppieBike.isWheelie());
+    EXPECT_FALSE(stoppieBike.isAirborne());
+}
+
+TEST(TrialsBikeDynamicsTest, InAirWheelAngularMomentumReaction)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 185.0;
+    bodyConfig.inertia = 65.0;
+
+    RigidBody2D gasBody { bodyConfig };
+    RigidBody2D brakeBody { bodyConfig };
+
+    TrialsBikeDynamics gasBike { };
+    TrialsBikeDynamics brakeBike { };
+
+    TrialsBikeInput gasInput { };
+    gasInput.groundDistanceFront = 1.0; // Airborne
+    gasInput.groundDistanceRear = 1.0;
+    gasInput.throttle = 1.0; // Full throttle rev in air
+
+    TrialsBikeInput brakeInput { };
+    brakeInput.groundDistanceFront = 1.0; // Airborne
+    brakeInput.groundDistanceRear = 1.0;
+    brakeInput.rearBrake = 1.0; // Full rear brake in air
+
+    gasBike.setInput(gasInput);
+    brakeBike.setInput(brakeInput);
+
+    constexpr double dt { 1.0 / 60.0 };
+    gasBike.step(gasBody, dt);
+    brakeBike.step(brakeBody, dt);
+
+    EXPECT_TRUE(gasBike.isAirborne());
+    EXPECT_TRUE(brakeBike.isAirborne());
+    // Throttle in air pitches chassis backward (nose up > 0)
+    EXPECT_GT(gasBody.getAccumulatedTorque(), 0.0);
+    // Rear brake in air pitches chassis forward (nose down < 0)
+    EXPECT_LT(brakeBody.getAccumulatedTorque(), 0.0);
+}
+
+TEST(TrialsBikeDynamicsTest, RearWheelDriveAcceleration)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 185.0;
+    bodyConfig.inertia = 65.0;
+    RigidBody2D body { bodyConfig };
+
+    TrialsBikeDynamics bike { };
+    TrialsBikeInput input { };
+    input.groundDistanceFront = 0.30;
+    input.groundDistanceRear = 0.30;
+    input.throttle = 1.0;
+    bike.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        bike.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_GT(bike.getSpeed(), 0.0);
+}
+
+TEST(TrialsBikeDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 185.0;
+    bodyConfig.inertia = 65.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    TrialsBikeDynamics bikeA { };
+    TrialsBikeDynamics bikeB { };
+
+    TrialsBikeInput input { };
+    input.throttle = 0.75;
+    input.riderLean = -0.3;
+    input.groundDistanceFront = 0.30;
+    input.groundDistanceRear = 0.28;
+    bikeA.setInput(input);
+    bikeB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        bikeA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        bikeB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// HelicopterDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(HelicopterDynamicsTest, DefaultConstructionAndRotorProfile)
+{
+    const HelicopterDynamics heli { };
+    const HelicopterConfig& config { heli.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.mass, 2200.0);
+    EXPECT_DOUBLE_EQ(config.maxRotorRpm, 420.0);
+    EXPECT_DOUBLE_EQ(config.maxCollectiveThrust, 32000.0);
+    EXPECT_DOUBLE_EQ(heli.getRotorSpeed(), 420.0);
+    EXPECT_FALSE(heli.isAutorotating());
+    EXPECT_TRUE(heli.isAirborne());
+}
+
+TEST(HelicopterDynamicsTest, CollectivePitchVerticalClimb)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+    RigidBody2D body { bodyConfig };
+
+    HelicopterDynamics heli { };
+    HelicopterInput input { };
+    input.collective = 1.0; // Maximum collective climb
+    input.groundDistance = 15.0; // Free air out of ground effect
+    heli.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        heli.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    // Collective thrust exceeds gravity, climbing upward
+    EXPECT_GT(body.getLinearVelocity().y, 0.0);
+    EXPECT_GT(heli.getTelemetry().climbRate, 0.0);
+    EXPECT_GT(heli.getTelemetry().rotorThrust, 2200.0 * 9.80665);
+}
+
+TEST(HelicopterDynamicsTest, InGroundEffectThrustAugmentation)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+
+    RigidBody2D igeBody { bodyConfig };
+    RigidBody2D ogeBody { bodyConfig };
+
+    HelicopterDynamics igeHeli { };
+    HelicopterDynamics ogeHeli { };
+
+    HelicopterInput igeInput { };
+    igeInput.collective = 0.7;
+    igeInput.groundDistance = 1.5; // Within 6m ground cushion
+
+    HelicopterInput ogeInput { };
+    ogeInput.collective = 0.7;
+    ogeInput.groundDistance = 20.0; // High altitude out-of-ground effect
+
+    igeHeli.setInput(igeInput);
+    ogeHeli.setInput(ogeInput);
+
+    constexpr double dt { 1.0 / 60.0 };
+    igeHeli.step(igeBody, dt);
+    ogeHeli.step(ogeBody, dt);
+
+    EXPECT_TRUE(igeHeli.getTelemetry().isGroundEffect);
+    EXPECT_FALSE(ogeHeli.getTelemetry().isGroundEffect);
+    // In-ground effect cushions and amplifies rotor thrust
+    EXPECT_GT(igeHeli.getTelemetry().rotorThrust, ogeHeli.getTelemetry().rotorThrust);
+}
+
+TEST(HelicopterDynamicsTest, EffectiveTranslationalLiftSpeedBoost)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+
+    RigidBody2D hoverBody { bodyConfig };
+    hoverBody.setLinearVelocity(Vec2 { 0.0, 0.0 });
+
+    RigidBody2D forwardBody { bodyConfig };
+    forwardBody.setLinearVelocity(Vec2 { 18.0, 0.0 }); // 18 m/s > 8 m/s ETL threshold
+
+    HelicopterDynamics hoverHeli { };
+    HelicopterDynamics forwardHeli { };
+
+    HelicopterInput input { };
+    input.collective = 0.8;
+    input.groundDistance = 20.0;
+    hoverHeli.setInput(input);
+    forwardHeli.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    hoverHeli.step(hoverBody, dt);
+    forwardHeli.step(forwardBody, dt);
+
+    EXPECT_FALSE(hoverHeli.getTelemetry().isTranslationalLift);
+    EXPECT_TRUE(forwardHeli.getTelemetry().isTranslationalLift);
+    EXPECT_GT(forwardHeli.getTelemetry().rotorThrust, hoverHeli.getTelemetry().rotorThrust);
+}
+
+TEST(HelicopterDynamicsTest, CyclicPitchStickTiltMoments)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+    RigidBody2D body { bodyConfig };
+
+    HelicopterDynamics heli { };
+    HelicopterInput input { };
+    input.collective = 0.8;
+    input.cyclicPitch = 1.0; // Push stick forward (nose down)
+    heli.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    heli.step(body, dt);
+
+    // Pushing stick forward generates pitch torque and forward thrust vectoring
+    EXPECT_LT(body.getAccumulatedTorque(), 0.0);
+    EXPECT_GT(body.getAccumulatedForce().x, 0.0);
+}
+
+TEST(HelicopterDynamicsTest, TailRotorAntiTorqueBalance)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+
+    RigidBody2D pedalLeft { bodyConfig };
+    RigidBody2D pedalRight { bodyConfig };
+
+    HelicopterDynamics heliLeft { };
+    HelicopterDynamics heliRight { };
+
+    HelicopterInput inputLeft { };
+    inputLeft.collective = 0.7;
+    inputLeft.rudder = -1.0;
+
+    HelicopterInput inputRight { };
+    inputRight.collective = 0.7;
+    inputRight.rudder = 1.0;
+
+    heliLeft.setInput(inputLeft);
+    heliRight.setInput(inputRight);
+
+    constexpr double dt { 1.0 / 60.0 };
+    heliLeft.step(pedalLeft, dt);
+    heliRight.step(pedalRight, dt);
+
+    EXPECT_NE(pedalLeft.getAccumulatedTorque(), pedalRight.getAccumulatedTorque());
+}
+
+TEST(HelicopterDynamicsTest, EngineFlameoutAutorotationDescent)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 0.0, -12.0 }); // Descending through air
+
+    HelicopterDynamics heli { };
+    HelicopterInput input { };
+    input.enginePower = false; // Turboshaft engine failure
+    input.collective = 0.3;
+    heli.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    heli.step(body, dt);
+
+    EXPECT_TRUE(heli.isAutorotating());
+    // Upward airflow in autorotation descent sustains rotor RPM
+    EXPECT_GT(heli.getRotorSpeed(), 100.0);
+}
+
+TEST(HelicopterDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 2200.0;
+    bodyConfig.inertia = 4800.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    HelicopterDynamics heliA { };
+    HelicopterDynamics heliB { };
+
+    HelicopterInput input { };
+    input.collective = 0.85;
+    input.cyclicPitch = 0.25;
+    input.rudder = 0.15;
+    input.groundDistance = 8.0;
+    heliA.setInput(input);
+    heliB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        heliA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        heliB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+    EXPECT_DOUBLE_EQ(heliA.getRotorSpeed(), heliB.getRotorSpeed());
+}
+
+// -----------------------------------------------------------------------------
+// Ten-Way Swappable Coordinator Polymorphism Tests
+// -----------------------------------------------------------------------------
+
+TEST(VehicleDynamicsCoordinatorTest, AllTenDynamicsModelsPolymorphicSwapping)
 {
     RigidBodyConfig bodyConfig { };
     bodyConfig.mass = 2000.0;
@@ -2180,14 +2745,17 @@ TEST(VehicleDynamicsCoordinatorTest, AllSevenDynamicsModelsPolymorphicSwapping)
 
     constexpr double dt { 1.0 / 60.0 };
 
-    std::unique_ptr<IVehicleDynamics> models[7] {
+    std::unique_ptr<IVehicleDynamics> models[10] {
         std::make_unique<ArcadeCarDynamics>(),
         std::make_unique<MonsterCarDynamics>(),
         std::make_unique<SideViewCarDynamics>(),
         std::make_unique<RocketDynamics>(),
         std::make_unique<TrackedTankDynamics>(),
         std::make_unique<AerodynamicPlaneDynamics>(),
-        std::make_unique<HovercraftDynamics>()
+        std::make_unique<HovercraftDynamics>(),
+        std::make_unique<WatercraftDynamics>(),
+        std::make_unique<TrialsBikeDynamics>(),
+        std::make_unique<HelicopterDynamics>()
     };
 
     for (auto& coordinator : models) {
@@ -2200,4 +2768,5 @@ TEST(VehicleDynamicsCoordinatorTest, AllSevenDynamicsModelsPolymorphicSwapping)
 }
 
 } // namespace vehicle_sim::testing
+
 

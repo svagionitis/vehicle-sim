@@ -30,6 +30,12 @@ add_library(VehicleSimCore STATIC
     dynamics/AerodynamicPlaneDynamics.cpp
     dynamics/HovercraftDynamics.h
     dynamics/HovercraftDynamics.cpp
+    dynamics/WatercraftDynamics.h
+    dynamics/WatercraftDynamics.cpp
+    dynamics/TrialsBikeDynamics.h
+    dynamics/TrialsBikeDynamics.cpp
+    dynamics/HelicopterDynamics.h
+    dynamics/HelicopterDynamics.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
