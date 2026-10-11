@@ -7,6 +7,14 @@ add_library(VehicleSimCore STATIC
     math/Mat2.cpp
     math/Transform2D.h
     math/Transform2D.cpp
+    physics/RigidBody2D.h
+    physics/RigidBody2D.cpp
+    physics/Integrator2D.h
+    physics/Integrator2D.cpp
+    physics/ContactSolver2D.h
+    physics/ContactSolver2D.cpp
+    physics/PhysicsWorld2D.h
+    physics/PhysicsWorld2D.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
