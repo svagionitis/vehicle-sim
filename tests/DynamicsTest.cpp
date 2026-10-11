@@ -4,13 +4,16 @@
 #include <memory>
 
 #include "libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h"
+#include "libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h"
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HelicopterDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/SubmarineDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrialsBikeDynamics.h"
 #include "libs/VehicleSimCore/dynamics/WatercraftDynamics.h"
@@ -23,9 +26,17 @@ using vehicle_sim::dynamics::AeroPlaneConfig;
 using vehicle_sim::dynamics::AeroPlaneInput;
 using vehicle_sim::dynamics::AeroPlaneTelemetry;
 using vehicle_sim::dynamics::AerodynamicPlaneDynamics;
+using vehicle_sim::dynamics::AntiGravityConfig;
+using vehicle_sim::dynamics::AntiGravityInput;
+using vehicle_sim::dynamics::AntiGravityRacerDynamics;
+using vehicle_sim::dynamics::AntiGravityTelemetry;
 using vehicle_sim::dynamics::ArcadeCarConfig;
 using vehicle_sim::dynamics::ArcadeCarDynamics;
 using vehicle_sim::dynamics::ArcadeCarInput;
+using vehicle_sim::dynamics::ArticulatedTruckConfig;
+using vehicle_sim::dynamics::ArticulatedTruckDynamics;
+using vehicle_sim::dynamics::ArticulatedTruckInput;
+using vehicle_sim::dynamics::ArticulatedTruckTelemetry;
 using vehicle_sim::dynamics::DriveType;
 using vehicle_sim::dynamics::EngineConfig;
 using vehicle_sim::dynamics::FacingDirection;
@@ -53,6 +64,10 @@ using vehicle_sim::dynamics::SideViewCarConfig;
 using vehicle_sim::dynamics::SideViewCarDynamics;
 using vehicle_sim::dynamics::SideViewCarInput;
 using vehicle_sim::dynamics::SideViewPlatform;
+using vehicle_sim::dynamics::SubmarineConfig;
+using vehicle_sim::dynamics::SubmarineDynamics;
+using vehicle_sim::dynamics::SubmarineInput;
+using vehicle_sim::dynamics::SubmarineTelemetry;
 using vehicle_sim::dynamics::TrackedTankConfig;
 using vehicle_sim::dynamics::TrackedTankDynamics;
 using vehicle_sim::dynamics::TrackedTankInput;
@@ -2733,10 +2748,526 @@ TEST(HelicopterDynamicsTest, DeterministicRepeatability)
 }
 
 // -----------------------------------------------------------------------------
-// Ten-Way Swappable Coordinator Polymorphism Tests
+// SubmarineDynamics Tests
 // -----------------------------------------------------------------------------
 
-TEST(VehicleDynamicsCoordinatorTest, AllTenDynamicsModelsPolymorphicSwapping)
+TEST(SubmarineDynamicsTest, DefaultConstructionAndBuoyancyProfile)
+{
+    SubmarineConfig config { };
+    SubmarineDynamics sub { config };
+
+    EXPECT_DOUBLE_EQ(sub.getConfig().dryMass, 45000.0);
+    EXPECT_DOUBLE_EQ(sub.getBallastMass(), 7000.0);
+    EXPECT_DOUBLE_EQ(sub.getTelemetry().totalMass, 52000.0);
+    EXPECT_DOUBLE_EQ(sub.getDepth(), 0.0);
+    EXPECT_FALSE(sub.isSubmerged());
+    EXPECT_TRUE(sub.isAirborne());
+    EXPECT_FALSE(sub.isCrushed());
+}
+
+TEST(SubmarineDynamicsTest, BallastFloodingIncreasesMassAndDecreasesNetBuoyancy)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 52000.0;
+    bodyConfig.inertia = 120000.0;
+    bodyConfig.position = Vec2 { 0.0, -10.0 }; // Deep underwater
+    RigidBody2D body { bodyConfig };
+
+    SubmarineDynamics sub { };
+    SubmarineInput input { };
+    input.floodRate = 1.0;
+    sub.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        sub.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(sub.isSubmerged());
+    EXPECT_FALSE(sub.isAirborne());
+    EXPECT_GT(sub.getBallastMass(), 7000.0);
+    EXPECT_GT(sub.getTelemetry().totalMass, 52000.0);
+    EXPECT_LT(sub.getNetBuoyancy(), 0.0); // Negative net buoyancy causes sinking
+    EXPECT_LT(body.getLinearVelocity().y, 0.0);
+}
+
+TEST(SubmarineDynamicsTest, BallastBlowingRestoresPositiveBuoyancyAndAscent)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 52000.0;
+    bodyConfig.inertia = 120000.0;
+    bodyConfig.position = Vec2 { 0.0, -25.0 }; // Submerged
+    RigidBody2D body { bodyConfig };
+
+    SubmarineDynamics sub { };
+    SubmarineInput input { };
+    input.blowRate = 1.0; // Blow air into tanks, expelling water
+    sub.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        sub.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(sub.getBallastMass(), 7000.0);
+    EXPECT_GT(sub.getNetBuoyancy(), 0.0); // Positive buoyancy produces upward buoyant force
+    EXPECT_GT(body.getLinearVelocity().y, 0.0);
+}
+
+TEST(SubmarineDynamicsTest, HydrofoilDivePlanePitchAndDepthControl)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 52000.0;
+    bodyConfig.inertia = 120000.0;
+    bodyConfig.position = Vec2 { 0.0, -50.0 };
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 8.0, 0.0 }); // Cruising forward underwater
+
+    SubmarineDynamics sub { };
+    SubmarineInput input { };
+    input.throttle = 0.5;
+    input.divePlane = 1.0; // Bow planes angled up
+    sub.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 30; ++step) {
+        sub.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(sub.getTelemetry().divePlaneAngle, 0.0);
+    EXPECT_GT(body.getAccumulatedTorque() + body.getAngularVelocity(), 0.0);
+}
+
+TEST(SubmarineDynamicsTest, ScrewPropellerThrustAndWaterRudderYawMoments)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 52000.0;
+    bodyConfig.inertia = 120000.0;
+    bodyConfig.position = Vec2 { 0.0, -30.0 };
+    RigidBody2D body { bodyConfig };
+
+    SubmarineDynamics sub { };
+    SubmarineInput input { };
+    input.throttle = 1.0;
+    input.rudder = 0.75;
+    sub.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        sub.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_NE(body.getAngularVelocity(), 0.0);
+    EXPECT_GT(sub.getTelemetry().thrustForce, 0.0);
+}
+
+TEST(SubmarineDynamicsTest, CrushDepthWarning)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 52000.0;
+    bodyConfig.inertia = 120000.0;
+    bodyConfig.position = Vec2 { 0.0, -500.0 }; // Exceeds 450m crush depth
+    RigidBody2D body { bodyConfig };
+
+    SubmarineDynamics sub { };
+    constexpr double dt { 1.0 / 60.0 };
+    sub.step(body, dt);
+
+    EXPECT_TRUE(sub.isSubmerged());
+    EXPECT_TRUE(sub.isCrushed());
+    EXPECT_GE(sub.getDepth(), 450.0);
+}
+
+TEST(SubmarineDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 52000.0;
+    bodyConfig.inertia = 120000.0;
+    bodyConfig.position = Vec2 { 0.0, -40.0 };
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    SubmarineDynamics subA { };
+    SubmarineDynamics subB { };
+
+    SubmarineInput input { };
+    input.throttle = 0.75;
+    input.rudder = 0.2;
+    input.divePlane = -0.15;
+    input.floodRate = 0.1;
+    subA.setInput(input);
+    subB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        subA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        subB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+    EXPECT_DOUBLE_EQ(subA.getBallastMass(), subB.getBallastMass());
+}
+
+// -----------------------------------------------------------------------------
+// AntiGravityRacerDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(AntiGravityRacerDynamicsTest, DefaultConstructionAndMaglevProfile)
+{
+    AntiGravityConfig config { };
+    AntiGravityRacerDynamics racer { config };
+
+    EXPECT_DOUBLE_EQ(racer.getConfig().mass, 1050.0);
+    EXPECT_DOUBLE_EQ(racer.getRideHeight(), config.targetRideHeight);
+    EXPECT_DOUBLE_EQ(racer.getBoostEnergy(), config.maxBoostEnergy);
+    EXPECT_TRUE(racer.isLevitating());
+    EXPECT_FALSE(racer.isAirborne());
+    EXPECT_FALSE(racer.isBoostActive());
+    EXPECT_FALSE(racer.isDrifting());
+}
+
+TEST(AntiGravityRacerDynamicsTest, MagneticLevitationRepulsionRestoresTargetRideHeight)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1050.0;
+    bodyConfig.inertia = 1800.0;
+    RigidBody2D body { bodyConfig };
+
+    AntiGravityRacerDynamics racer { };
+    AntiGravityInput input { };
+    input.trackDistance = 0.5; // Compressed track clearance below 1.2m target
+    racer.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    racer.step(body, dt);
+
+    EXPECT_TRUE(racer.isLevitating());
+    EXPECT_GT(racer.getTelemetry().suspensionForce, 0.0);
+    // Accumulated upward repulsion exceeds gravity
+    EXPECT_GT(body.getAccumulatedForce().y, 0.0);
+}
+
+TEST(AntiGravityRacerDynamicsTest, DifferentialAirbrakesCreateRetardingDragAndSharpYawTorque)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1050.0;
+    bodyConfig.inertia = 1800.0;
+    RigidBody2D bodyLeft { bodyConfig };
+    bodyLeft.setLinearVelocity(Vec2 { 60.0, 0.0 }); // High speed straight
+    RigidBody2D bodyRight { bodyConfig };
+    bodyRight.setLinearVelocity(Vec2 { 60.0, 0.0 });
+
+    AntiGravityRacerDynamics racerLeft { };
+    AntiGravityRacerDynamics racerRight { };
+
+    AntiGravityInput inputLeft { };
+    inputLeft.leftAirbrake = 1.0;
+    racerLeft.setInput(inputLeft);
+
+    AntiGravityInput inputRight { };
+    inputRight.rightAirbrake = 1.0;
+    racerRight.setInput(inputRight);
+
+    constexpr double dt { 1.0 / 60.0 };
+    racerLeft.step(bodyLeft, dt);
+    racerRight.step(bodyRight, dt);
+
+    EXPECT_GT(racerLeft.getTelemetry().airbrakeDrag, 0.0);
+    EXPECT_GT(racerRight.getTelemetry().airbrakeDrag, 0.0);
+    // Left airbrake generates positive counter-clockwise yaw torque (turns nose left)
+    EXPECT_GT(racerLeft.getTelemetry().netYawTorque, 0.0);
+    // Right airbrake generates negative clockwise yaw torque (turns nose right)
+    EXPECT_LT(racerRight.getTelemetry().netYawTorque, 0.0);
+}
+
+TEST(AntiGravityRacerDynamicsTest, BoostCapacitorThrustMultiplierAndEnergyDepletion)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1050.0;
+    bodyConfig.inertia = 1800.0;
+    RigidBody2D bodyNormal { bodyConfig };
+    RigidBody2D bodyBoost { bodyConfig };
+
+    AntiGravityRacerDynamics normalRacer { };
+    AntiGravityRacerDynamics boostRacer { };
+
+    AntiGravityInput normalInput { };
+    normalInput.throttle = 1.0;
+    normalRacer.setInput(normalInput);
+
+    AntiGravityInput boostInput { };
+    boostInput.throttle = 1.0;
+    boostInput.boost = true;
+    boostRacer.setInput(boostInput);
+
+    constexpr double dt { 1.0 / 60.0 };
+    normalRacer.step(bodyNormal, dt);
+    boostRacer.step(bodyBoost, dt);
+
+    EXPECT_TRUE(boostRacer.isBoostActive());
+    EXPECT_FALSE(normalRacer.isBoostActive());
+    EXPECT_GT(boostRacer.getTelemetry().thrustForce, normalRacer.getTelemetry().thrustForce);
+    EXPECT_LT(boostRacer.getBoostEnergy(), normalRacer.getBoostEnergy());
+}
+
+TEST(AntiGravityRacerDynamicsTest, HighSpeedLateralSlipDrifting)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1050.0;
+    bodyConfig.inertia = 1800.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 45.0, 12.0 }); // Large lateral velocity
+
+    AntiGravityRacerDynamics racer { };
+    constexpr double dt { 1.0 / 60.0 };
+    racer.step(body, dt);
+
+    EXPECT_TRUE(racer.isDrifting());
+    EXPECT_GT(std::abs(racer.getTelemetry().lateralSpeed), 6.5);
+}
+
+TEST(AntiGravityRacerDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1050.0;
+    bodyConfig.inertia = 1800.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    AntiGravityRacerDynamics racerA { };
+    AntiGravityRacerDynamics racerB { };
+
+    AntiGravityInput input { };
+    input.throttle = 0.9;
+    input.steer = 0.35;
+    input.leftAirbrake = 0.25;
+    input.trackDistance = 1.1;
+    racerA.setInput(input);
+    racerB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        racerA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        racerB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+    EXPECT_DOUBLE_EQ(racerA.getBoostEnergy(), racerB.getBoostEnergy());
+}
+
+// -----------------------------------------------------------------------------
+// ArticulatedTruckDynamics Tests
+// -----------------------------------------------------------------------------
+
+TEST(ArticulatedTruckDynamicsTest, DefaultConstructionAndFifthWheelCoupling)
+{
+    ArticulatedTruckConfig config { };
+    ArticulatedTruckDynamics truck { config };
+
+    EXPECT_DOUBLE_EQ(truck.getConfig().tractorMass, 7500.0);
+    EXPECT_DOUBLE_EQ(truck.getConfig().trailerMass, 24000.0);
+    EXPECT_DOUBLE_EQ(truck.getHitchAngle(), 0.0);
+    EXPECT_DOUBLE_EQ(truck.getTrailerHeading(), 0.0);
+    EXPECT_DOUBLE_EQ(truck.getSteerAngle(), 0.0);
+    EXPECT_DOUBLE_EQ(truck.getSpeed(), 0.0);
+    EXPECT_FALSE(truck.isJackknifed());
+    EXPECT_FALSE(truck.isAirborne());
+}
+
+TEST(ArticulatedTruckDynamicsTest, FifthWheelArticulationFollowsTractorTurn)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 7500.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+
+    ArticulatedTruckDynamics truck { };
+    ArticulatedTruckInput input { };
+    input.throttle = 0.8;
+    input.steer = 0.5; // Steer left
+    truck.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 90; ++step) {
+        truck.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(truck.getSpeed(), 0.0);
+    EXPECT_GT(truck.getSteerAngle(), 0.0);
+    // Articulation angle develops as trailer trails the turning tractor
+    EXPECT_NE(truck.getHitchAngle(), 0.0);
+    EXPECT_GT(truck.getTelemetry().offTrackingDistance, 0.0);
+}
+
+TEST(ArticulatedTruckDynamicsTest, ReverseManeuveringInducesJackknifeDivergence)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 7500.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+
+    ArticulatedTruckDynamics truck { };
+    truck.setHitchAngle(0.85); // Articulation offset entering reverse
+    ArticulatedTruckInput input { };
+    input.throttle = -0.8; // Hard reverse
+    input.steer = -0.45; // Steering opposite to hitch angle induces rapid jackknife divergence
+    truck.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 240; ++step) {
+        truck.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().x, 0.0);
+    // Reversing at an angle triggers jackknifing instability
+    EXPECT_TRUE(truck.isJackknifed());
+    EXPECT_GE(std::abs(truck.getHitchAngle()), truck.getConfig().jackknifeThresholdAngle);
+}
+
+TEST(ArticulatedTruckDynamicsTest, IndependentTrailerBrakeStretchesRigAndSuppressesJackknife)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 7500.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D bodyNormal { bodyConfig };
+    bodyNormal.setLinearVelocity(Vec2 { 15.0, 0.0 });
+    RigidBody2D bodyTrailerBrake { bodyConfig };
+    bodyTrailerBrake.setLinearVelocity(Vec2 { 15.0, 0.0 });
+
+    ArticulatedTruckDynamics truckNormal { };
+    ArticulatedTruckDynamics truckTrailerBrake { };
+
+    ArticulatedTruckInput inputNormal { };
+    inputNormal.serviceBrake = 1.0; // Hard foot brake
+    inputNormal.steer = 0.5;
+    truckNormal.setInput(inputNormal);
+
+    ArticulatedTruckInput inputTrailerBrake { };
+    inputTrailerBrake.serviceBrake = 1.0;
+    inputTrailerBrake.trailerBrake = 1.0; // Trolley valve engaged pulling trailer back
+    inputTrailerBrake.steer = 0.5;
+    truckTrailerBrake.setInput(inputTrailerBrake);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        truckNormal.step(bodyNormal, dt);
+        Integrator2D::integrate(bodyNormal, dt);
+        bodyNormal.clearForces();
+
+        truckTrailerBrake.step(bodyTrailerBrake, dt);
+        Integrator2D::integrate(bodyTrailerBrake, dt);
+        bodyTrailerBrake.clearForces();
+    }
+
+    EXPECT_GT(truckTrailerBrake.getTelemetry().trailerBrakeForce, 0.0);
+    // Trolley valve hand-brake tension stabilizes the kingpin hitch angle
+    EXPECT_LT(std::abs(truckTrailerBrake.getHitchAngle()), std::abs(truckNormal.getHitchAngle()) + 0.1);
+}
+
+TEST(ArticulatedTruckDynamicsTest, TractorAndTrailerBrakingDeceleration)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 7500.0;
+    bodyConfig.inertia = 25000.0;
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 22.0, 0.0 });
+
+    ArticulatedTruckDynamics truck { };
+    ArticulatedTruckInput input { };
+    input.serviceBrake = 1.0;
+    truck.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        truck.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().x, 22.0);
+    EXPECT_GT(truck.getTelemetry().tractorBrakeForce, 0.0);
+    EXPECT_GT(truck.getTelemetry().trailerBrakeForce, 0.0);
+}
+
+TEST(ArticulatedTruckDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 7500.0;
+    bodyConfig.inertia = 25000.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    ArticulatedTruckDynamics truckA { };
+    ArticulatedTruckDynamics truckB { };
+
+    ArticulatedTruckInput input { };
+    input.throttle = 0.6;
+    input.steer = 0.25;
+    input.serviceBrake = 0.1;
+    truckA.setInput(input);
+    truckB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        truckA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        truckB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+    EXPECT_DOUBLE_EQ(truckA.getHitchAngle(), truckB.getHitchAngle());
+}
+
+// -----------------------------------------------------------------------------
+// Thirteen-Way Swappable Coordinator Polymorphism Tests
+// -----------------------------------------------------------------------------
+
+TEST(VehicleDynamicsCoordinatorTest, AllThirteenDynamicsModelsPolymorphicSwapping)
 {
     RigidBodyConfig bodyConfig { };
     bodyConfig.mass = 2000.0;
@@ -2745,7 +3276,7 @@ TEST(VehicleDynamicsCoordinatorTest, AllTenDynamicsModelsPolymorphicSwapping)
 
     constexpr double dt { 1.0 / 60.0 };
 
-    std::unique_ptr<IVehicleDynamics> models[10] {
+    std::unique_ptr<IVehicleDynamics> models[13] {
         std::make_unique<ArcadeCarDynamics>(),
         std::make_unique<MonsterCarDynamics>(),
         std::make_unique<SideViewCarDynamics>(),
@@ -2755,7 +3286,10 @@ TEST(VehicleDynamicsCoordinatorTest, AllTenDynamicsModelsPolymorphicSwapping)
         std::make_unique<HovercraftDynamics>(),
         std::make_unique<WatercraftDynamics>(),
         std::make_unique<TrialsBikeDynamics>(),
-        std::make_unique<HelicopterDynamics>()
+        std::make_unique<HelicopterDynamics>(),
+        std::make_unique<SubmarineDynamics>(),
+        std::make_unique<AntiGravityRacerDynamics>(),
+        std::make_unique<ArticulatedTruckDynamics>()
     };
 
     for (auto& coordinator : models) {

@@ -36,6 +36,12 @@ add_library(VehicleSimCore STATIC
     dynamics/TrialsBikeDynamics.cpp
     dynamics/HelicopterDynamics.h
     dynamics/HelicopterDynamics.cpp
+    dynamics/SubmarineDynamics.h
+    dynamics/SubmarineDynamics.cpp
+    dynamics/AntiGravityRacerDynamics.h
+    dynamics/AntiGravityRacerDynamics.cpp
+    dynamics/ArticulatedTruckDynamics.h
+    dynamics/ArticulatedTruckDynamics.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
