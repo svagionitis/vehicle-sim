@@ -20,6 +20,8 @@ add_library(VehicleSimCore STATIC
     dynamics/ArcadeCarDynamics.cpp
     dynamics/MonsterCarDynamics.h
     dynamics/MonsterCarDynamics.cpp
+    dynamics/SideViewCarDynamics.h
+    dynamics/SideViewCarDynamics.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC

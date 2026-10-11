@@ -6,6 +6,7 @@
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 
@@ -16,6 +17,7 @@ using vehicle_sim::dynamics::ArcadeCarDynamics;
 using vehicle_sim::dynamics::ArcadeCarInput;
 using vehicle_sim::dynamics::DriveType;
 using vehicle_sim::dynamics::EngineConfig;
+using vehicle_sim::dynamics::FacingDirection;
 using vehicle_sim::dynamics::HandbrakeState;
 using vehicle_sim::dynamics::IVehicleDynamics;
 using vehicle_sim::dynamics::MonsterCarConfig;
@@ -23,7 +25,13 @@ using vehicle_sim::dynamics::MonsterCarDynamics;
 using vehicle_sim::dynamics::MonsterCarInput;
 using vehicle_sim::dynamics::MonsterDriveType;
 using vehicle_sim::dynamics::NitroState;
+using vehicle_sim::dynamics::OilSlickState;
+using vehicle_sim::dynamics::SideViewCarConfig;
+using vehicle_sim::dynamics::SideViewCarDynamics;
+using vehicle_sim::dynamics::SideViewCarInput;
+using vehicle_sim::dynamics::SideViewPlatform;
 using vehicle_sim::dynamics::TransmissionConfig;
+using vehicle_sim::dynamics::TurnaroundState;
 using vehicle_sim::math::Vec2;
 using vehicle_sim::physics::Integrator2D;
 using vehicle_sim::physics::RigidBody2D;
@@ -791,6 +799,428 @@ TEST(MonsterCarDynamicsTest, DeterministicRepeatability)
     MonsterCarInput input { };
     input.throttle = 0.75;
     input.steer = -0.35;
+    carA.setInput(input);
+    carB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 100; ++step) {
+        carA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        carB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// SideViewCarDynamics Configuration & Platform Tests
+// -----------------------------------------------------------------------------
+
+TEST(SideViewCarDynamicsTest, DefaultConstructionAndWheelLayout)
+{
+    const SideViewCarDynamics car { };
+    const SideViewCarConfig& config { car.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.wheelbase, 2.2);
+    EXPECT_DOUBLE_EQ(config.wheelRadius, 0.35);
+    EXPECT_DOUBLE_EQ(config.mass, 1000.0);
+    EXPECT_DOUBLE_EQ(config.gravity, 9.81);
+    EXPECT_DOUBLE_EQ(car.getSpeed(), 0.0);
+    EXPECT_EQ(car.getFacingDirection(), FacingDirection::Right);
+    EXPECT_EQ(car.getTurnaroundState(), TurnaroundState::Idle);
+    EXPECT_EQ(car.getOilSlickState(), OilSlickState::Normal);
+    EXPECT_FALSE(car.isSpinningOut());
+    EXPECT_FALSE(car.isTurningAround());
+    EXPECT_EQ(car.getPlatformCount(), 1U);
+
+    const auto& rw { car.getWheelTelemetry(SideViewCarDynamics::kRearWheel) };
+    const auto& fw { car.getWheelTelemetry(SideViewCarDynamics::kFrontWheel) };
+
+    EXPECT_DOUBLE_EQ(rw.localOffset.x, -1.1);
+    EXPECT_DOUBLE_EQ(rw.localOffset.y, -0.35);
+    EXPECT_DOUBLE_EQ(fw.localOffset.x, 1.1);
+    EXPECT_DOUBLE_EQ(fw.localOffset.y, -0.35);
+}
+
+TEST(SideViewCarDynamicsTest, StraightLinePlatformAcceleration)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarDynamics car { };
+
+    SideViewCarInput input { };
+    input.throttle = 1.0;
+    car.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(body.getPosition().x, 0.5);
+    EXPECT_GT(body.getLinearVelocity().x, 1.0);
+    EXPECT_NEAR(body.getPosition().y, 0.35, 0.05);
+    EXPECT_TRUE(car.isGrounded());
+    EXPECT_FALSE(car.isAirborne());
+    EXPECT_GT(car.getSpeed(), 1.0);
+}
+
+TEST(SideViewCarDynamicsTest, BrakingAndReverseKinematics)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+    bodyConfig.linearDamping = 0.0;
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarDynamics car { };
+
+    SideViewCarInput input { };
+    input.throttle = 1.0;
+    car.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    const double coastSpeed { body.getLinearVelocity().x };
+    EXPECT_GT(coastSpeed, 2.0);
+
+    input.throttle = 0.0;
+    input.brake = 1.0;
+    car.setInput(input);
+
+    for (int step { 0 }; step < 30; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    const double brakedSpeed { body.getLinearVelocity().x };
+    EXPECT_LT(brakedSpeed, coastSpeed);
+
+    input.brake = 0.0;
+    input.throttle = -1.0;
+    car.setInput(input);
+
+    for (int step { 0 }; step < 120; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().x, 0.0);
+}
+
+TEST(SideViewCarDynamicsTest, JumpParabolicArcAndGroundDetachment)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarDynamics car { };
+
+    constexpr double dt { 1.0 / 60.0 };
+    car.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_TRUE(car.isGrounded());
+    EXPECT_FALSE(car.isAirborne());
+
+    car.triggerJump(8.0);
+    car.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_TRUE(car.isAirborne());
+    EXPECT_FALSE(car.isGrounded());
+    EXPECT_GT(body.getLinearVelocity().y, 5.0);
+
+    double peakHeight { 0.35 };
+    for (int step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+        if (body.getPosition().y > peakHeight) {
+            peakHeight = body.getPosition().y;
+        }
+    }
+
+    EXPECT_GT(peakHeight, 2.0);
+
+    for (int step { 0 }; step < 80; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(car.isGrounded());
+    EXPECT_FALSE(car.isAirborne());
+    EXPECT_NEAR(body.getPosition().y, 0.35, 0.05);
+}
+
+TEST(SideViewCarDynamicsTest, Instant180TurnaroundManeuver)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarDynamics car { };
+
+    EXPECT_EQ(car.getFacingDirection(), FacingDirection::Right);
+    EXPECT_DOUBLE_EQ(body.getOrientation(), 0.0);
+
+    car.triggerTurnaround(true);
+    constexpr double dt { 1.0 / 60.0 };
+    car.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_EQ(car.getFacingDirection(), FacingDirection::Left);
+    EXPECT_NEAR(body.getOrientation(), kPi, 0.01);
+    EXPECT_EQ(car.getTurnaroundState(), TurnaroundState::Idle);
+
+    SideViewCarInput input { };
+    input.throttle = 1.0;
+    car.setInput(input);
+
+    for (int step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().x, -0.5);
+    EXPECT_LT(body.getPosition().x, -0.1);
+}
+
+TEST(SideViewCarDynamicsTest, Timed180TurnaroundSpin)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarConfig config { };
+    config.turnaroundDuration = 0.15;
+    SideViewCarDynamics car { config };
+
+    car.triggerTurnaround(false);
+    constexpr double dt { 1.0 / 60.0 };
+
+    car.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_TRUE(car.isTurningAround());
+    EXPECT_EQ(car.getTurnaroundState(), TurnaroundState::Active);
+    EXPECT_GT(car.getTurnaroundTimer(), 0.0);
+
+    for (int step { 0 }; step < 15; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_FALSE(car.isTurningAround());
+    EXPECT_EQ(car.getTurnaroundState(), TurnaroundState::Idle);
+    EXPECT_NEAR(body.getOrientation(), kPi, 0.01);
+}
+
+TEST(SideViewCarDynamicsTest, OilSlickSpinoutAndRecovery)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarDynamics car { };
+
+    car.triggerOilSlick(0.5);
+    EXPECT_TRUE(car.isSpinningOut());
+    EXPECT_EQ(car.getOilSlickState(), OilSlickState::Spinning);
+    EXPECT_DOUBLE_EQ(car.getOilSlickTimer(), 0.5);
+
+    SideViewCarInput input { };
+    input.throttle = 1.0;
+    car.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 15; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(car.isSpinningOut());
+    EXPECT_NE(body.getAngularVelocity(), 0.0);
+
+    for (int step { 0 }; step < 25; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_FALSE(car.isSpinningOut());
+    EXPECT_EQ(car.getOilSlickState(), OilSlickState::Normal);
+    EXPECT_DOUBLE_EQ(car.getOilSlickTimer(), 0.0);
+    EXPECT_NEAR(body.getOrientation(), 0.0, 0.05);
+}
+
+TEST(SideViewCarDynamicsTest, MultiTierPlatformLandingAndPassThrough)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 4.0 };
+
+    RigidBody2D body { bodyConfig };
+    SideViewCarDynamics car { };
+
+    car.addPlatform(2.0, -10.0, 10.0, 1.0, true);
+    EXPECT_EQ(car.getPlatformCount(), 2U);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(car.isGrounded());
+    EXPECT_NEAR(body.getPosition().y, 2.35, 0.05);
+}
+
+TEST(SideViewCarDynamicsTest, SurfaceFrictionScaling)
+{
+    RigidBodyConfig configA { };
+    configA.mass = 1000.0;
+    configA.inertia = 1500.0;
+    configA.position = Vec2 { 0.0, 0.35 };
+
+    RigidBodyConfig configB { configA };
+
+    RigidBody2D bodyA { configA };
+    RigidBody2D bodyB { configB };
+
+    SideViewCarDynamics carA { };
+    SideViewCarDynamics carB { };
+    carB.setSurfaceModifier(0.25);
+
+    SideViewCarInput input { };
+    input.throttle = 1.0;
+    carA.setInput(input);
+    carB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 30; ++step) {
+        carA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        carB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_GT(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+}
+
+TEST(SideViewCarDynamicsTest, SwappableCoordinatorMomentumPreservation)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 5.0, 0.35 };
+
+    RigidBody2D body { bodyConfig };
+
+    std::unique_ptr<IVehicleDynamics> coordinator { std::make_unique<SideViewCarDynamics>() };
+    auto* sideViewCar { static_cast<SideViewCarDynamics*>(coordinator.get()) };
+
+    SideViewCarInput input { };
+    input.throttle = 1.0;
+    sideViewCar->setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 30; ++step) {
+        coordinator->step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    const Vec2 preservedVel { body.getLinearVelocity() };
+    const Vec2 preservedPos { body.getPosition() };
+    const double preservedOmega { body.getAngularVelocity() };
+    const double preservedAngle { body.getOrientation() };
+
+    coordinator = std::make_unique<MonsterCarDynamics>();
+
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().x, preservedVel.x);
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().y, preservedVel.y);
+    EXPECT_DOUBLE_EQ(body.getPosition().x, preservedPos.x);
+    EXPECT_DOUBLE_EQ(body.getPosition().y, preservedPos.y);
+    EXPECT_DOUBLE_EQ(body.getAngularVelocity(), preservedOmega);
+    EXPECT_DOUBLE_EQ(body.getOrientation(), preservedAngle);
+
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    coordinator = std::make_unique<ArcadeCarDynamics>();
+
+    EXPECT_GT(body.getLinearVelocity().length(), 0.0);
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    coordinator = std::make_unique<SideViewCarDynamics>();
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+}
+
+TEST(SideViewCarDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = Vec2 { 0.0, 0.35 };
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    SideViewCarDynamics carA { };
+    SideViewCarDynamics carB { };
+
+    SideViewCarInput input { };
+    input.throttle = 0.8;
     carA.setInput(input);
     carB.setInput(input);
 
