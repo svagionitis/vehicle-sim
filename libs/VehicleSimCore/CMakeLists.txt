@@ -15,6 +15,9 @@ add_library(VehicleSimCore STATIC
     physics/ContactSolver2D.cpp
     physics/PhysicsWorld2D.h
     physics/PhysicsWorld2D.cpp
+    dynamics/IVehicleDynamics.h
+    dynamics/ArcadeCarDynamics.h
+    dynamics/ArcadeCarDynamics.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
