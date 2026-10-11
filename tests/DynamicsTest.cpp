@@ -6,6 +6,7 @@
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
@@ -26,6 +27,10 @@ using vehicle_sim::dynamics::MonsterCarInput;
 using vehicle_sim::dynamics::MonsterDriveType;
 using vehicle_sim::dynamics::NitroState;
 using vehicle_sim::dynamics::OilSlickState;
+using vehicle_sim::dynamics::RocketConfig;
+using vehicle_sim::dynamics::RocketDynamics;
+using vehicle_sim::dynamics::RocketInput;
+using vehicle_sim::dynamics::RocketTelemetry;
 using vehicle_sim::dynamics::SideViewCarConfig;
 using vehicle_sim::dynamics::SideViewCarDynamics;
 using vehicle_sim::dynamics::SideViewCarInput;
@@ -1241,6 +1246,384 @@ TEST(SideViewCarDynamicsTest, DeterministicRepeatability)
     EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
     EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
     EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// RocketDynamics Configuration & Space Propulsion Tests
+// -----------------------------------------------------------------------------
+
+TEST(RocketDynamicsTest, DefaultConstructionAndInertialGeometry)
+{
+    const RocketDynamics rocket { };
+    const RocketConfig& config { rocket.getConfig() };
+
+    EXPECT_DOUBLE_EQ(config.dryMass, 1500.0);
+    EXPECT_DOUBLE_EQ(config.initialFuelMass, 3500.0);
+    EXPECT_DOUBLE_EQ(config.length, 6.0);
+    EXPECT_DOUBLE_EQ(config.radius, 0.8);
+    EXPECT_DOUBLE_EQ(config.maxThrust, 65000.0);
+    EXPECT_DOUBLE_EQ(config.specificImpulse, 310.0);
+
+    EXPECT_DOUBLE_EQ(rocket.getDryMass(), 1500.0);
+    EXPECT_DOUBLE_EQ(rocket.getFuelMass(), 3500.0);
+    EXPECT_DOUBLE_EQ(rocket.getTotalMass(), 5000.0);
+
+    // I = 5000 * (6^2 / 12 + 0.8^2 / 4) = 5000 * (3.0 + 0.16) = 15800.0 kg*m^2
+    EXPECT_DOUBLE_EQ(rocket.getInertia(), 15800.0);
+    EXPECT_DOUBLE_EQ(rocket.getFuelRatio(), 1.0);
+    EXPECT_FALSE(rocket.isFuelEmpty());
+    EXPECT_TRUE(rocket.isAirborne());
+    EXPECT_DOUBLE_EQ(rocket.getGimbalAngle(), 0.0);
+    EXPECT_TRUE(rocket.isSasEnabled());
+}
+
+TEST(RocketDynamicsTest, MainEngineForwardThrustAndAcceleration)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketDynamics rocket { };
+
+    RocketInput input { };
+    input.throttle = 1.0;
+    rocket.setInput(input);
+
+    constexpr double dt { 0.1 };
+    rocket.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_DOUBLE_EQ(rocket.getThrustForce(), 65000.0);
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_NEAR(body.getLinearVelocity().y, 0.0, 1e-6);
+
+    // Initial burn rate dm/dt = 65000 / (310 * 9.80665) ~= 21.3809 kg/s
+    const double expectedFuelBurned { (65000.0 / (310.0 * 9.80665)) * dt };
+    EXPECT_NEAR(rocket.getFuelMass(), 3500.0 - expectedFuelBurned, 1e-4);
+    EXPECT_LT(rocket.getTotalMass(), 5000.0);
+    EXPECT_LT(rocket.getInertia(), 15800.0);
+    EXPECT_DOUBLE_EQ(body.getMass(), rocket.getTotalMass());
+    EXPECT_DOUBLE_EQ(body.getInertia(), rocket.getInertia());
+}
+
+TEST(RocketDynamicsTest, GimbalVectoringInducedTorque)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketConfig config { };
+    config.gimbalSpeed = 0.0; // instantaneous response for test
+    RocketDynamics rocket { config };
+
+    RocketInput input { };
+    input.throttle = 1.0;
+    input.gimbal = 1.0; // Max positive deflection (+10 deg)
+    rocket.setInput(input);
+
+    constexpr double dt { 0.1 };
+    rocket.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_NEAR(rocket.getGimbalAngle(), config.maxGimbalAngle, 1e-6);
+    // r = (-3, 0), F_local = (T cos delta, T sin delta).
+    // r x F = -3 * T * sin(delta) < 0 (clockwise torque)
+    EXPECT_LT(body.getAngularVelocity(), 0.0);
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_GT(body.getLinearVelocity().y, 0.0);
+}
+
+TEST(RocketDynamicsTest, LateralOffsetThrusterTorque)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketConfig config { };
+    config.thrusterOffset = Vec2 { 0.0, 0.5 }; // Offset laterally +0.5m above COM
+    RocketDynamics rocket { config };
+
+    RocketInput input { };
+    input.throttle = 1.0;
+    input.gimbal = 0.0; // No gimbal
+    rocket.setInput(input);
+
+    constexpr double dt { 0.1 };
+    rocket.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    // r = (0, 0.5), F = (T, 0) -> r x F = 0*0 - 0.5*T = -0.5 * 65000 = -32500 N*m
+    EXPECT_LT(body.getAngularVelocity(), 0.0);
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_NEAR(body.getLinearVelocity().y, 0.0, 1e-6);
+}
+
+TEST(RocketDynamicsTest, RCSAttitudeTorqueAndRotation)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketDynamics rocket { };
+
+    RocketInput input { };
+    input.throttle = 0.0;
+    input.rcs = 1.0; // Counter-clockwise command
+    rocket.setInput(input);
+
+    constexpr double dt { 0.1 };
+    rocket.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_GT(body.getAngularVelocity(), 0.0);
+    EXPECT_NEAR(body.getLinearVelocity().length(), 0.0, 1e-6);
+    EXPECT_DOUBLE_EQ(rocket.getTelemetry().rcsTorque, 1500.0);
+    EXPECT_LT(rocket.getFuelMass(), 3500.0);
+}
+
+TEST(RocketDynamicsTest, SASActiveRateDamping)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D bodySAS { bodyConfig };
+    bodySAS.setAngularVelocity(0.5); // Initial spin 0.5 rad/s
+
+    RigidBody2D bodyFree { bodyConfig };
+    bodyFree.setAngularVelocity(0.5);
+
+    RocketDynamics rocketSAS { };
+    RocketInput inputSAS { };
+    inputSAS.sasEnabled = true;
+    rocketSAS.setInput(inputSAS);
+
+    RocketDynamics rocketFree { };
+    RocketInput inputFree { };
+    inputFree.sasEnabled = false;
+    rocketFree.setInput(inputFree);
+
+    constexpr double dt { 0.05 };
+    for (int step { 0 }; step < 50; ++step) {
+        rocketSAS.step(bodySAS, dt);
+        Integrator2D::integrate(bodySAS, dt);
+        bodySAS.clearForces();
+
+        rocketFree.step(bodyFree, dt);
+        Integrator2D::integrate(bodyFree, dt);
+        bodyFree.clearForces();
+    }
+
+    EXPECT_LT(std::abs(bodySAS.getAngularVelocity()), std::abs(bodyFree.getAngularVelocity()));
+    EXPECT_NEAR(bodyFree.getAngularVelocity(), 0.5, 1e-6);
+}
+
+TEST(RocketDynamicsTest, TranslationalRCSThrusters)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketDynamics rocket { };
+
+    RocketInput input { };
+    input.throttle = 0.0;
+    input.rcsTranslate = Vec2 { 0.0, 1.0 }; // Local +Y translation
+    rocket.setInput(input);
+
+    constexpr double dt { 0.1 };
+    rocket.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_GT(body.getLinearVelocity().y, 0.0);
+    EXPECT_NEAR(body.getLinearVelocity().x, 0.0, 1e-6);
+    EXPECT_NEAR(body.getAngularVelocity(), 0.0, 1e-6);
+}
+
+TEST(RocketDynamicsTest, PropellantDepletionAndEngineFlameout)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1510.0;
+    bodyConfig.inertia = 5000.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketConfig config { };
+    config.initialFuelMass = 5.0; // Only 5 kg fuel
+    RocketDynamics rocket { config };
+
+    RocketInput input { };
+    input.throttle = 1.0;
+    rocket.setInput(input);
+
+    constexpr double dt { 0.1 };
+    for (int step { 0 }; step < 10; ++step) {
+        rocket.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(rocket.isFuelEmpty());
+    EXPECT_DOUBLE_EQ(rocket.getFuelMass(), 0.0);
+    EXPECT_DOUBLE_EQ(rocket.getTotalMass(), rocket.getDryMass());
+    EXPECT_DOUBLE_EQ(rocket.getThrustForce(), 0.0);
+    EXPECT_TRUE(rocket.getTelemetry().isFlameout);
+
+    // Record velocity after burnout
+    const double burnoutSpeed { body.getLinearVelocity().length() };
+
+    // Step again with throttle 1.0; velocity should not increase
+    rocket.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().length(), burnoutSpeed);
+
+    // Refuel
+    rocket.refuel();
+    EXPECT_FALSE(rocket.isFuelEmpty());
+    EXPECT_DOUBLE_EQ(rocket.getFuelMass(), config.initialFuelMass);
+}
+
+TEST(RocketDynamicsTest, AtmosphericDragAndTerminalDescent)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1500.0;
+    bodyConfig.inertia = 5000.0;
+
+    RigidBody2D body { bodyConfig };
+    RocketConfig config { };
+    config.atmosphericDensity = 1.225; // Sea level air density
+    config.dragCoefficient = 0.5;
+    config.crossSectionArea = 2.0;
+    config.gravity = Vec2 { 0.0, -9.81 }; // Downward gravity
+    config.initialFuelMass = 0.0; // Unpowered drop
+    RocketDynamics rocket { config };
+
+    // Equilibrium: m * g = 0.5 * rho * Cd * A * v^2
+    // 1500 * 9.81 = 0.5 * 1.225 * 0.5 * 2.0 * v^2 = 0.6125 * v^2
+    // v = sqrt((1500 * 9.81) / 0.6125) = sqrt(14715 / 0.6125) ~= 154.998 m/s
+    const double expectedTerminalSpeed { std::sqrt((1500.0 * 9.81) / (0.5 * 1.225 * 0.5 * 2.0)) };
+    body.setLinearVelocity(Vec2 { 0.0, -expectedTerminalSpeed });
+
+    constexpr double dt { 0.05 };
+    for (int step { 0 }; step < 200; ++step) {
+        rocket.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().y, 0.0);
+    EXPECT_NEAR(std::abs(body.getLinearVelocity().y), expectedTerminalSpeed, 0.1);
+}
+
+TEST(RocketDynamicsTest, SwappableCoordinatorFourWayPreservation)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2000.0;
+    bodyConfig.position = Vec2 { 10.0, 25.0 };
+    bodyConfig.orientation = 0.45;
+
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(Vec2 { 15.0, -8.0 });
+    body.setAngularVelocity(0.25);
+
+    std::unique_ptr<IVehicleDynamics> coordinator { std::make_unique<ArcadeCarDynamics>() };
+    constexpr double dt { 1.0 / 60.0 };
+
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    const Vec2 preservedPos { body.getPosition() };
+    const Vec2 preservedVel { body.getLinearVelocity() };
+    const double preservedAngle { body.getOrientation() };
+    const double preservedOmega { body.getAngularVelocity() };
+
+    // Swap to MonsterCarDynamics
+    coordinator = std::make_unique<MonsterCarDynamics>();
+    EXPECT_DOUBLE_EQ(body.getPosition().x, preservedPos.x);
+    EXPECT_DOUBLE_EQ(body.getPosition().y, preservedPos.y);
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().x, preservedVel.x);
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().y, preservedVel.y);
+    EXPECT_DOUBLE_EQ(body.getOrientation(), preservedAngle);
+    EXPECT_DOUBLE_EQ(body.getAngularVelocity(), preservedOmega);
+
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    // Swap to SideViewCarDynamics
+    coordinator = std::make_unique<SideViewCarDynamics>();
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    // Swap to RocketDynamics
+    coordinator = std::make_unique<RocketDynamics>();
+    EXPECT_GT(body.getLinearVelocity().length(), 0.0);
+
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    // Swap back to ArcadeCarDynamics
+    coordinator = std::make_unique<ArcadeCarDynamics>();
+    coordinator->step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_GT(body.getLinearVelocity().length(), 0.0);
+}
+
+TEST(RocketDynamicsTest, DeterministicRepeatability)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 5000.0;
+    bodyConfig.inertia = 15800.0;
+
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    RocketDynamics rocketA { };
+    RocketDynamics rocketB { };
+
+    RocketInput input { };
+    input.throttle = 0.85;
+    input.gimbal = 0.3;
+    input.rcs = 0.2;
+    input.sasEnabled = true;
+
+    rocketA.setInput(input);
+    rocketB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        rocketA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        rocketB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+    EXPECT_DOUBLE_EQ(rocketA.getFuelMass(), rocketB.getFuelMass());
 }
 
 } // namespace vehicle_sim::testing
