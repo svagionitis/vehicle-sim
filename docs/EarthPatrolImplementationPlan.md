@@ -491,6 +491,65 @@ stateDiagram-v2
 
 ---
 
+### 7.3 Particle System, Screen Shake & Procedural Audio Architecture
+
+The particle engine utilizes a fixed-capacity ring pool (`kMaxPoolSize = 384`) with zero runtime heap allocations. Camera screen shake applies quadratic trauma decay, and the procedural audio synthesizer generates retro waveforms via standard SDL2 audio queues.
+
+#### ASCII Diagram: Particle Emission & Screen Shake Architecture
+
+```
+                      +-----------------------------+
+                      |     Earth Patrol Events     |
+                      +------+-------+-------+------+
+                             |       |       |
+              Jump Trigger   |       |       | Impact / Land
+                             v       |       v
+               +---------------+     |   +---------------+
+               | Thruster Spark|     |   | Landing Dust  |
+               +-------+-------+     |   +-------+-------+
+                       |             |           |
+                       v             v           v
+            +-------------------------------------------------+
+            |   Fixed Ring Pool ParticleSystem (384 slots)   |
+            +------------------------+------------------------+
+                                     |
+                                     v
+                        +-------------------------+
+                        | Camera2D Screen Shake   |
+                        | offset = intensity * T^2|
+                        +-------------------------+
+```
+
+#### Mermaid Diagram: Visual Polish & Procedural Audio Pipeline
+
+```mermaid
+flowchart LR
+    Event["Gameplay Event (Jump, Land, Crash, Checkpoint)"]
+    
+    subgraph VisualPipeline ["Visual Effects Pipeline"]
+        Pool["ParticleSystem Pool (Zero Heap Allocs)"]
+        Kinetics["Euler Integration (Drag & Gravity)"]
+        Shake["Camera2D Trauma Shake (Quadratic Decay)"]
+        Render["Alpha Blended Rasterization"]
+        
+        Pool --> Kinetics --> Render
+    end
+    
+    subgraph AudioPipeline ["Procedural Audio Pipeline"]
+        WaveGen["Waveform Generator (Sine, Sweep, Noise)"]
+        Buffer["PCM Audio Buffer (44.1 kHz, 16-bit Mono)"]
+        Device["SDL Audio Device Queue"]
+        
+        WaveGen --> Buffer --> Device
+    end
+    
+    Event --> Pool
+    Event --> Shake
+    Event --> WaveGen
+```
+
+---
+
 ## 8. Step-by-Step Implementation Roadmap
 
 ```
@@ -527,10 +586,12 @@ stateDiagram-v2
 |   - GameStateMachine transitions (Title, Playing, Crashed, StageClear, GameOver)                  |
 |   - Procedural 3x5 PixelFont bitmap typography for arcade HUD, banners, and milestone flags       |
 +---------------------------------------------------------------------------------------------------+
-| Phase 7: Polish, Particle Effects, Sound Hooks & Verification                                     |
-|   - Tire dust particles, landing sparks, screen shake on impact                                  |
+| Phase 7: Polish, Particle Effects, Sound Hooks & Verification [COMPLETED]                         |
+|   - Tire dust particles, thruster sparks, landing puffs, and explosion debris in ParticleSystem   |
+|   - Dynamic camera trauma shake decaying quadratically on collision and heavy touchdown           |
+|   - Procedural synthetic retro SFX (jump sweep, landing thump, crash noise, milestone chime)      |
 |   - Clean compile with /W4 and -Wall -Wextra -pedantic (-Werror) on Windows and Linux             |
-|   - Complete Doxygen documentation and MISRA C++:2023 compliance audit                            |
+|   - Complete Doxygen documentation, 10 unit tests in EarthPatrolTests, MISRA/CERT compliance audit |
 +---------------------------------------------------------------------------------------------------+
 ```
 

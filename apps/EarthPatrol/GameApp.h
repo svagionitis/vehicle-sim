@@ -2,11 +2,13 @@
 
 #include <string>
 
+#include "apps/EarthPatrol/AudioSystem.h"
 #include "apps/EarthPatrol/Camera2D.h"
 #include "apps/EarthPatrol/CourseManager.h"
 #include "apps/EarthPatrol/GameState.h"
 #include "apps/EarthPatrol/ObstacleManager.h"
 #include "apps/EarthPatrol/ParallaxRenderer.h"
+#include "apps/EarthPatrol/ParticleSystem.h"
 #include "apps/EarthPatrol/PixelFont.h"
 #include "apps/EarthPatrol/SDLWrappers.h"
 #include "libs/VehicleSimCore/dynamics/EarthRoverDynamics.h"
@@ -155,6 +157,22 @@ public:
     /// @brief Advances to next biome course stage after Milestone E clearance.
     void advanceStage() noexcept;
 
+    /// @brief Gets active particle effects coordinator.
+    /// @return Constant reference to ParticleSystem.
+    [[nodiscard]] const ParticleSystem& getParticles() const noexcept;
+
+    /// @brief Gets mutable active particle effects coordinator.
+    /// @return Mutable reference to ParticleSystem.
+    [[nodiscard]] ParticleSystem& getParticles() noexcept;
+
+    /// @brief Gets procedural retro audio synthesizer.
+    /// @return Constant reference to AudioSystem.
+    [[nodiscard]] const AudioSystem& getAudio() const noexcept;
+
+    /// @brief Gets mutable procedural retro audio synthesizer.
+    /// @return Mutable reference to AudioSystem.
+    [[nodiscard]] AudioSystem& getAudio() noexcept;
+
 private:
     /// @brief Renders the continuous procedural terrain heightfield ribbon.
     void renderTerrain() noexcept;
@@ -191,6 +209,8 @@ private:
     CourseManager course_ { };
     ParallaxRenderer parallax_ { };
     ObstacleManager obstacles_ { };
+    ParticleSystem particles_ { };
+    AudioSystem audio_ { };
 
     vehicle_sim::dynamics::EarthRoverDynamics rover_ { };
     vehicle_sim::physics::RigidBody2D roverBody_ { };
@@ -207,6 +227,7 @@ private:
     int timeBonus_ { 0 };
     int lastCheckpointIdx_ { -1 };
     bool crashed_ { false };
+    bool wasAirborne_ { false };
     double respawnTimer_ { 0.0 };
 };
 

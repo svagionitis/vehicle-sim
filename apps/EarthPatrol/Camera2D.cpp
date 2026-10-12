@@ -30,11 +30,41 @@ void Camera2D::update(const vehicle_sim::math::Vec2& targetPos, double forwardSp
 
     position_.x += (desiredX - position_.x) * alphaX;
     position_.y += (desiredY - position_.y) * alphaY;
+
+    if (shakeTimer_ > 0.0) {
+        shakeTimer_ -= dt;
+        if (shakeTimer_ <= 0.0) {
+            shakeTimer_ = 0.0;
+            shakeOffset_ = vehicle_sim::math::Vec2 { 0.0, 0.0 };
+        } else {
+            const double trauma { std::clamp(shakeTimer_ / shakeDuration_, 0.0, 1.0) };
+            const double curIntensity { shakeIntensity_ * trauma * trauma };
+            shakeAngle_ += 35.0 * dt;
+            shakeOffset_ = vehicle_sim::math::Vec2 {
+                std::cos(shakeAngle_ * 1.3) * curIntensity,
+                std::sin(shakeAngle_ * 1.7) * curIntensity
+            };
+        }
+    }
+}
+
+void Camera2D::addScreenShake(double intensity, double duration) noexcept
+{
+    shakeIntensity_ = std::max(shakeIntensity_, intensity);
+    shakeDuration_ = std::max(shakeDuration_, duration);
+    shakeTimer_ = shakeDuration_;
+}
+
+const vehicle_sim::math::Vec2& Camera2D::getShakeOffset() const noexcept
+{
+    return shakeOffset_;
 }
 
 void Camera2D::reset(const vehicle_sim::math::Vec2& targetPos) noexcept
 {
     position_ = targetPos;
+    shakeTimer_ = 0.0;
+    shakeOffset_ = vehicle_sim::math::Vec2 { 0.0, 0.0 };
 }
 
 vehicle_sim::math::Vec2 Camera2D::worldToScreen(const vehicle_sim::math::Vec2& worldPos) const noexcept
@@ -42,8 +72,11 @@ vehicle_sim::math::Vec2 Camera2D::worldToScreen(const vehicle_sim::math::Vec2& w
     const double anchorScreenX { static_cast<double>(config_.viewportWidth) * config_.screenFractionX };
     const double anchorScreenY { static_cast<double>(config_.viewportHeight) * config_.screenFractionY };
 
-    const double screenX { anchorScreenX + ((worldPos.x - position_.x) * config_.pixelsPerMeter) };
-    const double screenY { anchorScreenY - ((worldPos.y - position_.y) * config_.pixelsPerMeter) };
+    const double camX { position_.x + shakeOffset_.x };
+    const double camY { position_.y + shakeOffset_.y };
+
+    const double screenX { anchorScreenX + ((worldPos.x - camX) * config_.pixelsPerMeter) };
+    const double screenY { anchorScreenY - ((worldPos.y - camY) * config_.pixelsPerMeter) };
 
     return vehicle_sim::math::Vec2 { screenX, screenY };
 }
@@ -53,8 +86,11 @@ vehicle_sim::math::Vec2 Camera2D::screenToWorld(const vehicle_sim::math::Vec2& s
     const double anchorScreenX { static_cast<double>(config_.viewportWidth) * config_.screenFractionX };
     const double anchorScreenY { static_cast<double>(config_.viewportHeight) * config_.screenFractionY };
 
-    const double worldX { position_.x + ((screenPos.x - anchorScreenX) / config_.pixelsPerMeter) };
-    const double worldY { position_.y + ((anchorScreenY - screenPos.y) / config_.pixelsPerMeter) };
+    const double camX { position_.x + shakeOffset_.x };
+    const double camY { position_.y + shakeOffset_.y };
+
+    const double worldX { camX + ((screenPos.x - anchorScreenX) / config_.pixelsPerMeter) };
+    const double worldY { camY + ((anchorScreenY - screenPos.y) / config_.pixelsPerMeter) };
 
     return vehicle_sim::math::Vec2 { worldX, worldY };
 }

@@ -119,4 +119,59 @@ TEST(PixelFontTest, TextWidthCalculations)
     EXPECT_EQ(PixelFont::getTextWidth("PATROL", 3), 6 * 12);
 }
 
+TEST(ParticleSystemTest, EmissionAndEulerDecay)
+{
+    ParticleSystem ps { };
+    EXPECT_EQ(ps.getActiveCount(), 0);
+
+    ps.emitTireDust(vehicle_sim::math::Vec2 { 10.0, 1.0 }, 0, 4);
+    EXPECT_GE(ps.getActiveCount(), 4);
+
+    ps.emitCrashExplosion(vehicle_sim::math::Vec2 { 10.0, 1.0 });
+    EXPECT_GE(ps.getActiveCount(), 20);
+
+    // Step physics forward past max lifetime (1.5s)
+    ps.update(2.0);
+    EXPECT_EQ(ps.getActiveCount(), 0);
+}
+
+TEST(CameraShakeTest, TraumaActivationAndDecay)
+{
+    Camera2D cam { };
+    EXPECT_DOUBLE_EQ(cam.getShakeOffset().x, 0.0);
+    EXPECT_DOUBLE_EQ(cam.getShakeOffset().y, 0.0);
+
+    cam.addScreenShake(0.5, 0.4);
+    cam.update(vehicle_sim::math::Vec2 { 0.0, 0.0 }, 10.0, 0.05);
+
+    // During active trauma, offset is non-zero
+    const auto offset { cam.getShakeOffset() };
+    EXPECT_TRUE(offset.x != 0.0 || offset.y != 0.0);
+
+    // After full duration expires, offset resets to zero
+    cam.update(vehicle_sim::math::Vec2 { 0.0, 0.0 }, 10.0, 0.50);
+    EXPECT_DOUBLE_EQ(cam.getShakeOffset().x, 0.0);
+    EXPECT_DOUBLE_EQ(cam.getShakeOffset().y, 0.0);
+}
+
+TEST(AudioSystemTest, HeadlessInitializationAndMuteToggle)
+{
+    AudioSystem audio { };
+    EXPECT_FALSE(audio.isInitialized());
+
+    EXPECT_TRUE(audio.initialize(true)); // Headless mode
+    EXPECT_TRUE(audio.isInitialized());
+    EXPECT_FALSE(audio.isMuted());
+
+    audio.setMuted(true);
+    EXPECT_TRUE(audio.isMuted());
+
+    // Safe to trigger audio hooks without throwing or crashing
+    audio.playJump();
+    audio.playLanding();
+    audio.playCrash();
+    audio.playMilestone();
+    audio.playStageClear();
+}
+
 } // namespace earth_patrol

@@ -57,6 +57,8 @@ GameApp::GameApp(const GameAppConfig& config)
 
 bool GameApp::initialize()
 {
+    static_cast<void>(audio_.initialize(config_.headless));
+
     if (config_.headless) {
         return true;
     }
@@ -141,6 +143,9 @@ void GameApp::startNewGame() noexcept
 
     rover_.reset();
     camera_.reset(roverBody_.getPosition());
+    particles_.reset();
+    wasAirborne_ = false;
+    audio_.playMilestone();
     crashed_ = false;
     state_ = GameState::Playing;
 }
@@ -163,6 +168,9 @@ void GameApp::advanceStage() noexcept
 
     rover_.reset();
     camera_.reset(roverBody_.getPosition());
+    particles_.reset();
+    wasAirborne_ = false;
+    audio_.playMilestone();
     crashed_ = false;
     state_ = GameState::Playing;
 }
@@ -206,6 +214,8 @@ void GameApp::processEvents() noexcept
                 case SDLK_w:
                 case SDLK_UP:
                     input.jump = true;
+                    audio_.playJump();
+                    particles_.emitThrusterSparks(roverBody_.getPosition() - vehicle_sim::math::Vec2 { 0.8, 0.4 }, 6);
                     break;
                 case SDLK_d:
                 case SDLK_RIGHT:
@@ -259,6 +269,8 @@ void GameApp::processEvents() noexcept
 
 void GameApp::updatePhysics(double dt) noexcept
 {
+    particles_.update(dt);
+
     if (state_ == GameState::TitleScreen) {
         parallax_.update(dt);
         return;
@@ -305,12 +317,31 @@ void GameApp::updatePhysics(double dt) noexcept
     camera_.update(roverBody_.getPosition(), rover_.getSpeed(), dt);
     parallax_.update(dt);
 
+    // Ground contact evaluation, tire dust, and landing thump
+    bool currentlyGrounded { false };
+    for (std::size_t i { 0 }; i < 3; ++i) {
+        const auto& ws { rover_.getWheelState(i) };
+        if (ws.isGrounded) {
+            currentlyGrounded = true;
+            if (std::abs(rover_.getSpeed()) > 1.2) {
+                particles_.emitTireDust(ws.contactPoint, biomeIndex_, 1);
+            }
+        }
+    }
+    if (wasAirborne_ && currentlyGrounded) {
+        audio_.playLanding();
+        camera_.addScreenShake(0.18, 0.22);
+        particles_.emitLandingDust(roverBody_.getPosition() - vehicle_sim::math::Vec2 { 0.0, 0.35 }, biomeIndex_);
+    }
+    wasAirborne_ = !currentlyGrounded;
+
     // Milestone checkpoints reached
     const auto& checkpoints { course_.getCheckpoints() };
     for (int i { 0 }; i < static_cast<int>(checkpoints.size()); ++i) {
         if (checkpoints[static_cast<std::size_t>(i)].reached && i > lastCheckpointIdx_) {
             lastCheckpointIdx_ = i;
             score_ += (i + 1) * 1000;
+            audio_.playMilestone();
             if (score_ > highScore_) {
                 highScore_ = score_;
             }
@@ -324,6 +355,9 @@ void GameApp::updatePhysics(double dt) noexcept
             crashed_ = true;
             respawnTimer_ = 1.6;
             lives_ = std::max(0, lives_ - 1);
+            camera_.addScreenShake(0.60, 0.60);
+            particles_.emitCrashExplosion(roverBody_.getPosition());
+            audio_.playCrash();
             state_ = GameState::Crashed;
             return;
         }
@@ -342,6 +376,7 @@ void GameApp::updatePhysics(double dt) noexcept
         constexpr double parTime { 45.0 };
         timeBonus_ = std::max(0, static_cast<int>((parTime - stageTime_) * 100.0));
         score_ += 5000 + timeBonus_;
+        audio_.playStageClear();
         if (score_ > highScore_) {
             highScore_ = score_;
         }
@@ -424,6 +459,7 @@ void GameApp::renderFrame() noexcept
     renderTerrain();
     obstacles_.render(renderer_.get(), camera_);
     renderCheckpoints();
+    particles_.render(renderer_.get(), camera_);
 
     if (state_ == GameState::TitleScreen) {
         renderRover();
@@ -889,6 +925,26 @@ int GameApp::getLives() const noexcept
 bool GameApp::isCrashed() const noexcept
 {
     return crashed_;
+}
+
+const ParticleSystem& GameApp::getParticles() const noexcept
+{
+    return particles_;
+}
+
+ParticleSystem& GameApp::getParticles() noexcept
+{
+    return particles_;
+}
+
+const AudioSystem& GameApp::getAudio() const noexcept
+{
+    return audio_;
+}
+
+AudioSystem& GameApp::getAudio() noexcept
+{
+    return audio_;
 }
 
 } // namespace earth_patrol

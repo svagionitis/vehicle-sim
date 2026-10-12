@@ -19,6 +19,10 @@ add_executable(EarthPatrol
     GameState.h
     PixelFont.h
     PixelFont.cpp
+    ParticleSystem.h
+    ParticleSystem.cpp
+    AudioSystem.h
+    AudioSystem.cpp
     SDLWrappers.h
 )
 
@@ -66,6 +70,10 @@ if(BUILD_TESTING)
         GameState.h
         PixelFont.h
         PixelFont.cpp
+        ParticleSystem.h
+        ParticleSystem.cpp
+        AudioSystem.h
+        AudioSystem.cpp
         SDLWrappers.h
     )
 

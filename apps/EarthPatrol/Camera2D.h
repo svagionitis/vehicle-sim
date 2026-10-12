@@ -79,9 +79,23 @@ public:
     /// @param[in] height Viewport height in pixels.
     void setViewportSize(int width, int height) noexcept;
 
+    /// @brief Triggers dynamic camera trauma / screen shake on impacts.
+    /// @param[in] intensity Peak displacement in meters.
+    /// @param[in] duration Shake duration in seconds.
+    void addScreenShake(double intensity, double duration) noexcept;
+
+    /// @brief Gets active shake displacement offset in meters.
+    /// @return Current shake offset.
+    [[nodiscard]] const vehicle_sim::math::Vec2& getShakeOffset() const noexcept;
+
 private:
     CameraConfig config_ { };
     vehicle_sim::math::Vec2 position_ { 0.0, 0.0 };
+    double shakeIntensity_ { 0.0 };
+    double shakeDuration_ { 0.0 };
+    double shakeTimer_ { 0.0 };
+    double shakeAngle_ { 0.0 };
+    vehicle_sim::math::Vec2 shakeOffset_ { 0.0, 0.0 };
 };
 
 } // namespace earth_patrol
