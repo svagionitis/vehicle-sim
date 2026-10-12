@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
+#include "libs/VehicleSimCore/physics/Integrator2D.h"
+#include "libs/VehicleSimCore/physics/RigidBody2D.h"
 #include "libs/VehicleSimCore/terrain/FractalNoise.h"
 #include "libs/VehicleSimCore/terrain/GradientNoise.h"
+#include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
 
 namespace vehicle_sim::testing {
@@ -286,6 +290,299 @@ TEST(FractalNoiseTest, AnalyticalDerivativeAndSurfaceNormal)
         // Slope angle corresponds to arctan(derivative)
         EXPECT_NEAR(slopeAngle, std::atan(sample.derivative), 1e-12);
     }
+}
+
+TEST(Heightfield1DTest, DefaultConfigurationAndBaseHeight)
+{
+    terrain::Heightfield1D hf {};
+
+    EXPECT_DOUBLE_EQ(hf.getBaseHeight(), 0.0);
+    EXPECT_FALSE(hf.isNoiseEnabled());
+    EXPECT_EQ(hf.getSampleCount(), 0U);
+    EXPECT_EQ(hf.getInterpolation(), terrain::HeightfieldInterp::Linear);
+    EXPECT_EQ(hf.getBoundaryMode(), terrain::HeightfieldBoundary::Clamp);
+    EXPECT_EQ(hf.getDefaultMaterial().type, terrain::MaterialType::Tarmac);
+    EXPECT_EQ(hf.getMaterialZoneCount(), 0U);
+
+    // Uniform base height
+    hf.setBaseHeight(12.5);
+    EXPECT_DOUBLE_EQ(hf.getBaseHeight(), 12.5);
+
+    for (double x { -50.0 }; x <= 50.0; x += 10.0) {
+        EXPECT_DOUBLE_EQ(hf.getHeight(x), 12.5);
+        EXPECT_DOUBLE_EQ(hf.getSlope(x), 0.0);
+        EXPECT_DOUBLE_EQ(hf.getSlopeAngle(x), 0.0);
+        const math::Vec2 n = hf.getNormal(x);
+        EXPECT_DOUBLE_EQ(n.x, 0.0);
+        EXPECT_DOUBLE_EQ(n.y, 1.0);
+        const math::Vec2 t = hf.getTangent(x);
+        EXPECT_DOUBLE_EQ(t.x, 1.0);
+        EXPECT_DOUBLE_EQ(t.y, 0.0);
+    }
+}
+
+TEST(Heightfield1DTest, DiscreteSamplesLinearInterpolation)
+{
+    terrain::Heightfield1D hf {};
+
+    const std::vector<terrain::HeightSample1D> samples { { 0.0, 0.0 }, { 10.0, 5.0 }, { 20.0, 5.0 }, { 30.0, 0.0 } };
+    hf.setSamples(samples);
+    EXPECT_EQ(hf.getSampleCount(), 4U);
+
+    // Exact control nodes
+    EXPECT_NEAR(hf.getHeight(0.0), 0.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(10.0), 5.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(20.0), 5.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(30.0), 0.0, 1e-12);
+
+    // Segment 1: [0, 10], slope = 0.5
+    EXPECT_NEAR(hf.getHeight(5.0), 2.5, 1e-12);
+    EXPECT_NEAR(hf.getSlope(5.0), 0.5, 1e-12);
+
+    // Segment 2: [10, 20], flat plateau, slope = 0.0
+    EXPECT_NEAR(hf.getHeight(15.0), 5.0, 1e-12);
+    EXPECT_NEAR(hf.getSlope(15.0), 0.0, 1e-12);
+
+    // Segment 3: [20, 30], slope = -0.5
+    EXPECT_NEAR(hf.getHeight(25.0), 2.5, 1e-12);
+    EXPECT_NEAR(hf.getSlope(25.0), -0.5, 1e-12);
+}
+
+TEST(Heightfield1DTest, DiscreteSamplesCubicHermiteSmoothness)
+{
+    terrain::Heightfield1D hf {};
+    hf.setInterpolation(terrain::HeightfieldInterp::CubicHermite);
+
+    const std::vector<terrain::HeightSample1D> samples { { -20.0, 0.0 }, { -10.0, 4.0 }, { 0.0, 8.0 }, { 10.0, 4.0 },
+        { 20.0, 0.0 } };
+    hf.setSamples(samples);
+
+    // Control nodes match exactly
+    EXPECT_NEAR(hf.getHeight(-10.0), 4.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(0.0), 8.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(10.0), 4.0, 1e-12);
+
+    // Analytical derivative matches finite differences
+    constexpr double eps { 1e-6 };
+    for (double x { -18.0 }; x <= 18.0; x += 1.5) {
+        const double analyticSlope { hf.getSlope(x) };
+        const double finiteDiff { (hf.getHeight(x + eps) - hf.getHeight(x - eps)) / (2.0 * eps) };
+        EXPECT_NEAR(analyticSlope, finiteDiff, 1e-4);
+    }
+}
+
+TEST(Heightfield1DTest, BoundaryHandlingModes)
+{
+    terrain::Heightfield1D hf {};
+    hf.setSamples({ { 0.0, 2.0 }, { 10.0, 6.0 } }); // slope = 0.4
+
+    // Mode 1: Clamp
+    hf.setBoundaryMode(terrain::HeightfieldBoundary::Clamp);
+    EXPECT_NEAR(hf.getHeight(-5.0), 2.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(15.0), 6.0, 1e-12);
+    EXPECT_NEAR(hf.getSlope(-5.0), 0.0, 1e-12);
+    EXPECT_NEAR(hf.getSlope(15.0), 0.0, 1e-12);
+
+    // Mode 2: Zero
+    hf.setBoundaryMode(terrain::HeightfieldBoundary::Zero);
+    EXPECT_NEAR(hf.getHeight(-5.0), 0.0, 1e-12);
+    EXPECT_NEAR(hf.getHeight(15.0), 0.0, 1e-12);
+
+    // Mode 3: Extrapolate
+    hf.setBoundaryMode(terrain::HeightfieldBoundary::Extrapolate);
+    EXPECT_NEAR(hf.getHeight(-5.0), 0.0, 1e-12); // 2.0 + (-5 - 0)*0.4 = 0.0
+    EXPECT_NEAR(hf.getHeight(15.0), 8.0, 1e-12); // 6.0 + (15 - 10)*0.4 = 8.0
+    EXPECT_NEAR(hf.getSlope(-5.0), 0.4, 1e-12);
+    EXPECT_NEAR(hf.getSlope(15.0), 0.4, 1e-12);
+}
+
+TEST(Heightfield1DTest, ProceduralNoiseLayerAndAnalyticalGradients)
+{
+    terrain::Heightfield1D hf {};
+    hf.setBaseHeight(5.0);
+
+    terrain::FractalConfig noiseConfig {};
+    noiseConfig.seed = 333U;
+    noiseConfig.octaves = 4U;
+    noiseConfig.frequency = 0.1;
+    noiseConfig.amplitude = 1.0;
+    hf.setNoiseConfig(noiseConfig);
+    hf.setNoiseTransform(2.5, 0.5, 10.0);
+    hf.enableNoise(true);
+    EXPECT_TRUE(hf.isNoiseEnabled());
+
+    constexpr double eps { 1e-6 };
+    for (double x { -20.0 }; x <= 20.0; x += 2.0) {
+        const auto sample = hf.sampleSurface(x);
+        const double finiteDiff { (hf.getHeight(x + eps) - hf.getHeight(x - eps)) / (2.0 * eps) };
+
+        // Analytical derivative matches finite differences
+        EXPECT_NEAR(sample.derivative, finiteDiff, 1e-4);
+
+        // Normal and tangent unit length and orthogonality
+        EXPECT_NEAR(sample.normal.length(), 1.0, 1e-9);
+        EXPECT_NEAR(sample.tangent.length(), 1.0, 1e-9);
+        EXPECT_NEAR(sample.normal.dot(sample.tangent), 0.0, 1e-9);
+        EXPECT_GT(sample.normal.y, 0.0);
+        EXPECT_GT(sample.tangent.x, 0.0);
+
+        // Slope angle
+        EXPECT_NEAR(sample.slopeAngle, std::atan(sample.derivative), 1e-12);
+    }
+}
+
+TEST(Heightfield1DTest, MaterialZonesAndLookup)
+{
+    terrain::Heightfield1D hf {};
+    hf.setDefaultMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Tarmac));
+
+    // Add material zones
+    hf.addMaterialZone(10.0, 30.0, terrain::MaterialType::Dirt);
+    hf.addMaterialZone(50.0, 70.0, terrain::MaterialType::Ice);
+    hf.addMaterialZone(90.0, 110.0, terrain::MaterialType::Mud);
+    EXPECT_EQ(hf.getMaterialZoneCount(), 3U);
+
+    // Query points
+    EXPECT_EQ(hf.getMaterial(0.0).type, terrain::MaterialType::Tarmac);
+    EXPECT_EQ(hf.getMaterial(20.0).type, terrain::MaterialType::Dirt);
+    EXPECT_EQ(hf.getMaterial(40.0).type, terrain::MaterialType::Tarmac);
+    EXPECT_EQ(hf.getMaterial(60.0).type, terrain::MaterialType::Ice);
+    EXPECT_EQ(hf.getMaterial(80.0).type, terrain::MaterialType::Tarmac);
+    EXPECT_EQ(hf.getMaterial(100.0).type, terrain::MaterialType::Mud);
+    EXPECT_EQ(hf.getMaterial(120.0).type, terrain::MaterialType::Tarmac);
+
+    // Clear zones
+    hf.clearMaterialZones();
+    EXPECT_EQ(hf.getMaterialZoneCount(), 0U);
+    EXPECT_EQ(hf.getMaterial(60.0).type, terrain::MaterialType::Tarmac);
+}
+
+TEST(Heightfield1DTest, PenetrationAndUndergroundQueries)
+{
+    terrain::Heightfield1D hf {};
+    hf.setBaseHeight(10.0);
+
+    // Above ground
+    const math::Vec2 abovePoint { 5.0, 15.0 };
+    EXPECT_DOUBLE_EQ(hf.getPenetration(abovePoint), -5.0);
+    EXPECT_FALSE(hf.isUnderground(abovePoint));
+
+    // Exactly on surface
+    const math::Vec2 onPoint { 5.0, 10.0 };
+    EXPECT_DOUBLE_EQ(hf.getPenetration(onPoint), 0.0);
+    EXPECT_FALSE(hf.isUnderground(onPoint));
+
+    // Underground
+    const math::Vec2 belowPoint { 5.0, 7.5 };
+    EXPECT_DOUBLE_EQ(hf.getPenetration(belowPoint), 2.5);
+    EXPECT_TRUE(hf.isUnderground(belowPoint));
+}
+
+TEST(Heightfield1DTest, PlatformExtractionFlatPlateau)
+{
+    terrain::Heightfield1D hf {};
+
+    // Build terrain:
+    // Plateau A: x in [0, 20], y = 0
+    // Ramp: x in [20, 30], y rises from 0 to 8
+    // Plateau B: x in [30, 50], y = 8
+    const std::vector<terrain::HeightSample1D> samples { { 0.0, 0.0 }, { 20.0, 0.0 }, { 30.0, 8.0 }, { 50.0, 8.0 } };
+    hf.setSamples(samples);
+    hf.addMaterialZone(0.0, 25.0, terrain::MaterialType::Tarmac);
+    hf.addMaterialZone(25.0, 50.0, terrain::MaterialType::Dirt);
+
+    terrain::PlatformExtractionConfig config {};
+    config.minX = 0.0;
+    config.maxX = 50.0;
+    config.sampleStep = 0.5;
+    config.maxSlope = 0.05;
+    config.minWidth = 5.0;
+    config.method = terrain::PlatformExtractionMethod::FlatPlateau;
+
+    const auto platforms = hf.extractPlatforms(config);
+    ASSERT_EQ(platforms.size(), 2U);
+
+    // First plateau
+    EXPECT_NEAR(platforms[0].y, 0.0, 1e-2);
+    EXPECT_NEAR(platforms[0].minX, 0.0, 1e-1);
+    EXPECT_NEAR(platforms[0].maxX, 20.0, 1e-1);
+    EXPECT_DOUBLE_EQ(platforms[0].friction, 1.0); // Tarmac
+
+    // Second plateau
+    EXPECT_NEAR(platforms[1].y, 8.0, 1e-2);
+    EXPECT_NEAR(platforms[1].minX, 30.0, config.sampleStep);
+    EXPECT_NEAR(platforms[1].maxX, 50.0, 1e-1);
+    EXPECT_DOUBLE_EQ(platforms[1].friction, 0.75); // Dirt
+}
+
+TEST(Heightfield1DTest, PlatformExtractionStepQuantization)
+{
+    terrain::Heightfield1D hf {};
+
+    // Continuous linear slope: y = 0.1 * x from x = 0 to 60 (y from 0 to 6)
+    hf.setSamples({ { 0.0, 0.0 }, { 60.0, 6.0 } });
+
+    terrain::PlatformExtractionConfig config {};
+    config.minX = 0.0;
+    config.maxX = 60.0;
+    config.sampleStep = 0.5;
+    config.tierHeight = 2.0; // Tiers at 0.0, 2.0, 4.0, 6.0
+    config.minWidth = 4.0;
+    config.method = terrain::PlatformExtractionMethod::StepQuantization;
+
+    const auto platforms = hf.extractPlatforms(config);
+    EXPECT_GE(platforms.size(), 3U);
+
+    for (const auto& plat : platforms) {
+        EXPECT_GE(plat.maxX - plat.minX, config.minWidth);
+        // Elevation must be an exact multiple of tierHeight
+        const double remainder { std::fmod(std::abs(plat.y), config.tierHeight) };
+        EXPECT_NEAR(remainder, 0.0, 1e-9);
+    }
+}
+
+TEST(Heightfield1DTest, PopulateSideViewCarDynamicsIntegration)
+{
+    terrain::Heightfield1D hf {};
+
+    // Ground platform at y = 0, x in [-50, 50]
+    hf.setSamples({ { -50.0, 0.0 }, { 50.0, 0.0 } });
+    hf.setDefaultMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Concrete));
+
+    terrain::PlatformExtractionConfig config {};
+    config.minX = -50.0;
+    config.maxX = 50.0;
+    config.sampleStep = 1.0;
+    config.minWidth = 10.0;
+
+    dynamics::SideViewCarDynamics car {};
+    hf.populateSideViewCar(car, config, true);
+
+    ASSERT_EQ(car.getPlatformCount(), 1U);
+    const auto& plat = car.getPlatforms().front();
+    EXPECT_DOUBLE_EQ(plat.y, 0.0);
+    EXPECT_NEAR(plat.minX, -50.0, 1e-1);
+    EXPECT_NEAR(plat.maxX, 50.0, 1e-1);
+    EXPECT_DOUBLE_EQ(plat.friction, 1.05); // Concrete
+
+    // Simulate vehicle falling onto extracted platform
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = math::Vec2 { 0.0, 2.0 }; // Start 2 meters in the air
+    physics::RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    // Vehicle lands and establishes contact
+    EXPECT_TRUE(car.isGrounded());
+    EXPECT_FALSE(car.isAirborne());
+    EXPECT_NEAR(body.getPosition().y, car.getConfig().wheelRadius, 0.1);
 }
 
 } // namespace vehicle_sim::testing

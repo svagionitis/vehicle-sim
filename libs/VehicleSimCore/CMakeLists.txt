@@ -48,6 +48,8 @@ add_library(VehicleSimCore STATIC
     terrain/GradientNoise.cpp
     terrain/FractalNoise.h
     terrain/FractalNoise.cpp
+    terrain/Heightfield1D.h
+    terrain/Heightfield1D.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
