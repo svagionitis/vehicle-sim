@@ -412,6 +412,7 @@ Model environmental forces across airspace and waterways affecting planes, rocke
 | **Deformable Rutting** | Terrain | Medium | `SurfaceMap2D`, `SurfaceMaterial` | Off-road tanks, monster trucks in mud/snow |
 | **Banked / Cambered Tracks** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | High-speed racing circuits |
 | **Environmental Wind / Water** | Physics | Low | `Vec2` | Planes, rockets, trucks, boats, subs |
+| **Earth Patrol (3-Axle Rover & SDL Game)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [Earth Patrol Plan](EarthPatrolImplementationPlan.md) - Moon Patrol style side-scroller on Earth |
 
 ---
 

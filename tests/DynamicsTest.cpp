@@ -7,6 +7,7 @@
 #include "libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h"
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h"
+#include "libs/VehicleSimCore/dynamics/EarthRoverDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HelicopterDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
@@ -19,13 +20,14 @@
 #include "libs/VehicleSimCore/dynamics/WatercraftDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
+#include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 
 namespace vehicle_sim::testing {
 
+using vehicle_sim::dynamics::AerodynamicPlaneDynamics;
 using vehicle_sim::dynamics::AeroPlaneConfig;
 using vehicle_sim::dynamics::AeroPlaneInput;
 using vehicle_sim::dynamics::AeroPlaneTelemetry;
-using vehicle_sim::dynamics::AerodynamicPlaneDynamics;
 using vehicle_sim::dynamics::AntiGravityConfig;
 using vehicle_sim::dynamics::AntiGravityInput;
 using vehicle_sim::dynamics::AntiGravityRacerDynamics;
@@ -38,6 +40,11 @@ using vehicle_sim::dynamics::ArticulatedTruckDynamics;
 using vehicle_sim::dynamics::ArticulatedTruckInput;
 using vehicle_sim::dynamics::ArticulatedTruckTelemetry;
 using vehicle_sim::dynamics::DriveType;
+using vehicle_sim::dynamics::EarthRoverConfig;
+using vehicle_sim::dynamics::EarthRoverDynamics;
+using vehicle_sim::dynamics::EarthRoverInput;
+using vehicle_sim::dynamics::EarthRoverWheelConfig;
+using vehicle_sim::dynamics::EarthRoverWheelState;
 using vehicle_sim::dynamics::EngineConfig;
 using vehicle_sim::dynamics::FacingDirection;
 using vehicle_sim::dynamics::HandbrakeState;
@@ -3264,10 +3271,242 @@ TEST(ArticulatedTruckDynamicsTest, DeterministicRepeatability)
 }
 
 // -----------------------------------------------------------------------------
-// Thirteen-Way Swappable Coordinator Polymorphism Tests
+// Earth Rover Dynamics (Moon Patrol Earth Edition) Tests
 // -----------------------------------------------------------------------------
 
-TEST(VehicleDynamicsCoordinatorTest, AllThirteenDynamicsModelsPolymorphicSwapping)
+TEST(EarthRoverTest, DefaultConstructionAndConfiguration)
+{
+    EarthRoverDynamics rover { };
+    EXPECT_TRUE(rover.isAirborne());
+    EXPECT_FALSE(rover.isGrounded());
+    EXPECT_DOUBLE_EQ(rover.getSpeed(), 0.0);
+    EXPECT_EQ(rover.getTerrain(), nullptr);
+
+    const auto& config { rover.getConfig() };
+    EXPECT_DOUBLE_EQ(config.mass, 850.0);
+    EXPECT_DOUBLE_EQ(config.gravity, 9.81);
+    EXPECT_DOUBLE_EQ(config.airDensity, 1.225);
+    EXPECT_DOUBLE_EQ(config.dragCoefficient, 0.42);
+    EXPECT_DOUBLE_EQ(config.jumpSpeed, 8.5);
+    EXPECT_EQ(config.wheels.size(), 3U);
+    EXPECT_DOUBLE_EQ(config.wheels[0].longitudinalOffset, -1.10);
+    EXPECT_DOUBLE_EQ(config.wheels[1].longitudinalOffset, 0.00);
+    EXPECT_DOUBLE_EQ(config.wheels[2].longitudinalOffset, 1.10);
+
+    for (std::size_t i { 0 }; i < EarthRoverDynamics::kWheelCount; ++i) {
+        const auto& wheel { rover.getWheelState(i) };
+        EXPECT_FALSE(wheel.isGrounded);
+        EXPECT_DOUBLE_EQ(wheel.normalForce, 0.0);
+        EXPECT_DOUBLE_EQ(wheel.tractionForce, 0.0);
+    }
+}
+
+TEST(EarthRoverTest, SuspensionGroundEquilibriumOnFlatTerrain)
+{
+    EarthRoverDynamics rover { };
+    terrain::Heightfield1D terrain { };
+    terrain.setBaseHeight(0.0);
+    rover.setTerrain(&terrain);
+
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 850.0;
+    bodyConfig.inertia = 650.0;
+    bodyConfig.position = math::Vec2 { 0.0, 0.85 };
+    RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(rover.isGrounded());
+    EXPECT_FALSE(rover.isAirborne());
+
+    double totalNormalForce { 0.0 };
+    for (std::size_t i { 0 }; i < EarthRoverDynamics::kWheelCount; ++i) {
+        const auto& wheel { rover.getWheelState(i) };
+        EXPECT_TRUE(wheel.isGrounded);
+        EXPECT_GT(wheel.normalForce, 0.0);
+        totalNormalForce += wheel.normalForce;
+    }
+
+    const double expectedWeight { rover.getConfig().mass * rover.getConfig().gravity };
+    EXPECT_NEAR(totalNormalForce, expectedWeight, 60.0);
+    EXPECT_NEAR(body.getLinearVelocity().y, 0.0, 0.05);
+}
+
+TEST(EarthRoverTest, JumpTakeoffImpulseAndAirborneDetachment)
+{
+    EarthRoverDynamics rover { };
+    terrain::Heightfield1D terrain { };
+    terrain.setBaseHeight(0.0);
+    rover.setTerrain(&terrain);
+
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 850.0;
+    bodyConfig.inertia = 650.0;
+    bodyConfig.position = math::Vec2 { 0.0, 0.85 };
+    RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+    ASSERT_TRUE(rover.isGrounded());
+
+    rover.triggerJump();
+    rover.step(body, dt);
+    Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    EXPECT_TRUE(rover.isAirborne());
+    EXPECT_GT(body.getLinearVelocity().y, 6.0);
+}
+
+TEST(EarthRoverTest, MidAirAttitudeStabilizationAndDamping)
+{
+    EarthRoverDynamics rover { };
+
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 850.0;
+    bodyConfig.inertia = 650.0;
+    bodyConfig.position = math::Vec2 { 0.0, 50.0 };
+    bodyConfig.orientation = 0.40;
+    RigidBody2D body { bodyConfig };
+    body.setAngularVelocity(0.60);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_TRUE(rover.isAirborne());
+    EXPECT_NEAR(body.getOrientation(), 0.0, 0.08);
+    EXPECT_NEAR(body.getAngularVelocity(), 0.0, 0.05);
+}
+
+TEST(EarthRoverTest, LongitudinalTractionAndBraking)
+{
+    EarthRoverDynamics rover { };
+    terrain::Heightfield1D terrain { };
+    terrain.setBaseHeight(0.0);
+    rover.setTerrain(&terrain);
+
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 850.0;
+    bodyConfig.inertia = 650.0;
+    bodyConfig.position = math::Vec2 { 0.0, 0.85 };
+    RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 60; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EarthRoverInput driveInput { };
+    driveInput.throttle = 1.0;
+    rover.setInput(driveInput);
+
+    for (int step { 0 }; step < 60; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    const double acceleratedSpeed { body.getLinearVelocity().x };
+    EXPECT_GT(acceleratedSpeed, 2.0);
+    EXPECT_GT(rover.getSpeed(), 2.0);
+
+    EarthRoverInput brakeInput { };
+    brakeInput.brake = 1.0;
+    rover.setInput(brakeInput);
+
+    for (int step { 0 }; step < 30; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().x, acceleratedSpeed);
+}
+
+TEST(EarthRoverTest, AtmosphericAerodynamicDrag)
+{
+    EarthRoverDynamics rover { };
+
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 850.0;
+    bodyConfig.inertia = 650.0;
+    bodyConfig.position = math::Vec2 { 0.0, 100.0 };
+    RigidBody2D body { bodyConfig };
+    body.setLinearVelocity(math::Vec2 { 30.0, 0.0 });
+
+    constexpr double dt { 1.0 / 60.0 };
+    const double initialVx { body.getLinearVelocity().x };
+
+    for (int step { 0 }; step < 60; ++step) {
+        rover.step(body, dt);
+        Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_LT(body.getLinearVelocity().x, initialVx);
+}
+
+TEST(EarthRoverTest, DeterministicReplayability)
+{
+    EarthRoverDynamics roverA { };
+    EarthRoverDynamics roverB { };
+
+    terrain::Heightfield1D terrain { };
+    terrain.setBaseHeight(0.0);
+    roverA.setTerrain(&terrain);
+    roverB.setTerrain(&terrain);
+
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 850.0;
+    bodyConfig.inertia = 650.0;
+    bodyConfig.position = math::Vec2 { 0.0, 0.85 };
+    RigidBody2D bodyA { bodyConfig };
+    RigidBody2D bodyB { bodyConfig };
+
+    EarthRoverInput input { };
+    input.throttle = 0.75;
+    roverA.setInput(input);
+    roverB.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int step { 0 }; step < 120; ++step) {
+        roverA.step(bodyA, dt);
+        Integrator2D::integrate(bodyA, dt);
+        bodyA.clearForces();
+
+        roverB.step(bodyB, dt);
+        Integrator2D::integrate(bodyB, dt);
+        bodyB.clearForces();
+    }
+
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().x, bodyB.getPosition().x);
+    EXPECT_DOUBLE_EQ(bodyA.getPosition().y, bodyB.getPosition().y);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().x, bodyB.getLinearVelocity().x);
+    EXPECT_DOUBLE_EQ(bodyA.getLinearVelocity().y, bodyB.getLinearVelocity().y);
+    EXPECT_DOUBLE_EQ(bodyA.getOrientation(), bodyB.getOrientation());
+    EXPECT_DOUBLE_EQ(bodyA.getAngularVelocity(), bodyB.getAngularVelocity());
+}
+
+// -----------------------------------------------------------------------------
+// Fourteen-Way Swappable Coordinator Polymorphism Tests
+// -----------------------------------------------------------------------------
+
+TEST(VehicleDynamicsCoordinatorTest, AllFourteenDynamicsModelsPolymorphicSwapping)
 {
     RigidBodyConfig bodyConfig { };
     bodyConfig.mass = 2000.0;
@@ -3276,21 +3515,14 @@ TEST(VehicleDynamicsCoordinatorTest, AllThirteenDynamicsModelsPolymorphicSwappin
 
     constexpr double dt { 1.0 / 60.0 };
 
-    std::unique_ptr<IVehicleDynamics> models[13] {
-        std::make_unique<ArcadeCarDynamics>(),
-        std::make_unique<MonsterCarDynamics>(),
-        std::make_unique<SideViewCarDynamics>(),
-        std::make_unique<RocketDynamics>(),
-        std::make_unique<TrackedTankDynamics>(),
-        std::make_unique<AerodynamicPlaneDynamics>(),
-        std::make_unique<HovercraftDynamics>(),
-        std::make_unique<WatercraftDynamics>(),
-        std::make_unique<TrialsBikeDynamics>(),
-        std::make_unique<HelicopterDynamics>(),
-        std::make_unique<SubmarineDynamics>(),
-        std::make_unique<AntiGravityRacerDynamics>(),
-        std::make_unique<ArticulatedTruckDynamics>()
-    };
+    std::unique_ptr<IVehicleDynamics> models[14] { std::make_unique<ArcadeCarDynamics>(),
+        std::make_unique<MonsterCarDynamics>(), std::make_unique<SideViewCarDynamics>(),
+        std::make_unique<RocketDynamics>(), std::make_unique<TrackedTankDynamics>(),
+        std::make_unique<AerodynamicPlaneDynamics>(), std::make_unique<HovercraftDynamics>(),
+        std::make_unique<WatercraftDynamics>(), std::make_unique<TrialsBikeDynamics>(),
+        std::make_unique<HelicopterDynamics>(), std::make_unique<SubmarineDynamics>(),
+        std::make_unique<AntiGravityRacerDynamics>(), std::make_unique<ArticulatedTruckDynamics>(),
+        std::make_unique<EarthRoverDynamics>() };
 
     for (auto& coordinator : models) {
         ASSERT_NE(coordinator, nullptr);
@@ -3302,5 +3534,3 @@ TEST(VehicleDynamicsCoordinatorTest, AllThirteenDynamicsModelsPolymorphicSwappin
 }
 
 } // namespace vehicle_sim::testing
-
-
