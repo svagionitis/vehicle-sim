@@ -44,6 +44,10 @@ add_library(VehicleSimCore STATIC
     dynamics/ArticulatedTruckDynamics.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
+    terrain/GradientNoise.h
+    terrain/GradientNoise.cpp
+    terrain/FractalNoise.h
+    terrain/FractalNoise.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC
