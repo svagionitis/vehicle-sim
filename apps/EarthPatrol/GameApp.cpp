@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <string>
 
 #include "apps/EarthPatrol/PixelFont.h"
@@ -57,6 +58,8 @@ GameApp::GameApp(const GameAppConfig& config)
 
 bool GameApp::initialize()
 {
+    loadHighScore();
+
     static_cast<void>(audio_.initialize(config_.headless));
 
     if (config_.headless) {
@@ -65,6 +68,10 @@ bool GameApp::initialize()
 
     if (!sdlContext_.isInitialized()) {
         return false;
+    }
+
+    if (SDL_NumJoysticks() > 0 && SDL_IsGameController(0) != SDL_FALSE) {
+        controller_.reset(SDL_GameControllerOpen(0));
     }
 
     SDL_Window* const rawWindow { SDL_CreateWindow(config_.windowTitle.c_str(), SDL_WINDOWPOS_CENTERED,
@@ -119,6 +126,7 @@ void GameApp::run()
 
 void GameApp::stop() noexcept
 {
+    saveHighScore();
     running_ = false;
 }
 
@@ -186,11 +194,23 @@ void GameApp::processEvents() noexcept
             return;
         }
 
+        if (event.type == SDL_CONTROLLERDEVICEADDED) {
+            if (!controller_ && SDL_IsGameController(event.cdevice.which) != SDL_FALSE) {
+                controller_.reset(SDL_GameControllerOpen(event.cdevice.which));
+            }
+        } else if (event.type == SDL_CONTROLLERDEVICEREMOVED) {
+            controller_.reset();
+        }
+
         if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
             const auto key { event.key.keysym.sym };
             if (key == SDLK_ESCAPE) {
                 stop();
                 return;
+            }
+
+            if (key == SDLK_m) {
+                audio_.setMuted(!audio_.isMuted());
             }
 
             if (state_ == GameState::TitleScreen) {
@@ -259,6 +279,84 @@ void GameApp::processEvents() noexcept
             default:
                 break;
             }
+        } else if (event.type == SDL_CONTROLLERBUTTONDOWN) {
+            const auto btn { event.cbutton.button };
+            if (state_ == GameState::TitleScreen) {
+                if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START) {
+                    startNewGame();
+                    return;
+                }
+            } else if (state_ == GameState::StageClear) {
+                if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START) {
+                    advanceStage();
+                    return;
+                }
+            } else if (state_ == GameState::GameOver) {
+                if (btn == SDL_CONTROLLER_BUTTON_A || btn == SDL_CONTROLLER_BUTTON_START) {
+                    state_ = GameState::TitleScreen;
+                    return;
+                }
+            } else if (state_ == GameState::Playing) {
+                switch (btn) {
+                case SDL_CONTROLLER_BUTTON_A:
+                    input.jump = true;
+                    audio_.playJump();
+                    particles_.emitThrusterSparks(roverBody_.getPosition() - vehicle_sim::math::Vec2 { 0.8, 0.4 }, 6);
+                    break;
+                case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                    input.throttle = 1.0;
+                    break;
+                case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                    input.throttle = -0.5;
+                    break;
+                case SDL_CONTROLLER_BUTTON_B:
+                case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                    input.brake = 1.0;
+                    break;
+                case SDL_CONTROLLER_BUTTON_Y:
+                    audio_.setMuted(!audio_.isMuted());
+                    break;
+                default:
+                    break;
+                }
+            }
+        } else if (event.type == SDL_CONTROLLERBUTTONUP && state_ == GameState::Playing) {
+            switch (event.cbutton.button) {
+            case SDL_CONTROLLER_BUTTON_A:
+                input.jump = false;
+                break;
+            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                input.throttle = 0.0;
+                break;
+            case SDL_CONTROLLER_BUTTON_B:
+            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                input.brake = 0.0;
+                break;
+            default:
+                break;
+            }
+        } else if (event.type == SDL_CONTROLLERAXISMOTION && state_ == GameState::Playing) {
+            if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX) {
+                const Sint16 val { event.caxis.value };
+                if (val > 8000) {
+                    input.throttle = static_cast<double>(val) / 32767.0;
+                } else if (val < -8000) {
+                    input.throttle = (static_cast<double>(val) / 32767.0) * 0.5;
+                } else {
+                    input.throttle = 0.0;
+                }
+            } else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
+                if (event.caxis.value > 4000) {
+                    input.throttle = static_cast<double>(event.caxis.value) / 32767.0;
+                }
+            } else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT) {
+                if (event.caxis.value > 4000) {
+                    input.brake = static_cast<double>(event.caxis.value) / 32767.0;
+                } else {
+                    input.brake = 0.0;
+                }
+            }
         }
     }
 
@@ -299,6 +397,7 @@ void GameApp::updatePhysics(double dt) noexcept
                 if (score_ > highScore_) {
                     highScore_ = score_;
                 }
+                saveHighScore();
             }
         }
         return;
@@ -316,6 +415,7 @@ void GameApp::updatePhysics(double dt) noexcept
     course_.update(roverBody_.getPosition().x, dt);
     camera_.update(roverBody_.getPosition(), rover_.getSpeed(), dt);
     parallax_.update(dt);
+    obstacles_.updateDynamic(dt, course_.getHeightfield());
 
     // Ground contact evaluation, tire dust, and landing thump
     bool currentlyGrounded { false };
@@ -380,6 +480,7 @@ void GameApp::updatePhysics(double dt) noexcept
         if (score_ > highScore_) {
             highScore_ = score_;
         }
+        saveHighScore();
         state_ = GameState::StageClear;
         stageClearTimer_ = 0.0;
     }
@@ -645,6 +746,9 @@ void GameApp::renderHUD() noexcept
     const int stageX { config_.windowWidth - 160 };
     PixelFont::drawText(renderer_.get(), stageStr, stageX, 16, 2, { 100, 220, 255, 255 });
     PixelFont::drawText(renderer_.get(), timeStr, stageX, 32, 2, { 240, 240, 240, 255 });
+    if (audio_.isMuted()) {
+        PixelFont::drawText(renderer_.get(), "[MUTE]", stageX, 48, 2, { 255, 90, 70, 255 });
+    }
 
     // Center Course progress bar
     constexpr int barWidth { 500 };
@@ -945,6 +1049,27 @@ const AudioSystem& GameApp::getAudio() const noexcept
 AudioSystem& GameApp::getAudio() noexcept
 {
     return audio_;
+}
+
+void GameApp::loadHighScore() noexcept
+{
+    std::ifstream file { "earthpatrol_scores.dat", std::ios::binary };
+    if (file.is_open()) {
+        int savedScore { 0 };
+        if (file.read(reinterpret_cast<char*>(&savedScore), sizeof(savedScore))) {
+            if (savedScore > 0 && savedScore < 10000000) {
+                highScore_ = savedScore;
+            }
+        }
+    }
+}
+
+void GameApp::saveHighScore() const noexcept
+{
+    std::ofstream file { "earthpatrol_scores.dat", std::ios::binary | std::ios::trunc };
+    if (file.is_open()) {
+        file.write(reinterpret_cast<const char*>(&highScore_), sizeof(highScore_));
+    }
 }
 
 } // namespace earth_patrol

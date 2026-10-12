@@ -127,3 +127,6 @@ docs/latex/
 docs/doxygen_sqlite3.db
 *.qch
 *.qhc
+
+# Local game save files
+*.dat

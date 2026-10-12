@@ -47,6 +47,19 @@ struct SDLTextureDeleter {
     }
 };
 
+/// @struct SDLControllerDeleter
+/// @brief Custom RAII deleter for SDL_GameController resource pointers.
+struct SDLControllerDeleter {
+    /// @brief Closes SDL_GameController device handle.
+    /// @param[in] controller Pointer to SDL_GameController.
+    void operator()(SDL_GameController* controller) const noexcept
+    {
+        if (controller != nullptr) {
+            SDL_GameControllerClose(controller);
+        }
+    }
+};
+
 /// @brief Unique pointer alias for managed SDL_Window.
 using UniqueWindow = std::unique_ptr<SDL_Window, SDLWindowDeleter>;
 
@@ -56,13 +69,16 @@ using UniqueRenderer = std::unique_ptr<SDL_Renderer, SDLRendererDeleter>;
 /// @brief Unique pointer alias for managed SDL_Texture.
 using UniqueTexture = std::unique_ptr<SDL_Texture, SDLTextureDeleter>;
 
+/// @brief Unique pointer alias for managed SDL_GameController.
+using UniqueController = std::unique_ptr<SDL_GameController, SDLControllerDeleter>;
+
 /// @class SDLContext
 /// @brief RAII manager for SDL subsystem lifecycle initialization and teardown.
 class SDLContext final {
 public:
-    /// @brief Initializes SDL video, timer, and event subsystems.
-    /// @param[in] flags SDL initialization flags (default: video and events).
-    explicit SDLContext(Uint32 flags = SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER)
+    /// @brief Initializes SDL video, timer, gamecontroller, and event subsystems.
+    /// @param[in] flags SDL initialization flags (default: video, events, timer, controller).
+    explicit SDLContext(Uint32 flags = SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER)
     {
         if (SDL_Init(flags) != 0) {
             initialized_ = false;

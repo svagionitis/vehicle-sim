@@ -174,4 +174,109 @@ TEST(AudioSystemTest, HeadlessInitializationAndMuteToggle)
     audio.playStageClear();
 }
 
+TEST(DynamicObstacleTest, KinematicUpdateAndTerrainFollowing)
+{
+    CourseManager course { };
+    course.buildCourse(1); // Desert
+
+    ObstacleManager obs { };
+    obs.generateObstacles(course, 1);
+
+    const auto& dyns { obs.getDynamicObstacles() };
+    ASSERT_FALSE(dyns.empty());
+
+    // Check that we have a rolling boulder
+    bool foundBoulder { false };
+    double initialX { 0.0 };
+    double initialAngle { 0.0 };
+    for (const auto& d : dyns) {
+        if (d.type == DynamicObstacleType::RollingBoulder) {
+            foundBoulder = true;
+            initialX = d.position.x;
+            initialAngle = d.rotationAngle;
+            break;
+        }
+    }
+    ASSERT_TRUE(foundBoulder);
+
+    constexpr double dt { 0.1 };
+    obs.updateDynamic(dt, course.getHeightfield());
+
+    const auto& updatedDyns { obs.getDynamicObstacles() };
+    for (const auto& d : updatedDyns) {
+        if (d.type == DynamicObstacleType::RollingBoulder) {
+            // Velocity is negative (moving towards player), so X decreases
+            EXPECT_LT(d.position.x, initialX);
+            // Angle should change according to omega = -vx / r
+            EXPECT_GT(d.rotationAngle, initialAngle);
+            // Y position conforms to terrain height + radius
+            const double expectedY { course.getHeightfield().getHeight(d.position.x) + d.radius };
+            EXPECT_NEAR(d.position.y, expectedY, 1e-4);
+            break;
+        }
+    }
+}
+
+TEST(DynamicObstacleTest, PatrolDroneBoundaryReversal)
+{
+    CourseManager course { };
+    course.buildCourse(0); // Highway
+
+    ObstacleManager obs { };
+    obs.generateObstacles(course, 0);
+
+    const auto& dyns { obs.getDynamicObstacles() };
+    ASSERT_FALSE(dyns.empty());
+
+    bool foundDrone { false };
+    for (const auto& d : dyns) {
+        if (d.type == DynamicObstacleType::PatrolDrone) {
+            foundDrone = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(foundDrone);
+
+    // Update for 10 seconds to ensure drone hits patrol boundary and reverses
+    for (int step { 0 }; step < 100; ++step) {
+        obs.updateDynamic(0.1, course.getHeightfield());
+    }
+
+    const auto& updatedDyns { obs.getDynamicObstacles() };
+    for (const auto& d : updatedDyns) {
+        if (d.type == DynamicObstacleType::PatrolDrone) {
+            // Drone stays within [patrolMinX, patrolMaxX]
+            EXPECT_GE(d.position.x, d.patrolMinX - 0.5);
+            EXPECT_LE(d.position.x, d.patrolMaxX + 0.5);
+        }
+    }
+}
+
+TEST(DynamicObstacleTest, CollisionDetectionAndClearCount)
+{
+    CourseManager course { };
+    course.buildCourse(1);
+
+    ObstacleManager obs { };
+    obs.generateObstacles(course, 1);
+
+    const auto& dyns { obs.getDynamicObstacles() };
+    ASSERT_FALSE(dyns.empty());
+    const auto targetPos { dyns.front().position };
+
+    vehicle_sim::physics::RigidBodyConfig bodyConfig { };
+    bodyConfig.position = targetPos;
+    vehicle_sim::physics::RigidBody2D body { bodyConfig };
+
+    bool fatal { false };
+    EXPECT_TRUE(obs.checkDynamicColl(body, fatal));
+    EXPECT_TRUE(fatal);
+
+    // Move rover far past the obstacle
+    body.setPosition(vehicle_sim::math::Vec2 { targetPos.x + 10.0, targetPos.y });
+    bool clearFatal { false };
+    EXPECT_FALSE(obs.checkDynamicColl(body, clearFatal));
+    EXPECT_GT(obs.getClearedCount(), 0);
+}
+
 } // namespace earth_patrol

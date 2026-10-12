@@ -198,12 +198,19 @@ private:
     /// @brief Renders the GameOver screen with final score summary.
     void renderGameOver() noexcept;
 
+    /// @brief Loads persistent high score record from local disk storage.
+    void loadHighScore() noexcept;
+
+    /// @brief Saves persistent high score record to local disk storage.
+    void saveHighScore() const noexcept;
+
     GameAppConfig config_ { };
     bool running_ { false };
 
     SDLContext sdlContext_ { };
     UniqueWindow window_ { nullptr };
     UniqueRenderer renderer_ { nullptr };
+    UniqueController controller_ { nullptr };
 
     Camera2D camera_ { };
     CourseManager course_ { };

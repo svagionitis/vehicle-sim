@@ -550,23 +550,181 @@ flowchart LR
 
 ---
 
+### 7.4 Optional Features & Future Extensions Overview
+
+To further elevate Earth Patrol towards commercial arcade quality, the following optional enhancements have been identified:
+
+| Feature | Scope & Affected Modules | Impact & Description |
+| :--- | :--- | :--- |
+| **Physical Gamepad / Joystick Support** | [apps/EarthPatrol/GameApp.cpp](../apps/EarthPatrol/GameApp.cpp) | Direct mapping of `SDL_GameController` / `SDL_Joystick` events (D-pad/analog stick for throttle & brake, Button A for jump thruster, Start for play/restart). |
+| **Persistent High Score Storage** | [apps/EarthPatrol/GameApp.cpp](../apps/EarthPatrol/GameApp.cpp) | Serializing top scores to a local file (`earthpatrol_scores.dat`) upon GameOver so high scores persist across game sessions. |
+| **HUD Audio Mute Indicator** | [apps/EarthPatrol/GameApp.cpp](../apps/EarthPatrol/GameApp.cpp) | Rendering a retro `[MUTE]` status indicator in the top-right corner of the HUD when the player presses `M`. |
+| **Full Doxygen `@details` Audit** | [apps/EarthPatrol/AudioSystem.h](../apps/EarthPatrol/AudioSystem.h) | Supplementing all public inline getters and sound triggers with explicit `@details` and `@return` tags for strict MISRA/checklist compliance. |
+| **Dynamic / Moving Obstacles** | [apps/EarthPatrol/ObstacleManager.h](../apps/EarthPatrol/ObstacleManager.h)<br>[apps/EarthPatrol/ObstacleManager.cpp](../apps/EarthPatrol/ObstacleManager.cpp) | Introducing dynamic hazards that move along the terrain surface (rolling boulders, highway drones, tumbling debris) to challenge timing. |
+
+---
+
+### 7.5 Phase 8 Detailed Implementation Plan: Dynamic & Moving Obstacles
+
+#### 7.5.1 Concept & Hazard Taxonomy
+In classic *Moon Patrol*, several hazards move across the screen rather than staying stationary, forcing the player to calculate relative closing velocities. For Earth Patrol, three terrestrial moving obstacle archetypes are designed:
+
+1. **Rolling Boulder / Tumbling Rock (Desert & Alpine Biomes)**:
+   - Spawns ahead of the rover on elevated slopes or drop-offs.
+   - Rolls toward the player with closing velocity ($v_x \in [-4.0, -8.0]\,\text{m/s}$).
+   - Height dynamically conforms to the terrain profile $y = h(x) + r$, while angular rotation matches rolling kinematics:
+     $$\omega = -\frac{v_x}{r}, \quad \theta(t + \Delta t) = \theta(t) + \omega \Delta t$$
+2. **Patrolling Roadwork Drone (Highway Biome)**:
+   - Autonomous road maintenance crawler that oscillates horizontally between two patrol points $[x_{\min}, x_{\max}]$.
+   - Reverses velocity when encountering patrol limits:
+     $$v_x \leftarrow -v_x \quad \text{if } x \le x_{\min} \text{ or } x \ge x_{\max}$$
+   - Features flashing warning beacon hazard graphics.
+3. **Windblown Debris / Tumbling Shrub (Desert Biome)**:
+   - Low-mass tumbleweed that bounces across the terrain with small parabolic arcs:
+     $$\ddot{y} = -g, \quad \dot{y} \leftarrow -e \dot{y} \quad (\text{upon terrain contact } y \le h(x) + r)$$
+
+#### 7.5.2 ASCII Diagram: Dynamic Obstacle Kinematic & Collision Pipeline
+
+```
++---------------------------------------------------------------------------------------------------+
+|                            Dynamic Obstacle Pipeline Architecture                                 |
++---------------------------------------------------------------------------------------------------+
+|  [Course Generation]                                                                              |
+|    - Procedurally places DynamicObstacle instances at sector offsets                              |
+|    - Configures velocity vx, patrol interval [xmin, xmax], radius r, and obstacle type            |
++--------------------------------------------------+------------------------------------------------+
+                                                   |
+                                                   v
++---------------------------------------------------------------------------------------------------+
+|  [Per-Tick Simulation: ObstacleManager::updateDynamic(dt, terrain)]                               |
+|                                                                                                   |
+|    1. Horizontal Integration:      x_new = x + vx * dt                                            |
+|    2. Terrain Conformance:         y_new = terrain.sampleHeight(x_new) + r                        |
+|    3. Kinematic Rotation:          theta_new = theta - (vx * dt / r)                              |
+|    4. Boundary / Patrol Turn:      if (x_new < xmin || x_new > xmax) vx = -vx                     |
+|    5. AABB Update:                 box = {x_new - r, y_new - r, 2r, 2r}                          |
++--------------------------------------------------+------------------------------------------------+
+                                                   |
+                                                   v
++---------------------------------------------------------------------------------------------------+
+|  [Collision & Interaction Pipeline]                                                               |
+|                                                                                                   |
+|    Rover AABB vs Dynamic Obstacle AABB                                                            |
+|       |                                                                                           |
+|       +---> [No Overlap]  --> Render rotated geometry in Camera2D frame                           |
+|       |                                                                                           |
+|       +---> [Intersect]   --> Trigger Crash Sequence                                              |
+|                                 - ParticleSystem: 32 debris chunks + 16 sparks                    |
+|                                 - Camera2D: Add trauma (0.85) -> screen shake                     |
+|                                 - AudioSystem: playCrash() explosion                              |
+|                                 - GameStateMachine: Transition to Crashed state                   |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 7.5.3 Mermaid Diagram: Dynamic Obstacle Simulation & Spatial Update Flow
+
+```mermaid
+flowchart TD
+    subgraph UpdatePhase ["60 Hz Fixed Timestep Update"]
+        Start["ObstacleManager::updateDynamic(dt, terrain)"]
+        Iter["Iterate active DynamicObstacle vector"]
+        Integ["x = x + vx * dt"]
+        Sample["y = terrain.sampleHeight(x) + radius"]
+        Roll["theta = theta - (vx * dt / radius)"]
+        PatrolCheck{"Is Obstacle Patrolling\n& at boundary?"}
+        ReverseVel["vx = -vx"]
+        UpdateBox["Update local AABB: [x-r, y-r, 2r, 2r]"]
+        
+        Start --> Iter --> Integ --> Sample --> Roll --> PatrolCheck
+        PatrolCheck -- "Yes" --> ReverseVel --> UpdateBox
+        PatrolCheck -- "No" --> UpdateBox
+    end
+
+    subgraph CollisionPhase ["Collision & Resolution Pipeline"]
+        BoxCheck{"Rover AABB intersects\nDynamicObstacle AABB?"}
+        Safe["Render obstacle with rotational transform"]
+        Crash["Trigger Fatal Crash Event"]
+        FX1["ParticleSystem::emitCrashDebris()"]
+        FX2["Camera2D::addTrauma(0.85)"]
+        FX3["AudioSystem::playCrash()"]
+        State["GameApp::transitionToCrashed()"]
+        
+        UpdateBox --> BoxCheck
+        BoxCheck -- "No" --> Safe
+        BoxCheck -- "Yes" --> Crash
+        Crash --> FX1
+        Crash --> FX2
+        Crash --> FX3
+        Crash --> State
+    end
+```
+
+#### 7.5.4 Data Structures & Class Interfaces
+
+In [apps/EarthPatrol/ObstacleManager.h](../apps/EarthPatrol/ObstacleManager.h):
+
+```cpp
+/// @enum DynamicObstacleType
+/// @brief Classification of moving terrestrial hazards.
+enum class DynamicObstacleType : std::uint8_t {
+    RollingBoulder,  ///< Ground-conforming rolling rock with closing speed.
+    PatrolDrone,     ///< Oscillating roadwork drone with flashing beacon.
+    TumblingDebris   ///< Wind-driven hopping debris cluster.
+};
+
+/// @struct DynamicObstacle
+/// @brief Represents a moving obstacle with kinetic and rotational state.
+struct DynamicObstacle {
+    DynamicObstacleType type { DynamicObstacleType::RollingBoulder };
+    vehicle_sim::math::Vec2 position { 0.0, 0.0 };
+    vehicle_sim::math::Vec2 velocity { 0.0, 0.0 };
+    double radius { 0.40 };
+    double rotationAngle { 0.0 };
+    double patrolMinX { 0.0 };
+    double patrolMaxX { 0.0 };
+    ObstacleAABB aabb { 0.0, 0.0, 0.0, 0.0 };
+    bool active { true };
+};
+```
+
+Member functions added to `ObstacleManager`:
+- `void updateDynamic(double dt, const vehicle_sim::terrain::Heightfield1D& terrain) noexcept;`
+- `[[nodiscard]] const std::vector<DynamicObstacle>& getDynamicObstacles() const noexcept;`
+- `[[nodiscard]] bool checkDynamicColl(const ObstacleAABB& roverBox) const noexcept;`
+
+#### 7.5.5 Implementation Steps for Phase 8
+
+1. **Step 8.1 - Data Model & Kinematic Update**:
+   - Define `DynamicObstacleType` and `DynamicObstacle` in [apps/EarthPatrol/ObstacleManager.h](../apps/EarthPatrol/ObstacleManager.h).
+   - Implement `updateDynamic()` in [apps/EarthPatrol/ObstacleManager.cpp](../apps/EarthPatrol/ObstacleManager.cpp) with terrain height clamping and angular integration.
+2. **Step 8.2 - Procedural Distribution Across Biomes**:
+   - In `generateObstacles()`, spawn rolling boulders on steep sections of Desert and Alpine tracks, and patrol drones along flat sections of the Highway.
+3. **Step 8.3 - Rotated Geometry Rasterization**:
+   - In `renderObstacles()`, project obstacle center to screen coordinates and render rotated polygon vertices (e.g. faceted rock segments or rotating drone hub).
+4. **Step 8.4 - Collision Integration in Game Loop**:
+   - In [apps/EarthPatrol/GameApp.cpp](../apps/EarthPatrol/GameApp.cpp), query `checkDynamicColl(roverAabb)`. On hit, trigger crash sequence with particles, camera shake, and explosion sound.
+5. **Step 8.5 - Unit Test Coverage**:
+   - Add unit tests in [apps/EarthPatrol/GameAppTest.cpp](../apps/EarthPatrol/GameAppTest.cpp) verifying linear translation, rotational integration, boundary reversal, and collision detection.
+
+---
+
 ## 8. Step-by-Step Implementation Roadmap
 
 ```
 +---------------------------------------------------------------------------------------------------+
 | Earth Patrol Implementation Roadmap                                                               |
 +---------------------------------------------------------------------------------------------------+
-| Phase 1: Core 3-Axle Rover Dynamics in VehicleSimCore                                            |
+| Phase 1: Core 3-Axle Rover Dynamics in VehicleSimCore [COMPLETED]                                 |
 |   - Add EarthRoverDynamics.h & EarthRoverDynamics.cpp in libs/VehicleSimCore/dynamics/           |
 |   - Implement spring-damper struts, Heightfield1D contact integration, aerodynamic fluid drag    |
 |   - Add unit tests in tests/DynamicsTest.cpp and tests/TerrainTest.cpp                            |
 +---------------------------------------------------------------------------------------------------+
-| Phase 2: SDL2 Application Framework & CMake Integration                                          |
+| Phase 2: SDL2 Application Framework & CMake Integration [COMPLETED]                               |
 |   - Add apps/EarthPatrol/CMakeLists.txt and root CMake find_package(SDL2) option                 |
 |   - Create SDLWrappers.h RAII unique pointers for window, renderer, and textures                 |
 |   - Build minimal GameApp window bootstrap running at fixed 60 Hz                                |
 +---------------------------------------------------------------------------------------------------+
-| Phase 3: Terrain & Camera Visualization                                                           |
+| Phase 3: Terrain & Camera Visualization [COMPLETED]                                               |
 |   - Implement Camera2D with horizontal lead and vertical damping                                 |
 |   - Implement Heightfield1D procedural ribbon rasterization in RendererSDL                        |
 |   - Stream infinite / segmented procedural track courses via CourseManager                       |
@@ -592,6 +750,12 @@ flowchart LR
 |   - Procedural synthetic retro SFX (jump sweep, landing thump, crash noise, milestone chime)      |
 |   - Clean compile with /W4 and -Wall -Wextra -pedantic (-Werror) on Windows and Linux             |
 |   - Complete Doxygen documentation, 10 unit tests in EarthPatrolTests, MISRA/CERT compliance audit |
++---------------------------------------------------------------------------------------------------+
+| Phase 8: Dynamic / Moving Obstacles & Arcade Polish [COMPLETED]                                    |
+|   - Rolling boulders, highway patrol drones, and windblown debris in ObstacleManager              |
+|   - Kinematic surface-following integration with rotational angular displacement                  |
+|   - Gamepad/controller input support (SDL_GameController) and persistent high score file saving   |
+|   - HUD [MUTE] indicator, full Doxygen audit, 13 unit tests passing in EarthPatrolTests          |
 +---------------------------------------------------------------------------------------------------+
 ```
 
