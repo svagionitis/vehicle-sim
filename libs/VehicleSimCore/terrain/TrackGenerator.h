@@ -7,6 +7,7 @@
 
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
+#include "libs/VehicleSimCore/terrain/BankedTrack.h"
 #include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMap2D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
@@ -36,7 +37,7 @@ struct TrialsCourseConfig {
 /// @struct TrialsCourse
 /// @brief Procedurally generated obstacle course for trials bikes and side-view physics.
 struct TrialsCourse {
-    Heightfield1D terrain {}; ///< Procedural 1D continuous heightfield profile.
+    Heightfield1D terrain { }; ///< Procedural 1D continuous heightfield profile.
     math::Vec2 startPosition { 0.0, 0.0 }; ///< Initial spawn coordinate [x, y] in meters.
     math::Vec2 finishPosition { 0.0, 0.0 }; ///< Finish gate coordinate [x, y] in meters.
     double totalLength { 0.0 }; ///< Total horizontal course extent in meters.
@@ -71,7 +72,7 @@ struct PlatformerLevelConfig {
 /// @struct PlatformerLevel
 /// @brief Multi-tiered floating platform layout for SideViewCarDynamics.
 struct PlatformerLevel {
-    std::vector<dynamics::SideViewPlatform> platforms {}; ///< All generated platform segments.
+    std::vector<dynamics::SideViewPlatform> platforms { }; ///< All generated platform segments.
     math::Vec2 spawnPoint { 0.0, 0.0 }; ///< Player starting spawn position in meters.
     math::Vec2 goalPoint { 0.0, 0.0 }; ///< Topmost goal platform location in meters.
     std::size_t tierCount { 0 }; ///< Number of generated platform tiers.
@@ -102,7 +103,7 @@ struct HillClimbConfig {
 /// @struct HillClimbCourse
 /// @brief Extreme procedural mountain hill climb course with continuous heightfield.
 struct HillClimbCourse {
-    Heightfield1D terrain {}; ///< Procedural continuous mountain heightfield.
+    Heightfield1D terrain { }; ///< Procedural continuous mountain heightfield.
     math::Vec2 startPosition { 0.0, 0.0 }; ///< Base mountain spawn position in meters.
     math::Vec2 peakPosition { 0.0, 0.0 }; ///< Summit peak position in meters.
     double totalElevationGain { 0.0 }; ///< Total vertical elevation gain in meters.
@@ -119,7 +120,7 @@ struct HillClimbCourse {
 /// @struct CircuitTrackConfig
 /// @brief Configuration parameters for 2D top-down racing circuit tracks.
 /// @details Defines perimeter radius, waypoint count, roadway ribbon width, runoff shoulders,
-/// procedural shape perturbation, elevation variations, and surface materials.
+/// procedural shape perturbation, elevation variations, banking superelevation, and surface materials.
 struct CircuitTrackConfig {
     double radiusX { 100.0 }; ///< Semi-major radius of track loop in meters.
     double radiusY { 70.0 }; ///< Semi-minor radius of track loop in meters.
@@ -129,6 +130,13 @@ struct CircuitTrackConfig {
     double perturbation { 0.25 }; ///< Radial shape distortion fraction in [0, 0.4].
     double elevationVariation { 6.0 }; ///< Peak vertical undulating elevation in meters.
     bool isClosed { true }; ///< True if track forms closed continuous loop.
+    bool enableBanking { true }; ///< True to generate physical transversal banking and superelevation.
+    TrackCamberType camberType { TrackCamberType::Superelevation }; ///< Cross-section camber profile.
+    double designSpeed { 25.0 }; ///< Target cornering design speed in m/s (~90 km/h).
+    double maxBankAngle { 0.40 }; ///< Maximum bank angle clamp in radians (~22.9 deg).
+    double crownSlope { 0.02 }; ///< Drainage cross-fall on straights (e.g. 2% slope).
+    double transitionLength { 25.0 }; ///< Superelevation runoff easement length in meters.
+    double bowlCurvature { 0.05 }; ///< Quadratic coefficient for ParabolicBowl profile.
     SurfaceMaterial roadMaterial { SurfaceMaterial::getPreset(MaterialType::Tarmac) };
     SurfaceMaterial shoulderMaterial { SurfaceMaterial::getPreset(MaterialType::Gravel) };
     SurfaceMaterial offtrackMaterial { SurfaceMaterial::getPreset(MaterialType::Grass) };
@@ -136,19 +144,21 @@ struct CircuitTrackConfig {
 };
 
 /// @struct CircuitTrack2D
-/// @brief Procedural 2D ribbon circuit track with SurfaceMap2D integration and centerline queries.
+/// @brief Procedural 2D ribbon circuit track with SurfaceMap2D integration, banking, and centerline queries.
 struct CircuitTrack2D {
-    SurfaceMap2D surfaceMap {}; ///< 2D top-down elevation and surface material map.
-    std::vector<math::Vec2> centerline {}; ///< Discrete roadway centerline polyline vertices.
-    std::vector<math::Vec2> leftBoundary {}; ///< Left boundary edge polyline vertices.
-    std::vector<math::Vec2> rightBoundary {}; ///< Right boundary edge polyline vertices.
-    std::vector<math::Vec2> checkpoints {}; ///< Timing checkpoint coordinates in order.
+    SurfaceMap2D surfaceMap { }; ///< 2D top-down elevation and surface material map.
+    std::vector<math::Vec2> centerline { }; ///< Discrete roadway centerline polyline vertices.
+    std::vector<math::Vec2> leftBoundary { }; ///< Left boundary edge polyline vertices.
+    std::vector<math::Vec2> rightBoundary { }; ///< Right boundary edge polyline vertices.
+    std::vector<double> bankAngles { }; ///< Local bank angle theta at each centerline vertex in radians.
+    std::vector<math::Vec2> checkpoints { }; ///< Timing checkpoint coordinates in order.
     math::Vec2 startGridPosition { 0.0, 0.0 }; ///< Starting grid coordinate in meters.
     double startHeading { 0.0 }; ///< Vehicle starting orientation angle in radians.
     double trackLength { 0.0 }; ///< Total centerline track perimeter length in meters.
     double trackWidth { 10.0 }; ///< Drivable roadway ribbon width in meters.
     double shoulderWidth { 4.0 }; ///< Runoff shoulder width in meters.
     bool isClosed { true }; ///< True if circuit forms closed loop.
+    BankedTrackProfile camberProfile { }; ///< Active camber and banking evaluator.
 
     /// @brief Tests if world coordinate lies within drivable roadway ribbon.
     /// @param[in] point World query position in meters.
@@ -164,6 +174,21 @@ struct CircuitTrack2D {
     /// @param[in] point World query position in meters.
     /// @return Fractional track progress [0.0, 1.0].
     [[nodiscard]] double getTrackProgress(const math::Vec2& point) const noexcept;
+
+    /// @brief Evaluates interpolated bank angle at world query coordinates.
+    /// @param[in] point World query position in meters.
+    /// @return Bank angle in radians (0.0 if off track).
+    [[nodiscard]] double getBankAngle(const math::Vec2& point) const noexcept;
+
+    /// @brief Evaluates bank angle at normalized track progress in [0, 1].
+    /// @param[in] progress Fractional progress along track [0.0, 1.0].
+    /// @return Bank angle in radians.
+    [[nodiscard]] double getBankAngleAtProgress(double progress) const noexcept;
+
+    /// @brief Evaluates full cross-section sample at world query position.
+    /// @param[in] point World query position in meters.
+    /// @return Evaluated CamberProfileSample.
+    [[nodiscard]] CamberProfileSample sampleCamber(const math::Vec2& point) const noexcept;
 };
 
 /// @class TrackGenerator

@@ -114,10 +114,10 @@ graph TD
 
 ---
 
-### 2.2 Cambered / Banked Tracks and Superelevation
+### 2.2 Cambered / Banked Tracks and Superelevation (Implemented)
 
 #### Objective
-Add transversal road banking (superelevation) to [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) and [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h) along curved ribbon sections.
+Add transversal road banking (superelevation) to [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) and [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h) along curved ribbon sections. Implemented via [BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h) and [BankedTrackProfile](../libs/VehicleSimCore/terrain/BankedTrack.h).
 
 #### Technical Formulation
 - **Theoretical Superelevation**:
@@ -127,6 +127,38 @@ Add transversal road banking (superelevation) to [TrackGenerator](../libs/Vehicl
   Given centerline coordinate $\mathbf{C}(s)$ and unit lateral normal $\mathbf{n}_{\text{lat}}(s)$, the elevation at lateral offset $w \in [-W/2, W/2]$ becomes:
   $$h(s, w) = h_{\text{center}}(s) + w \cdot \sin(\theta(s))$$
 - **Surface Normal Update**: Tilts the 3D upward surface normal $\mathbf{N} = (n_x, n_y, n_z)$ inward towards the curve apex, naturally balancing centripetal acceleration and preventing vehicle slide.
+
+```
+  ASCII Diagram: Banked Track Cross-Section & Force Equilibrium
+
+                     Outer Retaining Wall
+                             .-----------------------+
+                            /                       /|
+                           /  Outer Edge           / |
+                          /                       /  |
+                         /       [Vehicle]       /   |
+                        /         /  |          /    |
+                       /    F_N  /   | F_g     /     |   Road Ribbon Width W
+                      /         v    v        /      |
+                     /                       /       |
+                    /       Centerline C(s) /        |
+                   /               *       /         |
+                  /                       /          |
+                 /  Inner Edge           /           |
+                +-----------------------+            |
+   -------------+------------------------------------+---------------------> Lateral Axis (w)
+               -W/2                     0           +W/2
+```
+
+```mermaid
+graph TD
+    Curvature["Signed Curvature kappa(s)"] --> Radius["Radius R = 1 / |kappa|"]
+    Radius --> DesignSpeed["Design Speed v_design"]
+    DesignSpeed --> Superelevation["tan(theta) = v^2 / (g * R)"]
+    Superelevation --> CrossSection["Cross-Section: h(w) = h_c - w * sin(theta)"]
+    CrossSection --> NormalTilt["3D Surface Normal Tilts Inward"]
+    NormalTilt --> SlopeForce["computeSlopeForce() Balances Centripetal Demand"]
+```
 
 ---
 

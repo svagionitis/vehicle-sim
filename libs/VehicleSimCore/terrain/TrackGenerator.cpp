@@ -144,10 +144,92 @@ double CircuitTrack2D::getTrackProgress(const math::Vec2& point) const noexcept
     return std::clamp(accumulatedDist / trackLength, 0.0, 1.0);
 }
 
+double CircuitTrack2D::getBankAngleAtProgress(double progress) const noexcept
+{
+    if (bankAngles.empty()) {
+        return 0.0;
+    }
+    if (bankAngles.size() == 1U) {
+        return bankAngles[0];
+    }
+
+    const double clampedProg { std::clamp(progress, 0.0, 1.0) };
+    if (isClosed) {
+        const double scaled { clampedProg * static_cast<double>(bankAngles.size()) };
+        const std::size_t idx0 { static_cast<std::size_t>(scaled) % bankAngles.size() };
+        const std::size_t idx1 { (idx0 + 1U) % bankAngles.size() };
+        const double frac { scaled - std::floor(scaled) };
+        return (1.0 - frac) * bankAngles[idx0] + frac * bankAngles[idx1];
+    }
+
+    const double scaled { clampedProg * static_cast<double>(bankAngles.size() - 1U) };
+    const std::size_t idx0 { static_cast<std::size_t>(scaled) };
+    if (idx0 >= bankAngles.size() - 1U) {
+        return bankAngles.back();
+    }
+    const std::size_t idx1 { idx0 + 1U };
+    const double frac { scaled - static_cast<double>(idx0) };
+    return (1.0 - frac) * bankAngles[idx0] + frac * bankAngles[idx1];
+}
+
+double CircuitTrack2D::getBankAngle(const math::Vec2& point) const noexcept
+{
+    if (bankAngles.empty()) {
+        return 0.0;
+    }
+    const double dist { getDistanceToCenter(point) };
+    if (dist > (trackWidth + shoulderWidth) * 0.5) {
+        return 0.0;
+    }
+    return getBankAngleAtProgress(getTrackProgress(point));
+}
+
+CamberProfileSample CircuitTrack2D::sampleCamber(const math::Vec2& point) const noexcept
+{
+    if (centerline.size() < 2U) {
+        return camberProfile.evaluateCamber(0.0, 0.0, trackWidth * 0.5, math::Vec2 { 1.0, 0.0 });
+    }
+
+    double minDist { std::numeric_limits<double>::infinity() };
+    std::size_t bestSeg { 0 };
+    double bestT { 0.0 };
+    const std::size_t segCount { isClosed ? centerline.size() : (centerline.size() - 1U) };
+
+    for (std::size_t i { 0 }; i < segCount; ++i) {
+        const math::Vec2& segA { centerline[i] };
+        const math::Vec2& segB { centerline[(i + 1U) % centerline.size()] };
+        double t { 0.0 };
+        const double d { distToSegment(point, segA, segB, &t) };
+        if (d < minDist) {
+            minDist = d;
+            bestSeg = i;
+            bestT = t;
+        }
+    }
+
+    const math::Vec2& segA { centerline[bestSeg] };
+    const math::Vec2& segB { centerline[(bestSeg + 1U) % centerline.size()] };
+    const math::Vec2 diff { segB - segA };
+    const math::Vec2 tangent { diff.normalized() };
+    const math::Vec2 latNorm { -tangent.y, tangent.x };
+    const math::Vec2 proj { segA + diff * bestT };
+
+    const double w { (point - proj).dot(latNorm) };
+
+    double bank { 0.0 };
+    if (!bankAngles.empty()) {
+        const double bankA { bankAngles[bestSeg] };
+        const double bankB { bankAngles[(bestSeg + 1U) % bankAngles.size()] };
+        bank = (1.0 - bestT) * bankA + bestT * bankB;
+    }
+
+    return camberProfile.evaluateCamber(bank, w, trackWidth * 0.5, tangent);
+}
+
 TrialsCourse TrackGenerator::generateTrialsCourse(const TrialsCourseConfig& config)
 {
-    TrialsCourse course {};
-    std::vector<HeightSample1D> samples {};
+    TrialsCourse course { };
+    std::vector<HeightSample1D> samples { };
     double currentX { 0.0 };
     double currentY { 0.0 };
 
@@ -239,7 +321,7 @@ TrialsCourse TrackGenerator::generateTrialsCourse(const TrialsCourseConfig& conf
 
 PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelConfig& config)
 {
-    PlatformerLevel level {};
+    PlatformerLevel level { };
     DeterministicRng rng { config.seed };
 
     const double halfWidth { std::max(20.0, config.levelWidth) * 0.5 };
@@ -253,7 +335,7 @@ PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelCon
 
     // Continuous Ground Floor (Tier 0)
     if (config.hasGroundFloor) {
-        dynamics::SideViewPlatform ground {};
+        dynamics::SideViewPlatform ground { };
         ground.y = config.groundY;
         ground.minX = minX;
         ground.maxX = maxX;
@@ -272,7 +354,7 @@ PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelCon
             const double platEnd { std::min(cursorX + platLen, maxX) };
 
             if (platEnd - cursorX >= config.platformMinLength * 0.6) {
-                dynamics::SideViewPlatform plat {};
+                dynamics::SideViewPlatform plat { };
                 plat.y = tierY;
                 plat.minX = cursorX;
                 plat.maxX = platEnd;
@@ -305,12 +387,12 @@ PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelCon
 
 HillClimbCourse TrackGenerator::generateHillClimb(const HillClimbConfig& config)
 {
-    HillClimbCourse course {};
+    HillClimbCourse course { };
     DeterministicRng rng { config.seed };
 
     const double totalLen { std::max(50.0, config.totalLength) };
     const double baseSlope { std::max(0.05, config.baseSlope) };
-    std::vector<HeightSample1D> samples {};
+    std::vector<HeightSample1D> samples { };
 
     // Base uniform samples with elevated steep pitches
     const std::size_t numSamples { static_cast<std::size_t>(totalLen / 10.0) + 1U };
@@ -337,7 +419,7 @@ HillClimbCourse TrackGenerator::generateHillClimb(const HillClimbConfig& config)
     course.terrain.setDefaultMaterial(SurfaceMaterial::getPreset(MaterialType::Dirt));
 
     // Fractal noise overlay
-    FractalConfig fractalConfig {};
+    FractalConfig fractalConfig { };
     fractalConfig.octaves = 4;
     fractalConfig.persistence = 0.5;
     fractalConfig.lacunarity = 2.0;
@@ -379,7 +461,7 @@ HillClimbCourse TrackGenerator::generateHillClimb(const HillClimbConfig& config)
 
 CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& config)
 {
-    CircuitTrack2D track {};
+    CircuitTrack2D track { };
     track.trackWidth = std::max(4.0, config.trackWidth);
     track.shoulderWidth = std::max(1.0, config.shoulderWidth);
     track.isClosed = config.isClosed;
@@ -435,6 +517,59 @@ CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& co
     }
     track.trackLength = accumLength;
 
+    // Configure camber and banking evaluator
+    BankedTrackConfig bankConfig { };
+    bankConfig.enabled = config.enableBanking;
+    bankConfig.camberType = config.camberType;
+    bankConfig.designSpeed = config.designSpeed;
+    bankConfig.maxBankAngle = config.maxBankAngle;
+    bankConfig.crownSlope = config.crownSlope;
+    bankConfig.transitionLength = config.transitionLength;
+    bankConfig.bowlCurvature = config.bowlCurvature;
+    track.camberProfile.setConfig(bankConfig);
+
+    // Compute raw curvature and equilibrium banking along centerline
+    std::vector<double> rawBankAngles(interpolatedSteps, 0.0);
+    track.bankAngles.resize(interpolatedSteps, 0.0);
+
+    for (std::size_t i { 0 }; i < interpolatedSteps; ++i) {
+        const std::size_t prevIdx { (i + interpolatedSteps - 1U) % interpolatedSteps };
+        const std::size_t nextIdx { (i + 1U) % interpolatedSteps };
+
+        const math::Vec2 v1 { track.centerline[i] - track.centerline[prevIdx] };
+        const math::Vec2 v2 { track.centerline[nextIdx] - track.centerline[i] };
+        const double d1 { v1.length() };
+        const double d2 { v2.length() };
+        const double ds { 0.5 * (d1 + d2) };
+
+        if (ds > 1e-6 && d1 > 1e-6 && d2 > 1e-6) {
+            const math::Vec2 u1 { v1 * (1.0 / d1) };
+            const math::Vec2 u2 { v2 * (1.0 / d2) };
+            const double cross { u1.x * u2.y - u1.y * u2.x };
+            const double kappa { cross / ds };
+            rawBankAngles[i] = track.camberProfile.computeBankAngle(kappa);
+        }
+    }
+
+    // Smooth bank angles over transition runoff length
+    const double avgStep { track.trackLength / static_cast<double>(interpolatedSteps) };
+    const std::size_t winRadius { static_cast<std::size_t>(
+        std::max(1.0, std::round(0.5 * std::max(5.0, config.transitionLength) / std::max(0.1, avgStep)))) };
+
+    for (std::size_t i { 0 }; i < interpolatedSteps; ++i) {
+        double weightedSum { 0.0 };
+        double totalWeight { 0.0 };
+        for (int offset { -static_cast<int>(winRadius) }; offset <= static_cast<int>(winRadius); ++offset) {
+            const double distNorm { static_cast<double>(std::abs(offset)) / static_cast<double>(winRadius) };
+            const double wgt { 1.0 - distNorm * distNorm }; // Epanechnikov parabolic filter
+            const std::size_t sampleIdx { (i + static_cast<std::size_t>(offset + static_cast<int>(interpolatedSteps)))
+                % interpolatedSteps };
+            weightedSum += rawBankAngles[sampleIdx] * wgt;
+            totalWeight += wgt;
+        }
+        track.bankAngles[i] = (totalWeight > 1e-9) ? (weightedSum / totalWeight) : rawBankAngles[i];
+    }
+
     // Checkpoints distributed along perimeter
     const std::size_t checkpointCount { std::max(std::size_t { 4 }, numWaypoints / 4U) };
     for (std::size_t c { 0 }; c < checkpointCount; ++c) {
@@ -450,7 +585,7 @@ CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& co
     // Initialize 2D surface map elevation grid & material
     track.surfaceMap.setDefaultMaterial(config.offtrackMaterial);
 
-    constexpr std::size_t kGridDim { 32 };
+    constexpr std::size_t kGridDim { 64 };
     const double margin { track.trackWidth + track.shoulderWidth + 10.0 };
     const double gridMinX { minBoundX - margin };
     const double gridMinY { minBoundY - margin };
@@ -461,12 +596,57 @@ CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& co
 
     std::vector<double> gridHeights(kGridDim * kGridDim, 0.0);
     const double elevAmp { config.elevationVariation * 0.5 };
+    const double totalHalfWidth { (track.trackWidth + track.shoulderWidth) * 0.5 };
 
     for (std::size_t row { 0 }; row < kGridDim; ++row) {
         const double y { gridMinY + static_cast<double>(row) * stepY };
         for (std::size_t col { 0 }; col < kGridDim; ++col) {
             const double x { gridMinX + static_cast<double>(col) * stepX };
-            gridHeights[row * kGridDim + col] = elevAmp * (std::sin(x / 40.0) + std::cos(y / 40.0));
+            const double baseElev { elevAmp * (std::sin(x / 40.0) + std::cos(y / 40.0)) };
+            const math::Vec2 pt { x, y };
+
+            // Find closest centerline segment
+            double minDist { std::numeric_limits<double>::infinity() };
+            std::size_t bestSeg { 0 };
+            double bestT { 0.0 };
+
+            for (std::size_t seg { 0 }; seg < interpolatedSteps; ++seg) {
+                const math::Vec2& segA { track.centerline[seg] };
+                const math::Vec2& segB { track.centerline[(seg + 1U) % interpolatedSteps] };
+                double t { 0.0 };
+                const double d { distToSegment(pt, segA, segB, &t) };
+                if (d < minDist) {
+                    minDist = d;
+                    bestSeg = seg;
+                    bestT = t;
+                }
+            }
+
+            if (minDist <= totalHalfWidth) {
+                const math::Vec2& segA { track.centerline[bestSeg] };
+                const math::Vec2& segB { track.centerline[(bestSeg + 1U) % interpolatedSteps] };
+                const math::Vec2 diff { segB - segA };
+                const math::Vec2 tangent { diff.normalized() };
+                const math::Vec2 latNorm { -tangent.y, tangent.x };
+                const math::Vec2 proj { segA + diff * bestT };
+                const double w { (pt - proj).dot(latNorm) };
+
+                const double bankA { track.bankAngles[bestSeg] };
+                const double bankB { track.bankAngles[(bestSeg + 1U) % interpolatedSteps] };
+                const double bank { (1.0 - bestT) * bankA + bestT * bankB };
+
+                const auto camber = track.camberProfile.evaluateCamber(bank, w, halfW, tangent);
+
+                double weight { 1.0 };
+                const double absW { std::abs(w) };
+                if (absW > halfW) {
+                    weight = std::clamp(1.0 - ((absW - halfW) / track.shoulderWidth), 0.0, 1.0);
+                }
+
+                gridHeights[row * kGridDim + col] = baseElev + weight * camber.elevationOffset;
+            } else {
+                gridHeights[row * kGridDim + col] = baseElev;
+            }
         }
     }
 
