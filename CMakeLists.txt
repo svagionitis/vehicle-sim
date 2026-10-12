@@ -15,6 +15,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Library options
 option(BUILD_TESTING "Build the automated test suite" ON)
+option(BUILD_EARTH_PATROL "Build Earth Patrol SDL2 game application" ON)
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(ENABLE_HARDENING "Enable security hardening flags" ON)
 option(ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
@@ -33,4 +34,9 @@ add_subdirectory(libs/VehicleSimCore)
 if(BUILD_TESTING)
     include(Testing)
     add_subdirectory(tests)
+endif()
+
+# Applications
+if(BUILD_EARTH_PATROL)
+    add_subdirectory(apps/EarthPatrol)
 endif()
