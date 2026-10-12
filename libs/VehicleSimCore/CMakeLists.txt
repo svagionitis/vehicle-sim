@@ -42,6 +42,8 @@ add_library(VehicleSimCore STATIC
     dynamics/AntiGravityRacerDynamics.cpp
     dynamics/ArticulatedTruckDynamics.h
     dynamics/ArticulatedTruckDynamics.cpp
+    terrain/SurfaceMaterial.h
+    terrain/SurfaceMaterial.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC

@@ -3,6 +3,7 @@ add_executable(VehicleSimCoreTests
     MathTest.cpp
     PhysicsTest.cpp
     DynamicsTest.cpp
+    TerrainTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE
