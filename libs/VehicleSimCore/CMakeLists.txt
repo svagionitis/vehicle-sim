@@ -19,6 +19,14 @@ add_library(VehicleSimCore STATIC
     math/AABB2D.cpp
     math/OBB2D.h
     math/OBB2D.cpp
+    math/LowPassFilter.h
+    math/LowPassFilter.cpp
+    math/SlewRateLimiter.h
+    math/SlewRateLimiter.cpp
+    math/PIDController.h
+    math/PIDController.cpp
+    math/KalmanFilter1D.h
+    math/KalmanFilter1D.cpp
     physics/RigidBody2D.h
     physics/RigidBody2D.cpp
     physics/Integrator2D.h

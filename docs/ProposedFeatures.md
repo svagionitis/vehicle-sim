@@ -235,21 +235,28 @@ Eliminate redundant, error-prone manual angle wrapping and quadrant tests throug
 
 ---
 
-### 3.4 Control Theory and Signal Processing Utilities
+### 3.4 Control Theory and Signal Processing Utilities (Implemented)
 
 #### Objective
-Standardize feedback control and sensor filtering for vehicle dynamics and autopilots.
+Standardize feedback control, sensor filtering, and optimal kinematic state estimation for vehicle dynamics and autopilots.
 
-#### Proposed Classes
-- `PIDController`:
+#### Implemented Classes
+- [PIDController](../libs/VehicleSimCore/math/PIDController.h):
   - Proportional, Integral, and Derivative gains ($K_p, K_i, K_d$).
-  - Anti-windup clamping on the integral accumulator.
-  - Derivative filtering against high-frequency step jitter.
+  - Anti-windup clamping on the integral accumulator and conditional integration under output saturation.
+  - Low-pass derivative filtering with configurable time constant $T_f$.
+  - Derivative-on-measurement mode to eliminate setpoint step derivative kicks.
   - Ideal for cruise control, lane centering, and helicopter altitude holding.
-- `SlewRateLimiter`:
-  - Limits maximum rate of change ($|dx/dt| \le R_{\text{max}}$) for steering wheels and throttles.
-- `LowPassFilter`:
+- [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h):
+  - Limits maximum rate of change ($|dx/dt| \le R_{\text{max}}$) for steering wheels, rudders, and throttles.
+  - Supports symmetric and asymmetric rising/falling rate limits.
+- [LowPassFilter](../libs/VehicleSimCore/math/LowPassFilter.h):
   - First-order discrete exponential filter ($y_k = \alpha x_k + (1-\alpha) y_{k-1}$) for smoothing noisy inputs.
+  - Parameterized by physical -3 dB cutoff frequency in Hertz.
+- [KalmanFilter1D](../libs/VehicleSimCore/math/KalmanFilter1D.h):
+  - 2-state linear kinematic Kalman observer estimating position and velocity ($\mathbf{x} = [x, v]^T$).
+  - Closed-form Bayesian covariance propagation and updates with zero dynamic allocations.
+  - Ideal for synthetic sensor fusion, zero-lag derivative estimation, and dead reckoning during sensor dropouts.
 
 ---
 
@@ -366,7 +373,7 @@ Model environmental forces across airspace and waterways affecting planes, rocke
 | **Angle2D & Math Utilities** | Math | Low | None | All Dynamics coordinators |
 | **Spline2D & Catmull-Rom** | Math | Medium | `Vec2`, `Mat2` | `CircuitTrack2D`, Waypoint navigation |
 | **AABB2D, Ray2D, OBB2D** | Math | Medium | `Vec2`, `Transform2D` | Broadphase and collision detection |
-| **PIDController & Filters** | Math | Low | None | Autopilots, cruise control, steering assist |
+| **PIDController, Filters & Kalman** | Math | Low | None | Autopilots, cruise control, sensor fusion, dead reckoning |
 | **Revolute & Distance Joints** | Physics | High | `RigidBody2D`, `PhysicsWorld2D` | `ArticulatedTruckDynamics`, suspensions |
 | **Narrowphase Collision** | Physics | High | `AABB2D`, `OBB2D`, `Contact2D` | Automated body and terrain collisions |
 | **Pacejka Tire Model** | Dynamics / Physics | Medium | `SurfaceMaterial` | Realistic wheeled dynamics (`ArcadeCar`, etc.) |
