@@ -2,10 +2,11 @@
 
 #include <string>
 
+#include "apps/EarthPatrol/Camera2D.h"
+#include "apps/EarthPatrol/CourseManager.h"
 #include "apps/EarthPatrol/SDLWrappers.h"
 #include "libs/VehicleSimCore/dynamics/EarthRoverDynamics.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
-#include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 
 namespace earth_patrol {
 
@@ -23,7 +24,7 @@ struct GameAppConfig {
 /// @class GameApp
 /// @brief Main application coordinator for Earth Patrol running a fixed-timestep game loop.
 /// @details Coordinates SDL window lifecycle, hardware-accelerated 2D rendering, event handling,
-/// and fixed-interval physics stepping of EarthRoverDynamics over Heightfield1D terrain.
+/// camera tracking, course progression, and fixed-interval physics stepping of EarthRoverDynamics.
 class GameApp {
 public:
     /// @brief Default constructor with nominal window and simulation settings.
@@ -49,11 +50,11 @@ public:
     /// @brief Polls and processes pending SDL input and window events.
     void processEvents() noexcept;
 
-    /// @brief Advances simulation physics by timestep dt.
+    /// @brief Advances simulation physics, course progress, and camera tracking by timestep dt.
     /// @param[in] dt Timestep duration in seconds.
     void updatePhysics(double dt) noexcept;
 
-    /// @brief Renders active terrain, rover chassis, suspension struts, and clear color.
+    /// @brief Renders terrain ribbon, rover chassis, suspension struts, checkpoints, and HUD.
     void renderFrame() noexcept;
 
     /// @brief Queries whether the application loop is actively executing.
@@ -80,7 +81,35 @@ public:
     /// @return Mutable reference to RigidBody2D.
     [[nodiscard]] vehicle_sim::physics::RigidBody2D& getRoverBody() noexcept;
 
+    /// @brief Gets active 2D camera tracker.
+    /// @return Constant reference to Camera2D.
+    [[nodiscard]] const Camera2D& getCamera() const noexcept;
+
+    /// @brief Gets mutable active 2D camera tracker.
+    /// @return Mutable reference to Camera2D.
+    [[nodiscard]] Camera2D& getCamera() noexcept;
+
+    /// @brief Gets course and checkpoint manager.
+    /// @return Constant reference to CourseManager.
+    [[nodiscard]] const CourseManager& getCourse() const noexcept;
+
+    /// @brief Gets mutable course and checkpoint manager.
+    /// @return Mutable reference to CourseManager.
+    [[nodiscard]] CourseManager& getCourse() noexcept;
+
 private:
+    /// @brief Renders the continuous procedural terrain heightfield ribbon.
+    void renderTerrain() noexcept;
+
+    /// @brief Renders the 3-axle articulated suspension rover.
+    void renderRover() noexcept;
+
+    /// @brief Renders checkpoint milestone pylons (Points A to E).
+    void renderCheckpoints() noexcept;
+
+    /// @brief Renders the arcade status HUD (Milestones, speed, timer, progress bar).
+    void renderHUD() noexcept;
+
     GameAppConfig config_ { };
     bool running_ { false };
 
@@ -88,7 +117,8 @@ private:
     UniqueWindow window_ { nullptr };
     UniqueRenderer renderer_ { nullptr };
 
-    vehicle_sim::terrain::Heightfield1D terrain_ { };
+    Camera2D camera_ { };
+    CourseManager course_ { };
     vehicle_sim::dynamics::EarthRoverDynamics rover_ { };
     vehicle_sim::physics::RigidBody2D roverBody_ { };
 };

@@ -8,6 +8,10 @@ add_executable(EarthPatrol
     Main.cpp
     GameApp.h
     GameApp.cpp
+    Camera2D.h
+    Camera2D.cpp
+    CourseManager.h
+    CourseManager.cpp
     SDLWrappers.h
 )
 
