@@ -53,6 +53,8 @@ add_library(VehicleSimCore STATIC
     terrain/SurfaceMap2D.h
     terrain/SurfaceMap2D.cpp
     terrain/ElevationMap2D.h
+    terrain/TrackGenerator.h
+    terrain/TrackGenerator.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC

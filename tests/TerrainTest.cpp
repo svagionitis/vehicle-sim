@@ -10,6 +10,7 @@
 #include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMap2D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
+#include "libs/VehicleSimCore/terrain/TrackGenerator.h"
 
 namespace vehicle_sim::testing {
 
@@ -838,6 +839,211 @@ TEST(SurfaceMap2DTest, ElevationMap2DAliasEquivalence)
     elevationMap.setBaseHeight(42.0);
     EXPECT_DOUBLE_EQ(elevationMap.getBaseHeight(), 42.0);
     EXPECT_DOUBLE_EQ(elevationMap.getHeight(0.0, 0.0), 42.0);
+}
+
+TEST(TrackGeneratorTest, TrialsCourseProfileAndFeatures)
+{
+    terrain::TrialsCourseConfig config {};
+    config.startLength = 20.0;
+    config.humpCount = 3;
+    config.humpSpacing = 5.0;
+    config.humpHeight = 1.0;
+    config.stepLedgeCount = 2;
+    config.stepLedgeHeight = 1.2;
+    config.stepLedgeWidth = 4.0;
+    config.climbLength = 15.0;
+    config.climbSlope = 0.40;
+    config.roughLength = 20.0;
+    config.roughAmplitude = 0.4;
+    config.finishLength = 15.0;
+    config.seed = 4242U;
+
+    const terrain::TrialsCourse course { terrain::TrackGenerator::generateTrialsCourse(config) };
+
+    EXPECT_GT(course.totalLength, 80.0);
+    EXPECT_GT(course.finishHeight, 5.0);
+    EXPECT_EQ(course.startPosition.x, 10.0);
+    EXPECT_EQ(course.startPosition.y, 0.0);
+    EXPECT_DOUBLE_EQ(course.finishPosition.y, course.finishHeight);
+
+    // Heightfield surface queries
+    EXPECT_DOUBLE_EQ(course.terrain.getHeight(0.0), 0.0);
+    EXPECT_DOUBLE_EQ(course.terrain.getHeight(10.0), 0.0);
+    EXPECT_GT(course.terrain.getHeight(course.totalLength), 5.0);
+
+    // Verify material presets across zones
+    const auto startSample { course.terrain.sampleSurface(5.0) };
+    EXPECT_EQ(startSample.material.type, terrain::MaterialType::Concrete);
+
+    const auto humpSample { course.terrain.sampleSurface(25.0) };
+    EXPECT_EQ(humpSample.material.type, terrain::MaterialType::Dirt);
+
+    // Test SideViewCarDynamics integration
+    dynamics::SideViewCarDynamics car {};
+    terrain::PlatformExtractionConfig platConfig {};
+    platConfig.minX = 0.0;
+    platConfig.maxX = course.totalLength;
+    platConfig.minWidth = 3.0;
+
+    course.populateSideViewCar(car, platConfig, true);
+    EXPECT_GE(car.getPlatformCount(), 3U);
+
+    // Deterministic repeatability
+    const terrain::TrialsCourse course2 { terrain::TrackGenerator::generateTrialsCourse(config) };
+    EXPECT_DOUBLE_EQ(course.totalLength, course2.totalLength);
+    EXPECT_DOUBLE_EQ(course.finishHeight, course2.finishHeight);
+    EXPECT_DOUBLE_EQ(course.terrain.getHeight(40.0), course2.terrain.getHeight(40.0));
+}
+
+TEST(TrackGeneratorTest, PlatformerLevelTiersAndHazards)
+{
+    terrain::PlatformerLevelConfig config {};
+    config.levelWidth = 100.0;
+    config.tierHeight = 4.0;
+    config.tierCount = 3;
+    config.platformMinLength = 8.0;
+    config.platformMaxLength = 14.0;
+    config.hasGroundFloor = true;
+    config.hazardProbability = 0.50;
+    config.seed = 777U;
+
+    const terrain::PlatformerLevel level { terrain::TrackGenerator::generatePlatformerLevel(config) };
+
+    EXPECT_EQ(level.tierCount, 3U);
+    EXPECT_FALSE(level.platforms.empty());
+    EXPECT_EQ(level.spawnPoint.x, -45.0);
+    EXPECT_EQ(level.spawnPoint.y, 0.0);
+    EXPECT_EQ(level.goalPoint.y, 12.0);
+
+    // Check ground platform existence
+    const auto& groundPlat = level.platforms.front();
+    EXPECT_DOUBLE_EQ(groundPlat.y, 0.0);
+    EXPECT_DOUBLE_EQ(groundPlat.minX, -50.0);
+    EXPECT_DOUBLE_EQ(groundPlat.maxX, 50.0);
+    EXPECT_FALSE(groundPlat.oneWay);
+
+    // Check floating platforms
+    bool foundOneWay { false };
+    bool foundHazard { false };
+    for (std::size_t i { 1 }; i < level.platforms.size(); ++i) {
+        const auto& plat = level.platforms[i];
+        EXPECT_GT(plat.y, 0.0);
+        EXPECT_LE(plat.maxX - plat.minX, config.platformMaxLength + 1e-6);
+        if (plat.oneWay) {
+            foundOneWay = true;
+        }
+        if (plat.friction < 0.5) {
+            foundHazard = true;
+        }
+    }
+    EXPECT_TRUE(foundOneWay);
+    EXPECT_TRUE(foundHazard);
+
+    // Test SideViewCarDynamics integration
+    dynamics::SideViewCarDynamics car {};
+    level.populateSideViewCar(car, true);
+    EXPECT_EQ(car.getPlatformCount(), level.platforms.size());
+
+    // Deterministic repeatability
+    const terrain::PlatformerLevel level2 { terrain::TrackGenerator::generatePlatformerLevel(config) };
+    EXPECT_EQ(level.platforms.size(), level2.platforms.size());
+    EXPECT_DOUBLE_EQ(level.platforms[1].minX, level2.platforms[1].minX);
+}
+
+TEST(TrackGeneratorTest, HillClimbElevationGainAndSteepPitches)
+{
+    terrain::HillClimbConfig config {};
+    config.totalLength = 200.0;
+    config.baseSlope = 0.15;
+    config.steepPitchCount = 2;
+    config.steepSlope = 0.50;
+    config.noiseAmplitude = 3.0;
+    config.seed = 5555U;
+
+    const terrain::HillClimbCourse hill { terrain::TrackGenerator::generateHillClimb(config) };
+
+    EXPECT_GT(hill.totalElevationGain, 25.0);
+    EXPECT_EQ(hill.startPosition.x, 0.0);
+    EXPECT_EQ(hill.peakPosition.x, 200.0);
+    EXPECT_GT(hill.peakPosition.y, hill.startPosition.y);
+    EXPECT_GT(hill.maxSlopeAngle, std::atan(config.baseSlope));
+
+    // Verify material zones
+    const auto baseSample { hill.terrain.sampleSurface(10.0) };
+    EXPECT_EQ(baseSample.material.type, terrain::MaterialType::Dirt);
+
+    // Populate car platforms
+    dynamics::SideViewCarDynamics car {};
+    terrain::PlatformExtractionConfig platConfig {};
+    platConfig.minX = 0.0;
+    platConfig.maxX = config.totalLength;
+    platConfig.sampleStep = 0.5;
+    platConfig.maxSlope = 0.10;
+    platConfig.minWidth = 2.0;
+
+    hill.populateSideViewCar(car, platConfig, true);
+    EXPECT_GT(car.getPlatformCount(), 0U);
+
+    // Deterministic repeatability
+    const terrain::HillClimbCourse hill2 { terrain::TrackGenerator::generateHillClimb(config) };
+    EXPECT_DOUBLE_EQ(hill.totalElevationGain, hill2.totalElevationGain);
+    EXPECT_DOUBLE_EQ(hill.maxSlopeAngle, hill2.maxSlopeAngle);
+    EXPECT_DOUBLE_EQ(hill.terrain.getHeight(100.0), hill2.terrain.getHeight(100.0));
+}
+
+TEST(TrackGeneratorTest, CircuitTrackCenterlineAndRibbonQueries)
+{
+    terrain::CircuitTrackConfig config {};
+    config.radiusX = 80.0;
+    config.radiusY = 50.0;
+    config.waypointCount = 16;
+    config.trackWidth = 8.0;
+    config.shoulderWidth = 3.0;
+    config.perturbation = 0.20;
+    config.elevationVariation = 4.0;
+    config.seed = 8888U;
+
+    const terrain::CircuitTrack2D track { terrain::TrackGenerator::generateCircuitTrack(config) };
+
+    EXPECT_TRUE(track.isClosed);
+    EXPECT_DOUBLE_EQ(track.trackWidth, 8.0);
+    EXPECT_DOUBLE_EQ(track.shoulderWidth, 3.0);
+    EXPECT_GT(track.trackLength, 300.0);
+    EXPECT_GE(track.centerline.size(), 64U);
+    EXPECT_EQ(track.leftBoundary.size(), track.centerline.size());
+    EXPECT_EQ(track.rightBoundary.size(), track.centerline.size());
+    EXPECT_FALSE(track.checkpoints.empty());
+
+    // Boundary width invariant: left and right boundaries must be ~trackWidth apart
+    for (std::size_t i { 0 }; i < track.centerline.size(); ++i) {
+        const double boundarySpan { (track.leftBoundary[i] - track.rightBoundary[i]).length() };
+        EXPECT_NEAR(boundarySpan, track.trackWidth, 1e-4);
+    }
+
+    // Starting grid and heading
+    EXPECT_DOUBLE_EQ(track.startGridPosition.x, track.centerline[0].x);
+    EXPECT_DOUBLE_EQ(track.startGridPosition.y, track.centerline[0].y);
+
+    // Ribbon distance and track membership queries
+    EXPECT_TRUE(track.isPointOnTrack(track.centerline[0]));
+    EXPECT_NEAR(track.getDistanceToCenter(track.centerline[0]), 0.0, 1e-5);
+    EXPECT_NEAR(track.getTrackProgress(track.centerline[0]), 0.0, 1e-3);
+
+    // Point far away at world origin (0, 0) is well inside the inner loop, outside the ribbon
+    EXPECT_FALSE(track.isPointOnTrack(math::Vec2 { 0.0, 0.0 }));
+    EXPECT_GT(track.getDistanceToCenter(math::Vec2 { 0.0, 0.0 }), 30.0);
+
+    // Surface map elevation and bicubic interpolation
+    EXPECT_TRUE(track.surfaceMap.hasGrid());
+    const double elevAtStart { track.surfaceMap.getHeight(track.startGridPosition.x, track.startGridPosition.y) };
+    EXPECT_TRUE(std::isfinite(elevAtStart));
+
+    // Deterministic repeatability
+    const terrain::CircuitTrack2D track2 { terrain::TrackGenerator::generateCircuitTrack(config) };
+    EXPECT_DOUBLE_EQ(track.trackLength, track2.trackLength);
+    EXPECT_DOUBLE_EQ(track.startGridPosition.x, track2.startGridPosition.x);
+    EXPECT_DOUBLE_EQ(track.startHeading, track2.startHeading);
+    EXPECT_DOUBLE_EQ(track.centerline[5].x, track2.centerline[5].x);
 }
 
 } // namespace vehicle_sim::testing
