@@ -12,6 +12,10 @@ add_executable(EarthPatrol
     Camera2D.cpp
     CourseManager.h
     CourseManager.cpp
+    ParallaxRenderer.h
+    ParallaxRenderer.cpp
+    ObstacleManager.h
+    ObstacleManager.cpp
     SDLWrappers.h
 )
 

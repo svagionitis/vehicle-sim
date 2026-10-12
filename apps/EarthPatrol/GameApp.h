@@ -4,6 +4,8 @@
 
 #include "apps/EarthPatrol/Camera2D.h"
 #include "apps/EarthPatrol/CourseManager.h"
+#include "apps/EarthPatrol/ObstacleManager.h"
+#include "apps/EarthPatrol/ParallaxRenderer.h"
 #include "apps/EarthPatrol/SDLWrappers.h"
 #include "libs/VehicleSimCore/dynamics/EarthRoverDynamics.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
@@ -19,12 +21,13 @@ struct GameAppConfig {
     double targetFps { 60.0 }; ///< Target frame rate in Hertz.
     double fixedDt { 1.0 / 60.0 }; ///< Fixed physics simulation timestep in seconds.
     bool headless { false }; ///< True to run in headless test mode without SDL window.
+    int initialLives { 3 }; ///< Initial player rover lives.
 };
 
 /// @class GameApp
 /// @brief Main application coordinator for Earth Patrol running a fixed-timestep game loop.
 /// @details Coordinates SDL window lifecycle, hardware-accelerated 2D rendering, event handling,
-/// camera tracking, course progression, and fixed-interval physics stepping of EarthRoverDynamics.
+/// camera tracking, course progression, obstacle collisions, and fixed-interval physics stepping.
 class GameApp {
 public:
     /// @brief Default constructor with nominal window and simulation settings.
@@ -37,7 +40,7 @@ public:
     /// @brief Destructor releasing graphics resources.
     ~GameApp() noexcept = default;
 
-    /// @brief Initializes SDL context, window, and renderer.
+    /// @brief Initializes SDL context, window, renderer, course, and obstacles.
     /// @return True if initialized successfully, false on error.
     [[nodiscard]] bool initialize();
 
@@ -50,11 +53,11 @@ public:
     /// @brief Polls and processes pending SDL input and window events.
     void processEvents() noexcept;
 
-    /// @brief Advances simulation physics, course progress, and camera tracking by timestep dt.
+    /// @brief Advances simulation physics, course progress, obstacles, and camera by dt.
     /// @param[in] dt Timestep duration in seconds.
     void updatePhysics(double dt) noexcept;
 
-    /// @brief Renders terrain ribbon, rover chassis, suspension struts, checkpoints, and HUD.
+    /// @brief Renders parallax sky/mountains, terrain ribbon, obstacles, rover, and HUD.
     void renderFrame() noexcept;
 
     /// @brief Queries whether the application loop is actively executing.
@@ -97,6 +100,29 @@ public:
     /// @return Mutable reference to CourseManager.
     [[nodiscard]] CourseManager& getCourse() noexcept;
 
+    /// @brief Gets obstacle hazard manager.
+    /// @return Constant reference to ObstacleManager.
+    [[nodiscard]] const ObstacleManager& getObstacles() const noexcept;
+
+    /// @brief Gets remaining player lives.
+    /// @return Lives count.
+    [[nodiscard]] int getLives() const noexcept;
+
+    /// @brief Queries whether rover is currently destroyed and awaiting respawn.
+    /// @return True if crashed.
+    [[nodiscard]] bool isCrashed() const noexcept;
+
+    /// @brief Resets rover state to last crossed checkpoint after crash.
+    void respawnRover() noexcept;
+
+    /// @brief Sets active terrestrial biome index.
+    /// @param[in] biomeIndex Biome identifier (0: Highway, 1: Desert, 2: Alpine).
+    void setBiomeIndex(int biomeIndex);
+
+    /// @brief Gets active terrestrial biome index.
+    /// @return Biome index.
+    [[nodiscard]] int getBiomeIndex() const noexcept;
+
 private:
     /// @brief Renders the continuous procedural terrain heightfield ribbon.
     void renderTerrain() noexcept;
@@ -104,10 +130,13 @@ private:
     /// @brief Renders the 3-axle articulated suspension rover.
     void renderRover() noexcept;
 
+    /// @brief Renders animated crash explosion debris puff.
+    void renderCrashPuff() noexcept;
+
     /// @brief Renders checkpoint milestone pylons (Points A to E).
     void renderCheckpoints() noexcept;
 
-    /// @brief Renders the arcade status HUD (Milestones, speed, timer, progress bar).
+    /// @brief Renders the arcade status HUD (Milestones, speed, timer, lives, progress bar).
     void renderHUD() noexcept;
 
     GameAppConfig config_ { };
@@ -119,8 +148,16 @@ private:
 
     Camera2D camera_ { };
     CourseManager course_ { };
+    ParallaxRenderer parallax_ { };
+    ObstacleManager obstacles_ { };
+
     vehicle_sim::dynamics::EarthRoverDynamics rover_ { };
     vehicle_sim::physics::RigidBody2D roverBody_ { };
+
+    int biomeIndex_ { 0 };
+    int lives_ { 3 };
+    bool crashed_ { false };
+    double respawnTimer_ { 0.0 };
 };
 
 } // namespace earth_patrol

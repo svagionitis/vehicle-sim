@@ -18,6 +18,7 @@ GameApp::GameApp()
 
 GameApp::GameApp(const GameAppConfig& config)
     : config_ { config }
+    , lives_ { config.initialLives }
 {
     CameraConfig camConfig { };
     camConfig.viewportWidth = config_.windowWidth;
@@ -33,6 +34,7 @@ GameApp::GameApp(const GameAppConfig& config)
     roverBody_ = vehicle_sim::physics::RigidBody2D { bodyConfig };
 
     camera_.reset(roverBody_.getPosition());
+    obstacles_.generateObstacles(course_, biomeIndex_);
 }
 
 bool GameApp::initialize()
@@ -133,15 +135,12 @@ void GameApp::processEvents() noexcept
             case SDLK_DOWN:
                 input.brake = 1.0;
                 break;
+            case SDLK_b:
+                // Cycle Earth biomes (Highway -> Desert -> Alpine)
+                setBiomeIndex((biomeIndex_ + 1) % 3);
+                break;
             case SDLK_r:
-                // Quick reset
-                roverBody_.setPosition(vehicle_sim::math::Vec2 { 0.0, 1.20 });
-                roverBody_.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
-                roverBody_.setOrientation(0.0);
-                roverBody_.setAngularVelocity(0.0);
-                rover_.reset();
-                course_.reset();
-                camera_.reset(roverBody_.getPosition());
+                respawnRover();
                 break;
             default:
                 break;
@@ -174,12 +173,64 @@ void GameApp::processEvents() noexcept
 
 void GameApp::updatePhysics(double dt) noexcept
 {
+    if (crashed_) {
+        respawnTimer_ -= dt;
+        if (respawnTimer_ <= 0.0) {
+            respawnRover();
+        }
+        return;
+    }
+
     rover_.step(roverBody_, dt);
     vehicle_sim::physics::Integrator2D::integrate(roverBody_, dt);
     roverBody_.clearForces();
 
     course_.update(roverBody_.getPosition().x, dt);
     camera_.update(roverBody_.getPosition(), rover_.getSpeed(), dt);
+    parallax_.update(dt);
+
+    bool fatal { false };
+    if (obstacles_.checkCollision(roverBody_, rover_, fatal)) {
+        if (fatal) {
+            crashed_ = true;
+            respawnTimer_ = 1.6;
+            lives_ = std::max(0, lives_ - 1);
+        }
+    }
+}
+
+void GameApp::respawnRover() noexcept
+{
+    double respawnX { 0.0 };
+    for (const auto& cp : course_.getCheckpoints()) {
+        if (cp.reached) {
+            respawnX = cp.worldX;
+        }
+    }
+
+    const double elev { course_.getHeightfield().getHeight(respawnX) };
+    roverBody_.setPosition(vehicle_sim::math::Vec2 { respawnX, elev + 1.20 });
+    roverBody_.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    roverBody_.setOrientation(0.0);
+    roverBody_.setAngularVelocity(0.0);
+
+    rover_.reset();
+    camera_.reset(roverBody_.getPosition());
+    crashed_ = false;
+}
+
+void GameApp::setBiomeIndex(int biomeIndex)
+{
+    biomeIndex_ = std::clamp(biomeIndex, 0, 2);
+    course_.buildCourse(biomeIndex_);
+    rover_.setTerrain(&course_.getHeightfield());
+    obstacles_.generateObstacles(course_, biomeIndex_);
+    respawnRover();
+}
+
+int GameApp::getBiomeIndex() const noexcept
+{
+    return biomeIndex_;
 }
 
 void GameApp::renderFrame() noexcept
@@ -188,13 +239,17 @@ void GameApp::renderFrame() noexcept
         return;
     }
 
-    // Sky background
-    SDL_SetRenderDrawColor(renderer_.get(), 26, 32, 48, 255);
-    SDL_RenderClear(renderer_.get());
-
+    parallax_.render(renderer_.get(), camera_, biomeIndex_);
     renderTerrain();
+    obstacles_.render(renderer_.get(), camera_);
     renderCheckpoints();
-    renderRover();
+
+    if (!crashed_) {
+        renderRover();
+    } else {
+        renderCrashPuff();
+    }
+
     renderHUD();
 
     SDL_RenderPresent(renderer_.get());
@@ -218,7 +273,14 @@ void GameApp::renderTerrain() noexcept
         const auto screen { camera_.worldToScreen(vehicle_sim::math::Vec2 { x, sample.elevation }) };
 
         // Underground soil fill
-        SDL_SetRenderDrawColor(renderer_.get(), 50, 42, 38, 255);
+        if (biomeIndex_ == 1) { // Desert red sandstone
+            SDL_SetRenderDrawColor(renderer_.get(), 110, 52, 34, 255);
+        } else if (biomeIndex_ == 2) { // Alpine loam
+            SDL_SetRenderDrawColor(renderer_.get(), 45, 52, 40, 255);
+        } else { // Industrial gravel/soil
+            SDL_SetRenderDrawColor(renderer_.get(), 48, 42, 40, 255);
+        }
+
         const int topY { static_cast<int>(std::min(prevScreen.y, screen.y)) };
         const int fillHeight { std::max(0, screenBottom - topY) };
         const int leftX { static_cast<int>(prevScreen.x) };
@@ -226,13 +288,15 @@ void GameApp::renderTerrain() noexcept
         SDL_Rect soilRect { leftX, topY, width, fillHeight };
         SDL_RenderFillRect(renderer_.get(), &soilRect);
 
-        // Subsurface loam layer
-        SDL_SetRenderDrawColor(renderer_.get(), 72, 60, 52, 255);
-        SDL_Rect loamRect { leftX, topY, width, 18 };
-        SDL_RenderFillRect(renderer_.get(), &loamRect);
+        // Surface grass / gravel / sand rim
+        if (biomeIndex_ == 1) {
+            SDL_SetRenderDrawColor(renderer_.get(), 205, 125, 65, 255); // Sand crest
+        } else if (biomeIndex_ == 2) {
+            SDL_SetRenderDrawColor(renderer_.get(), 75, 155, 65, 255); // Alpine grass
+        } else {
+            SDL_SetRenderDrawColor(renderer_.get(), 92, 168, 64, 255); // Meadow turf
+        }
 
-        // Surface grass rim
-        SDL_SetRenderDrawColor(renderer_.get(), 92, 168, 64, 255);
         SDL_RenderDrawLine(renderer_.get(), static_cast<int>(prevScreen.x), static_cast<int>(prevScreen.y),
             static_cast<int>(screen.x), static_cast<int>(screen.y));
 
@@ -268,9 +332,9 @@ void GameApp::renderCheckpoints() noexcept
 
         // Milestone sign flag
         if (cp.reached) {
-            SDL_SetRenderDrawColor(renderer_.get(), 50, 220, 90, 255); // Green reached
+            SDL_SetRenderDrawColor(renderer_.get(), 50, 220, 90, 255);
         } else {
-            SDL_SetRenderDrawColor(renderer_.get(), 240, 190, 40, 255); // Amber upcoming
+            SDL_SetRenderDrawColor(renderer_.get(), 240, 190, 40, 255);
         }
         SDL_Rect flagRect { pylonX, pylonTopY, 26, 16 };
         SDL_RenderFillRect(renderer_.get(), &flagRect);
@@ -316,7 +380,7 @@ void GameApp::renderRover() noexcept
     }
 
     // Chassis body
-    SDL_SetRenderDrawColor(renderer_.get(), 220, 160, 40, 255); // Moon Patrol Golden Orange
+    SDL_SetRenderDrawColor(renderer_.get(), 220, 160, 40, 255);
     SDL_Rect chassisRect { roverX - 44, roverY - 14, 88, 24 };
     SDL_RenderFillRect(renderer_.get(), &chassisRect);
 
@@ -326,7 +390,7 @@ void GameApp::renderRover() noexcept
     SDL_RenderFillRect(renderer_.get(), &noseRect);
 
     // Cockpit dome
-    SDL_SetRenderDrawColor(renderer_.get(), 100, 210, 255, 255); // Cyan glass
+    SDL_SetRenderDrawColor(renderer_.get(), 100, 210, 255, 255);
     SDL_Rect cockpitRect { roverX - 8, roverY - 24, 28, 12 };
     SDL_RenderFillRect(renderer_.get(), &cockpitRect);
 
@@ -334,6 +398,27 @@ void GameApp::renderRover() noexcept
     SDL_SetRenderDrawColor(renderer_.get(), 70, 70, 75, 255);
     SDL_Rect exhaustRect { roverX - 48, roverY - 6, 8, 12 };
     SDL_RenderFillRect(renderer_.get(), &exhaustRect);
+}
+
+void GameApp::renderCrashPuff() noexcept
+{
+    const auto roverScreen { camera_.worldToScreen(roverBody_.getPosition()) };
+    const int rx { static_cast<int>(roverScreen.x) };
+    const int ry { static_cast<int>(roverScreen.y) };
+
+    const double progress { 1.6 - respawnTimer_ };
+    const int radius { static_cast<int>(progress * 35.0) };
+
+    // Smoke puff clouds
+    SDL_SetRenderDrawColor(renderer_.get(), 220, 100, 30, 220);
+    SDL_Rect puffCore { rx - radius, ry - radius, radius * 2, radius * 2 };
+    SDL_RenderFillRect(renderer_.get(), &puffCore);
+
+    SDL_SetRenderDrawColor(renderer_.get(), 240, 200, 50, 255);
+    SDL_Rect sparkA { rx - (radius / 2), ry - radius - 8, radius, 12 };
+    SDL_Rect sparkB { rx + radius, ry - (radius / 2), 14, 14 };
+    SDL_RenderFillRect(renderer_.get(), &sparkA);
+    SDL_RenderFillRect(renderer_.get(), &sparkB);
 }
 
 void GameApp::renderHUD() noexcept
@@ -374,6 +459,13 @@ void GameApp::renderHUD() noexcept
     SDL_SetRenderDrawColor(renderer_.get(), 255, 240, 80, 255);
     SDL_Rect roverMarker { roverMarkerX - 4, barY - 6, 8, 20 };
     SDL_RenderFillRect(renderer_.get(), &roverMarker);
+
+    // Lives icons (top-left)
+    for (int i { 0 }; i < lives_; ++i) {
+        SDL_SetRenderDrawColor(renderer_.get(), 240, 180, 45, 255);
+        SDL_Rect lifeRect { 30 + (i * 24), 22, 16, 12 };
+        SDL_RenderFillRect(renderer_.get(), &lifeRect);
+    }
 
     // Speed indicator bar (bottom-left)
     const double speedKmh { std::max(0.0, rover_.getSpeed() * 3.6) };
@@ -435,6 +527,21 @@ const CourseManager& GameApp::getCourse() const noexcept
 CourseManager& GameApp::getCourse() noexcept
 {
     return course_;
+}
+
+const ObstacleManager& GameApp::getObstacles() const noexcept
+{
+    return obstacles_;
+}
+
+int GameApp::getLives() const noexcept
+{
+    return lives_;
+}
+
+bool GameApp::isCrashed() const noexcept
+{
+    return crashed_;
 }
 
 } // namespace earth_patrol

@@ -512,24 +512,21 @@ stateDiagram-v2
 |   - Implement Heightfield1D procedural ribbon rasterization in RendererSDL                        |
 |   - Stream infinite / segmented procedural track courses via CourseManager                       |
 +---------------------------------------------------------------------------------------------------+
-| Phase 4: Rover Visuals & Suspension Strut Rendering                                               |
+| Phase 4: Rover Visuals & Suspension Strut Rendering [COMPLETED]                                    |
 |   - Draw 3-axle buggy chassis, articulated suspension links, and rotating 6-wheel hubs           |
 |   - Wire InputController (WASD/Arrows for throttle/brake, Space for Jump)                        |
 |   - Tune Earth gravity (9.81 m/s^2) and jump impulses for optimal game feel                      |
 +---------------------------------------------------------------------------------------------------+
-| Phase 5: Multi-Layer Parallax Backgrounds & Biome Art                                            |
+| Phase 5: Multi-Layer Parallax Backgrounds, Biome Art & Obstacle Management [COMPLETED]            |
 |   - Implement ParallaxRenderer with 3 distinct Earth biomes (Highway, Badlands, Alpine Pass)      |
-|   - Procedural vector/sprite skyline silhouettes, clouds, and terrain textures                   |
+|   - Procedural vector skyline silhouettes, clouds, and terrain textures                           |
+|   - Implement ObstacleManager: craters, ravines, boulders, barricades, and fatal collision checks |
 +---------------------------------------------------------------------------------------------------+
-| Phase 6: Obstacle Generation & Collision System                                                   |
-|   - Implement ObstacleManager: craters, ravines, boulders, barricades, and mud slicks            |
-|   - Accurate AABB and heightfield intersection testing with crash event handling                 |
-+---------------------------------------------------------------------------------------------------+
-| Phase 7: Progression, Milestones (A-E), Timers, & HUD                                             |
+| Phase 6: Game Progression, State Machine, Timers & HUD                                            |
 |   - Checkpoints A through E with distance bar, speedometer, timer, and score calculation          |
 |   - GameStateMachine transitions (Title, Playing, Crashed, StageClear, GameOver)                  |
 +---------------------------------------------------------------------------------------------------+
-| Phase 8: Polish, Particle Effects, Sound Hooks & Verification                                     |
+| Phase 7: Polish, Particle Effects, Sound Hooks & Verification                                     |
 |   - Tire dust particles, landing sparks, screen shake on impact                                  |
 |   - Clean compile with /W4 and -Wall -Wextra -pedantic (-Werror) on Windows and Linux             |
 |   - Complete Doxygen documentation and MISRA C++:2023 compliance audit                            |
