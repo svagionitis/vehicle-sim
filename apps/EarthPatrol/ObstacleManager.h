@@ -70,6 +70,10 @@ public:
     /// @brief Resets cleared flags on all registered obstacles.
     void reset() noexcept;
 
+    /// @brief Gets total count of hazards successfully cleared without collision.
+    /// @return Cleared obstacle count.
+    [[nodiscard]] int getClearedCount() const noexcept;
+
     /// @brief Gets collection of registered obstacles.
     /// @return Constant reference to vector of obstacles.
     [[nodiscard]] const std::vector<Obstacle>& getObstacles() const noexcept;

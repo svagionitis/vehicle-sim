@@ -189,6 +189,17 @@ void ObstacleManager::reset() noexcept
     }
 }
 
+int ObstacleManager::getClearedCount() const noexcept
+{
+    int count { 0 };
+    for (const auto& obs : obstacles_) {
+        if (obs.cleared) {
+            count++;
+        }
+    }
+    return count;
+}
+
 const std::vector<Obstacle>& ObstacleManager::getObstacles() const noexcept
 {
     return obstacles_;

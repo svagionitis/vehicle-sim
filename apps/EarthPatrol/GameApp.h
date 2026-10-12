@@ -4,8 +4,10 @@
 
 #include "apps/EarthPatrol/Camera2D.h"
 #include "apps/EarthPatrol/CourseManager.h"
+#include "apps/EarthPatrol/GameState.h"
 #include "apps/EarthPatrol/ObstacleManager.h"
 #include "apps/EarthPatrol/ParallaxRenderer.h"
+#include "apps/EarthPatrol/PixelFont.h"
 #include "apps/EarthPatrol/SDLWrappers.h"
 #include "libs/VehicleSimCore/dynamics/EarthRoverDynamics.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
@@ -123,6 +125,36 @@ public:
     /// @return Biome index.
     [[nodiscard]] int getBiomeIndex() const noexcept;
 
+    /// @brief Gets active top-level game execution state.
+    /// @return Active GameState.
+    [[nodiscard]] GameState getState() const noexcept;
+
+    /// @brief Sets top-level game execution state.
+    /// @param[in] state Target GameState.
+    void setState(GameState state) noexcept;
+
+    /// @brief Gets current player score.
+    /// @return Score points.
+    [[nodiscard]] int getScore() const noexcept;
+
+    /// @brief Gets high score.
+    /// @return High score points.
+    [[nodiscard]] int getHighScore() const noexcept;
+
+    /// @brief Gets elapsed time in current stage in seconds.
+    /// @return Elapsed seconds.
+    [[nodiscard]] double getStageTime() const noexcept;
+
+    /// @brief Gets current stage number.
+    /// @return Stage index (1-based).
+    [[nodiscard]] int getStage() const noexcept;
+
+    /// @brief Initializes a brand new game playthrough.
+    void startNewGame() noexcept;
+
+    /// @brief Advances to next biome course stage after Milestone E clearance.
+    void advanceStage() noexcept;
+
 private:
     /// @brief Renders the continuous procedural terrain heightfield ribbon.
     void renderTerrain() noexcept;
@@ -139,6 +171,15 @@ private:
     /// @brief Renders the arcade status HUD (Milestones, speed, timer, lives, progress bar).
     void renderHUD() noexcept;
 
+    /// @brief Renders the TitleScreen arcade overlay and controls banner.
+    void renderTitleScreen() noexcept;
+
+    /// @brief Renders the StageClear milestone celebration and score tally.
+    void renderStageClear() noexcept;
+
+    /// @brief Renders the GameOver screen with final score summary.
+    void renderGameOver() noexcept;
+
     GameAppConfig config_ { };
     bool running_ { false };
 
@@ -154,8 +195,17 @@ private:
     vehicle_sim::dynamics::EarthRoverDynamics rover_ { };
     vehicle_sim::physics::RigidBody2D roverBody_ { };
 
+    GameState state_ { GameState::TitleScreen };
     int biomeIndex_ { 0 };
     int lives_ { 3 };
+    int score_ { 0 };
+    int highScore_ { 50000 };
+    int stage_ { 1 };
+    double stageTime_ { 0.0 };
+    double totalTime_ { 0.0 };
+    double stageClearTimer_ { 0.0 };
+    int timeBonus_ { 0 };
+    int lastCheckpointIdx_ { -1 };
     bool crashed_ { false };
     double respawnTimer_ { 0.0 };
 };

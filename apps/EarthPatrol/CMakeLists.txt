@@ -16,6 +16,9 @@ add_executable(EarthPatrol
     ParallaxRenderer.cpp
     ObstacleManager.h
     ObstacleManager.cpp
+    GameState.h
+    PixelFont.h
+    PixelFont.cpp
     SDLWrappers.h
 )
 
@@ -43,6 +46,53 @@ if(WIN32)
                     $<TARGET_FILE:SDL2::SDL2>
                     $<TARGET_FILE_DIR:EarthPatrol>
             )
+        endif()
+    endif()
+endif()
+
+if(BUILD_TESTING)
+    add_executable(EarthPatrolTests
+        GameAppTest.cpp
+        GameApp.h
+        GameApp.cpp
+        Camera2D.h
+        Camera2D.cpp
+        CourseManager.h
+        CourseManager.cpp
+        ParallaxRenderer.h
+        ParallaxRenderer.cpp
+        ObstacleManager.h
+        ObstacleManager.cpp
+        GameState.h
+        PixelFont.h
+        PixelFont.cpp
+        SDLWrappers.h
+    )
+
+    target_include_directories(EarthPatrolTests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../..
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(EarthPatrolTests PRIVATE
+        VehicleSimCore
+        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+    )
+
+    target_compile_definitions(EarthPatrolTests PRIVATE SDL_MAIN_HANDLED)
+    target_compile_features(EarthPatrolTests PRIVATE cxx_std_17)
+    apply_compiler_flags(EarthPatrolTests)
+    vehiclesim_register_gtest(EarthPatrolTests)
+
+    if(WIN32)
+        if(TARGET SDL2::SDL2)
+            if(_SDL2_TYPE STREQUAL "SHARED_LIBRARY")
+                add_custom_command(TARGET EarthPatrolTests POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        $<TARGET_FILE:SDL2::SDL2>
+                        $<TARGET_FILE_DIR:EarthPatrolTests>
+                )
+            endif()
         endif()
     endif()
 endif()

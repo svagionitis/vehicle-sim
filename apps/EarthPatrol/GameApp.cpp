@@ -2,13 +2,31 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
+#include "apps/EarthPatrol/PixelFont.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 
 namespace earth_patrol {
 
 namespace {
     inline constexpr double kMaxFrameTime { 0.25 };
+
+    std::string formatScore(int value, int digits)
+    {
+        std::string s { std::to_string(std::max(0, value)) };
+        if (static_cast<int>(s.length()) < digits) {
+            s.insert(0, static_cast<std::size_t>(digits - static_cast<int>(s.length())), '0');
+        }
+        return s;
+    }
+
+    std::string formatTime(double seconds)
+    {
+        const int sec { static_cast<int>(seconds) };
+        const int tenths { static_cast<int>((seconds - static_cast<double>(sec)) * 10.0) };
+        return formatScore(sec, 3) + "." + std::to_string(tenths) + "S";
+    }
 } // namespace
 
 GameApp::GameApp()
@@ -102,6 +120,53 @@ void GameApp::stop() noexcept
     running_ = false;
 }
 
+void GameApp::startNewGame() noexcept
+{
+    score_ = 0;
+    lives_ = config_.initialLives;
+    stage_ = 1;
+    stageTime_ = 0.0;
+    totalTime_ = 0.0;
+    biomeIndex_ = 0;
+    lastCheckpointIdx_ = -1;
+
+    course_.buildCourse(biomeIndex_);
+    rover_.setTerrain(&course_.getHeightfield());
+    obstacles_.generateObstacles(course_, biomeIndex_);
+
+    roverBody_.setPosition(vehicle_sim::math::Vec2 { 0.0, 1.20 });
+    roverBody_.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    roverBody_.setOrientation(0.0);
+    roverBody_.setAngularVelocity(0.0);
+
+    rover_.reset();
+    camera_.reset(roverBody_.getPosition());
+    crashed_ = false;
+    state_ = GameState::Playing;
+}
+
+void GameApp::advanceStage() noexcept
+{
+    stage_++;
+    stageTime_ = 0.0;
+    biomeIndex_ = (biomeIndex_ + 1) % 3;
+    lastCheckpointIdx_ = -1;
+
+    course_.buildCourse(biomeIndex_);
+    rover_.setTerrain(&course_.getHeightfield());
+    obstacles_.generateObstacles(course_, biomeIndex_);
+
+    roverBody_.setPosition(vehicle_sim::math::Vec2 { 0.0, 1.20 });
+    roverBody_.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    roverBody_.setOrientation(0.0);
+    roverBody_.setAngularVelocity(0.0);
+
+    rover_.reset();
+    camera_.reset(roverBody_.getPosition());
+    crashed_ = false;
+    state_ = GameState::Playing;
+}
+
 void GameApp::processEvents() noexcept
 {
     SDL_Event event { };
@@ -114,38 +179,57 @@ void GameApp::processEvents() noexcept
         }
 
         if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
-            switch (event.key.keysym.sym) {
-            case SDLK_ESCAPE:
+            const auto key { event.key.keysym.sym };
+            if (key == SDLK_ESCAPE) {
                 stop();
                 return;
-            case SDLK_SPACE:
-            case SDLK_w:
-            case SDLK_UP:
-                input.jump = true;
-                break;
-            case SDLK_d:
-            case SDLK_RIGHT:
-                input.throttle = 1.0;
-                break;
-            case SDLK_a:
-            case SDLK_LEFT:
-                input.throttle = -0.5;
-                break;
-            case SDLK_s:
-            case SDLK_DOWN:
-                input.brake = 1.0;
-                break;
-            case SDLK_b:
-                // Cycle Earth biomes (Highway -> Desert -> Alpine)
-                setBiomeIndex((biomeIndex_ + 1) % 3);
-                break;
-            case SDLK_r:
-                respawnRover();
-                break;
-            default:
-                break;
             }
-        } else if (event.type == SDL_KEYUP) {
+
+            if (state_ == GameState::TitleScreen) {
+                if (key == SDLK_SPACE || key == SDLK_RETURN) {
+                    startNewGame();
+                    return;
+                }
+            } else if (state_ == GameState::StageClear) {
+                if (key == SDLK_SPACE || key == SDLK_RETURN) {
+                    advanceStage();
+                    return;
+                }
+            } else if (state_ == GameState::GameOver) {
+                if (key == SDLK_SPACE || key == SDLK_RETURN) {
+                    state_ = GameState::TitleScreen;
+                    return;
+                }
+            } else if (state_ == GameState::Playing) {
+                switch (key) {
+                case SDLK_SPACE:
+                case SDLK_w:
+                case SDLK_UP:
+                    input.jump = true;
+                    break;
+                case SDLK_d:
+                case SDLK_RIGHT:
+                    input.throttle = 1.0;
+                    break;
+                case SDLK_a:
+                case SDLK_LEFT:
+                    input.throttle = -0.5;
+                    break;
+                case SDLK_s:
+                case SDLK_DOWN:
+                    input.brake = 1.0;
+                    break;
+                case SDLK_b:
+                    setBiomeIndex((biomeIndex_ + 1) % 3);
+                    break;
+                case SDLK_r:
+                    respawnRover();
+                    break;
+                default:
+                    break;
+                }
+            }
+        } else if (event.type == SDL_KEYUP && state_ == GameState::Playing) {
             switch (event.key.keysym.sym) {
             case SDLK_SPACE:
             case SDLK_w:
@@ -168,18 +252,50 @@ void GameApp::processEvents() noexcept
         }
     }
 
-    rover_.setInput(input);
+    if (state_ == GameState::Playing) {
+        rover_.setInput(input);
+    }
 }
 
 void GameApp::updatePhysics(double dt) noexcept
 {
-    if (crashed_) {
+    if (state_ == GameState::TitleScreen) {
+        parallax_.update(dt);
+        return;
+    }
+
+    if (state_ == GameState::StageClear) {
+        stageClearTimer_ += dt;
+        parallax_.update(dt);
+        return;
+    }
+
+    if (state_ == GameState::GameOver) {
+        parallax_.update(dt);
+        return;
+    }
+
+    if (state_ == GameState::Crashed) {
         respawnTimer_ -= dt;
+        parallax_.update(dt);
         if (respawnTimer_ <= 0.0) {
-            respawnRover();
+            if (lives_ > 0) {
+                respawnRover();
+                state_ = GameState::Playing;
+            } else {
+                state_ = GameState::GameOver;
+                if (score_ > highScore_) {
+                    highScore_ = score_;
+                }
+            }
         }
         return;
     }
+
+    // Active playing state
+    stageTime_ += dt;
+    totalTime_ += dt;
+    const int prevCleared { obstacles_.getClearedCount() };
 
     rover_.step(roverBody_, dt);
     vehicle_sim::physics::Integrator2D::integrate(roverBody_, dt);
@@ -189,13 +305,48 @@ void GameApp::updatePhysics(double dt) noexcept
     camera_.update(roverBody_.getPosition(), rover_.getSpeed(), dt);
     parallax_.update(dt);
 
+    // Milestone checkpoints reached
+    const auto& checkpoints { course_.getCheckpoints() };
+    for (int i { 0 }; i < static_cast<int>(checkpoints.size()); ++i) {
+        if (checkpoints[static_cast<std::size_t>(i)].reached && i > lastCheckpointIdx_) {
+            lastCheckpointIdx_ = i;
+            score_ += (i + 1) * 1000;
+            if (score_ > highScore_) {
+                highScore_ = score_;
+            }
+        }
+    }
+
+    // Obstacle collision and passing
     bool fatal { false };
     if (obstacles_.checkCollision(roverBody_, rover_, fatal)) {
         if (fatal) {
             crashed_ = true;
             respawnTimer_ = 1.6;
             lives_ = std::max(0, lives_ - 1);
+            state_ = GameState::Crashed;
+            return;
         }
+    }
+
+    const int newCleared { obstacles_.getClearedCount() };
+    if (newCleared > prevCleared) {
+        score_ += (newCleared - prevCleared) * 200;
+        if (score_ > highScore_) {
+            highScore_ = score_;
+        }
+    }
+
+    // Course completion (Milestone E reached at 500m)
+    if (course_.isStageComplete()) {
+        constexpr double parTime { 45.0 };
+        timeBonus_ = std::max(0, static_cast<int>((parTime - stageTime_) * 100.0));
+        score_ += 5000 + timeBonus_;
+        if (score_ > highScore_) {
+            highScore_ = score_;
+        }
+        state_ = GameState::StageClear;
+        stageClearTimer_ = 0.0;
     }
 }
 
@@ -233,6 +384,36 @@ int GameApp::getBiomeIndex() const noexcept
     return biomeIndex_;
 }
 
+GameState GameApp::getState() const noexcept
+{
+    return state_;
+}
+
+void GameApp::setState(GameState state) noexcept
+{
+    state_ = state;
+}
+
+int GameApp::getScore() const noexcept
+{
+    return score_;
+}
+
+int GameApp::getHighScore() const noexcept
+{
+    return highScore_;
+}
+
+double GameApp::getStageTime() const noexcept
+{
+    return stageTime_;
+}
+
+int GameApp::getStage() const noexcept
+{
+    return stage_;
+}
+
 void GameApp::renderFrame() noexcept
 {
     if (renderer_ == nullptr) {
@@ -244,13 +425,28 @@ void GameApp::renderFrame() noexcept
     obstacles_.render(renderer_.get(), camera_);
     renderCheckpoints();
 
-    if (!crashed_) {
+    if (state_ == GameState::TitleScreen) {
         renderRover();
-    } else {
+        renderHUD();
+        renderTitleScreen();
+    } else if (state_ == GameState::Playing) {
+        if (!crashed_) {
+            renderRover();
+        } else {
+            renderCrashPuff();
+        }
+        renderHUD();
+    } else if (state_ == GameState::Crashed) {
         renderCrashPuff();
+        renderHUD();
+    } else if (state_ == GameState::StageClear) {
+        renderRover();
+        renderHUD();
+        renderStageClear();
+    } else if (state_ == GameState::GameOver) {
+        renderHUD();
+        renderGameOver();
     }
-
-    renderHUD();
 
     SDL_RenderPresent(renderer_.get());
 }
@@ -272,12 +468,11 @@ void GameApp::renderTerrain() noexcept
         const auto sample { heightfield.sampleSurface(x) };
         const auto screen { camera_.worldToScreen(vehicle_sim::math::Vec2 { x, sample.elevation }) };
 
-        // Underground soil fill
-        if (biomeIndex_ == 1) { // Desert red sandstone
+        if (biomeIndex_ == 1) {
             SDL_SetRenderDrawColor(renderer_.get(), 110, 52, 34, 255);
-        } else if (biomeIndex_ == 2) { // Alpine loam
+        } else if (biomeIndex_ == 2) {
             SDL_SetRenderDrawColor(renderer_.get(), 45, 52, 40, 255);
-        } else { // Industrial gravel/soil
+        } else {
             SDL_SetRenderDrawColor(renderer_.get(), 48, 42, 40, 255);
         }
 
@@ -288,49 +483,40 @@ void GameApp::renderTerrain() noexcept
         SDL_Rect soilRect { leftX, topY, width, fillHeight };
         SDL_RenderFillRect(renderer_.get(), &soilRect);
 
-        // Surface grass / gravel / sand rim
         if (biomeIndex_ == 1) {
-            SDL_SetRenderDrawColor(renderer_.get(), 205, 125, 65, 255); // Sand crest
+            SDL_SetRenderDrawColor(renderer_.get(), 205, 125, 65, 255);
         } else if (biomeIndex_ == 2) {
-            SDL_SetRenderDrawColor(renderer_.get(), 75, 155, 65, 255); // Alpine grass
+            SDL_SetRenderDrawColor(renderer_.get(), 75, 155, 65, 255);
         } else {
-            SDL_SetRenderDrawColor(renderer_.get(), 92, 168, 64, 255); // Meadow turf
+            SDL_SetRenderDrawColor(renderer_.get(), 92, 168, 64, 255);
         }
 
         SDL_RenderDrawLine(renderer_.get(), static_cast<int>(prevScreen.x), static_cast<int>(prevScreen.y),
             static_cast<int>(screen.x), static_cast<int>(screen.y));
 
-        SDL_RenderDrawLine(renderer_.get(), static_cast<int>(prevScreen.x), static_cast<int>(prevScreen.y + 1.0),
-            static_cast<int>(screen.x), static_cast<int>(screen.y + 1.0));
-
         prevX = x;
+        prevSample = sample;
         prevScreen = screen;
     }
 }
 
 void GameApp::renderCheckpoints() noexcept
 {
-    const double minX { camera_.getVisibleMinX() - 4.0 };
-    const double maxX { camera_.getVisibleMaxX() + 4.0 };
-    const auto& heightfield { course_.getHeightfield() };
+    const double ppm { camera_.getConfig().pixelsPerMeter };
 
     for (const auto& cp : course_.getCheckpoints()) {
-        if (cp.worldX < minX || cp.worldX > maxX) {
-            continue;
-        }
+        const double elev { course_.getHeightfield().getHeight(cp.worldX) };
+        const auto screenBase { camera_.worldToScreen(vehicle_sim::math::Vec2 { cp.worldX, elev }) };
 
-        const double elev { heightfield.getHeight(cp.worldX) };
-        const auto baseScreen { camera_.worldToScreen(vehicle_sim::math::Vec2 { cp.worldX, elev }) };
+        const int pylonX { static_cast<int>(screenBase.x) };
+        const int pylonBottomY { static_cast<int>(screenBase.y) };
+        const int pylonHeight { static_cast<int>(3.2 * ppm) };
+        const int pylonTopY { pylonBottomY - pylonHeight };
 
-        // Pylon mast
-        SDL_SetRenderDrawColor(renderer_.get(), 200, 200, 210, 255);
-        const int pylonX { static_cast<int>(baseScreen.x) };
-        const int pylonBaseY { static_cast<int>(baseScreen.y) };
-        const int pylonTopY { pylonBaseY - 65 };
-        SDL_RenderDrawLine(renderer_.get(), pylonX, pylonBaseY, pylonX, pylonTopY);
-        SDL_RenderDrawLine(renderer_.get(), pylonX + 1, pylonBaseY, pylonX + 1, pylonTopY);
+        SDL_SetRenderDrawColor(renderer_.get(), 200, 210, 220, 255);
+        SDL_RenderDrawLine(renderer_.get(), pylonX, pylonBottomY, pylonX, pylonTopY);
+        SDL_RenderDrawLine(renderer_.get(), pylonX + 1, pylonBottomY, pylonX + 1, pylonTopY);
 
-        // Milestone sign flag
         if (cp.reached) {
             SDL_SetRenderDrawColor(renderer_.get(), 50, 220, 90, 255);
         } else {
@@ -339,64 +525,53 @@ void GameApp::renderCheckpoints() noexcept
         SDL_Rect flagRect { pylonX, pylonTopY, 26, 16 };
         SDL_RenderFillRect(renderer_.get(), &flagRect);
 
-        // Mast beacon light
-        SDL_SetRenderDrawColor(renderer_.get(), 255, 60, 60, 255);
-        SDL_Rect lightRect { pylonX - 2, pylonTopY - 5, 5, 5 };
-        SDL_RenderFillRect(renderer_.get(), &lightRect);
+        // Render milestone letter flag
+        PixelFont::drawText(renderer_.get(), std::string(1, cp.letter), pylonX + 8, pylonTopY + 3, 2,
+            { 20, 25, 35, 255 });
     }
 }
 
 void GameApp::renderRover() noexcept
 {
-    const auto roverScreen { camera_.worldToScreen(roverBody_.getPosition()) };
+    const auto roverPos { roverBody_.getPosition() };
+    const auto roverScreen { camera_.worldToScreen(roverPos) };
     const int roverX { static_cast<int>(roverScreen.x) };
     const int roverY { static_cast<int>(roverScreen.y) };
 
-    // Suspension struts and wheels
-    for (std::size_t i { 0 }; i < vehicle_sim::dynamics::EarthRoverDynamics::kWheelCount; ++i) {
-        const auto& wheel { rover_.getWheelState(i) };
-        const auto wheelScreen { camera_.worldToScreen(wheel.worldPos) };
+    const auto& roverConfig { rover_.getConfig() };
 
-        const int wScreenX { static_cast<int>(wheelScreen.x) };
-        const int wScreenY { static_cast<int>(wheelScreen.y) };
+    for (std::size_t i { 0 }; i < 3; ++i) {
+        const double wheelXOffset { roverConfig.wheels[i].longitudinalOffset };
+        const auto& ws { rover_.getWheelState(i) };
+        const auto hubScreen { camera_.worldToScreen(ws.worldPos) };
 
-        // Strut rod
-        SDL_SetRenderDrawColor(renderer_.get(), 180, 180, 190, 255);
-        SDL_RenderDrawLine(renderer_.get(), roverX, roverY, wScreenX, wScreenY);
+        SDL_SetRenderDrawColor(renderer_.get(), 180, 185, 195, 255);
+        SDL_RenderDrawLine(renderer_.get(), roverX + static_cast<int>(wheelXOffset * 22.0),
+            roverY, static_cast<int>(hubScreen.x), static_cast<int>(hubScreen.y));
 
-        // Wheel tire
-        if (wheel.isGrounded) {
-            SDL_SetRenderDrawColor(renderer_.get(), 35, 35, 42, 255);
-        } else {
-            SDL_SetRenderDrawColor(renderer_.get(), 70, 70, 80, 255);
-        }
-        SDL_Rect tireRect { wScreenX - 11, wScreenY - 11, 22, 22 };
+        SDL_SetRenderDrawColor(renderer_.get(), 30, 32, 40, 255);
+        SDL_Rect tireRect { static_cast<int>(hubScreen.x) - 10, static_cast<int>(hubScreen.y) - 10, 20, 20 };
         SDL_RenderFillRect(renderer_.get(), &tireRect);
 
-        // Wheel hub rim
-        SDL_SetRenderDrawColor(renderer_.get(), 200, 170, 60, 255);
-        SDL_Rect rimRect { wScreenX - 4, wScreenY - 4, 8, 8 };
+        SDL_SetRenderDrawColor(renderer_.get(), 140, 150, 165, 255);
+        SDL_Rect rimRect { static_cast<int>(hubScreen.x) - 5, static_cast<int>(hubScreen.y) - 5, 10, 10 };
         SDL_RenderFillRect(renderer_.get(), &rimRect);
     }
 
-    // Chassis body
     SDL_SetRenderDrawColor(renderer_.get(), 220, 160, 40, 255);
     SDL_Rect chassisRect { roverX - 44, roverY - 14, 88, 24 };
     SDL_RenderFillRect(renderer_.get(), &chassisRect);
 
-    // Front nose angle
-    SDL_SetRenderDrawColor(renderer_.get(), 245, 185, 55, 255);
-    SDL_Rect noseRect { roverX + 24, roverY - 10, 24, 16 };
+    SDL_SetRenderDrawColor(renderer_.get(), 190, 130, 30, 255);
+    SDL_Rect noseRect { roverX + 24, roverY - 8, 24, 14 };
     SDL_RenderFillRect(renderer_.get(), &noseRect);
 
-    // Cockpit dome
     SDL_SetRenderDrawColor(renderer_.get(), 100, 210, 255, 255);
     SDL_Rect cockpitRect { roverX - 8, roverY - 24, 28, 12 };
     SDL_RenderFillRect(renderer_.get(), &cockpitRect);
 
-    // Thruster exhaust nozzle
-    SDL_SetRenderDrawColor(renderer_.get(), 70, 70, 75, 255);
-    SDL_Rect exhaustRect { roverX - 48, roverY - 6, 8, 12 };
+    SDL_SetRenderDrawColor(renderer_.get(), 60, 65, 75, 255);
+    SDL_Rect exhaustRect { roverX - 48, roverY - 10, 8, 12 };
     SDL_RenderFillRect(renderer_.get(), &exhaustRect);
 }
 
@@ -409,7 +584,6 @@ void GameApp::renderCrashPuff() noexcept
     const double progress { 1.6 - respawnTimer_ };
     const int radius { static_cast<int>(progress * 35.0) };
 
-    // Smoke puff clouds
     SDL_SetRenderDrawColor(renderer_.get(), 220, 100, 30, 220);
     SDL_Rect puffCore { rx - radius, ry - radius, radius * 2, radius * 2 };
     SDL_RenderFillRect(renderer_.get(), &puffCore);
@@ -423,35 +597,50 @@ void GameApp::renderCrashPuff() noexcept
 
 void GameApp::renderHUD() noexcept
 {
-    // Top course progress bar
+    // Top-left: Player 1 Score & High Score
+    const std::string scoreStr { "1P " + formatScore(score_, 6) };
+    const std::string hiStr { "HI " + formatScore(highScore_, 6) };
+    PixelFont::drawText(renderer_.get(), scoreStr, 24, 16, 2, { 255, 255, 255, 255 });
+    PixelFont::drawText(renderer_.get(), hiStr, 24, 32, 2, { 255, 220, 50, 255 });
+
+    // Top-right: Stage & Timer
+    const std::string stageStr { "STAGE " + std::to_string(stage_) };
+    const std::string timeStr { "TIME " + formatTime(stageTime_) };
+    const int stageX { config_.windowWidth - 160 };
+    PixelFont::drawText(renderer_.get(), stageStr, stageX, 16, 2, { 100, 220, 255, 255 });
+    PixelFont::drawText(renderer_.get(), timeStr, stageX, 32, 2, { 240, 240, 240, 255 });
+
+    // Center Course progress bar
     constexpr int barWidth { 500 };
     constexpr int barHeight { 8 };
     const int barX { (config_.windowWidth - barWidth) / 2 };
-    constexpr int barY { 24 };
+    constexpr int barY { 28 };
 
-    // Background track line
-    SDL_SetRenderDrawColor(renderer_.get(), 50, 56, 75, 255);
+    SDL_SetRenderDrawColor(renderer_.get(), 40, 48, 65, 255);
     SDL_Rect bgBar { barX, barY, barWidth, barHeight };
     SDL_RenderFillRect(renderer_.get(), &bgBar);
 
-    // Completed progress fill
     const int fillW { static_cast<int>(course_.getProgressFraction() * static_cast<double>(barWidth)) };
     SDL_SetRenderDrawColor(renderer_.get(), 80, 210, 95, 255);
     SDL_Rect fillBar { barX, barY, fillW, barHeight };
     SDL_RenderFillRect(renderer_.get(), &fillBar);
 
-    // Checkpoint ticks along progress bar
-    for (std::size_t i { 0 }; i < course_.getCheckpoints().size(); ++i) {
+    // Checkpoint letter markers A-E along progress bar
+    const auto& checkpoints { course_.getCheckpoints() };
+    for (std::size_t i { 0 }; i < checkpoints.size(); ++i) {
         const double frac { static_cast<double>(i + 1) / 5.0 };
         const int tickX { barX + static_cast<int>(frac * static_cast<double>(barWidth)) };
 
-        if (course_.getCheckpoints()[i].reached) {
-            SDL_SetRenderDrawColor(renderer_.get(), 60, 240, 100, 255);
-        } else {
-            SDL_SetRenderDrawColor(renderer_.get(), 230, 200, 60, 255);
+        SDL_Color tickColor { 240, 190, 40, 255 };
+        if (checkpoints[i].reached) {
+            tickColor = SDL_Color { 60, 240, 100, 255 };
         }
+        SDL_SetRenderDrawColor(renderer_.get(), tickColor.r, tickColor.g, tickColor.b, 255);
         SDL_Rect tickRect { tickX - 2, barY - 4, 4, barHeight + 8 };
         SDL_RenderFillRect(renderer_.get(), &tickRect);
+
+        // Milestone letter label above tick
+        PixelFont::drawText(renderer_.get(), std::string(1, checkpoints[i].letter), tickX - 5, barY - 14, 2, tickColor);
     }
 
     // Rover marker icon on progress bar
@@ -460,23 +649,181 @@ void GameApp::renderHUD() noexcept
     SDL_Rect roverMarker { roverMarkerX - 4, barY - 6, 8, 20 };
     SDL_RenderFillRect(renderer_.get(), &roverMarker);
 
-    // Lives icons (top-left)
+    // Rover life silhouettes (top-left below score)
+    PixelFont::drawText(renderer_.get(), "ROVERS", 24, 52, 2, { 180, 190, 205, 255 });
     for (int i { 0 }; i < lives_; ++i) {
         SDL_SetRenderDrawColor(renderer_.get(), 240, 180, 45, 255);
-        SDL_Rect lifeRect { 30 + (i * 24), 22, 16, 12 };
+        SDL_Rect lifeRect { 92 + (i * 22), 52, 14, 10 };
         SDL_RenderFillRect(renderer_.get(), &lifeRect);
     }
 
     // Speed indicator bar (bottom-left)
     const double speedKmh { std::max(0.0, rover_.getSpeed() * 3.6) };
     const int speedBarW { static_cast<int>(std::clamp(speedKmh * 2.0, 0.0, 200.0)) };
+
+    const std::string speedStr { "SPEED: " + std::to_string(static_cast<int>(speedKmh)) + " KM/H" };
+    PixelFont::drawText(renderer_.get(), speedStr, 24, config_.windowHeight - 56, 2, { 240, 190, 50, 255 });
+
     SDL_SetRenderDrawColor(renderer_.get(), 40, 45, 60, 255);
-    SDL_Rect speedBg { 30, config_.windowHeight - 40, 200, 14 };
+    SDL_Rect speedBg { 24, config_.windowHeight - 38, 200, 14 };
     SDL_RenderFillRect(renderer_.get(), &speedBg);
 
     SDL_SetRenderDrawColor(renderer_.get(), 240, 160, 30, 255);
-    SDL_Rect speedFill { 30, config_.windowHeight - 40, speedBarW, 14 };
+    SDL_Rect speedFill { 24, config_.windowHeight - 38, speedBarW, 14 };
     SDL_RenderFillRect(renderer_.get(), &speedFill);
+
+    // Biome badge (bottom-right)
+    std::string biomeName { "HIGHWAY ZONE" };
+    if (biomeIndex_ == 1) {
+        biomeName = "DESERT BADLANDS";
+    } else if (biomeIndex_ == 2) {
+        biomeName = "ALPINE PASS";
+    }
+    const int badgeW { PixelFont::getTextWidth(biomeName, 2) };
+    PixelFont::drawText(renderer_.get(), biomeName, config_.windowWidth - badgeW - 24,
+        config_.windowHeight - 38, 2, { 160, 200, 220, 255 });
+}
+
+void GameApp::renderTitleScreen() noexcept
+{
+    SDL_SetRenderDrawBlendMode(renderer_.get(), SDL_BLENDMODE_BLEND);
+
+    constexpr int cardW { 680 };
+    constexpr int cardH { 480 };
+    const int cardX { (config_.windowWidth - cardW) / 2 };
+    const int cardY { (config_.windowHeight - cardH) / 2 };
+
+    SDL_SetRenderDrawColor(renderer_.get(), 12, 16, 28, 220);
+    SDL_Rect cardBg { cardX, cardY, cardW, cardH };
+    SDL_RenderFillRect(renderer_.get(), &cardBg);
+
+    SDL_SetRenderDrawColor(renderer_.get(), 255, 180, 35, 255);
+    SDL_RenderDrawRect(renderer_.get(), &cardBg);
+
+    // Title banner
+    const std::string title { "EARTH PATROL" };
+    const int titleW { PixelFont::getTextWidth(title, 7) };
+    PixelFont::drawText(renderer_.get(), title, (config_.windowWidth - titleW) / 2, cardY + 36, 7,
+        { 255, 190, 40, 255 });
+
+    const std::string subTitle { "TERRESTRIAL SURFACE DEFENSE SQUADRON" };
+    const int subW { PixelFont::getTextWidth(subTitle, 2) };
+    PixelFont::drawText(renderer_.get(), subTitle, (config_.windowWidth - subW) / 2, cardY + 98, 2,
+        { 100, 220, 255, 255 });
+
+    // Start prompt
+    const std::string startPrompt { "PRESS SPACE OR ENTER TO START" };
+    const int promptW { PixelFont::getTextWidth(startPrompt, 3) };
+    PixelFont::drawText(renderer_.get(), startPrompt, (config_.windowWidth - promptW) / 2, cardY + 150, 3,
+        { 255, 255, 255, 255 });
+
+    // Mission controls box
+    const int boxX { cardX + 40 };
+    const int boxY { cardY + 210 };
+    SDL_SetRenderDrawColor(renderer_.get(), 25, 32, 50, 255);
+    SDL_Rect boxRect { boxX, boxY, cardW - 80, 190 };
+    SDL_RenderFillRect(renderer_.get(), &boxRect);
+
+    PixelFont::drawText(renderer_.get(), "MISSION DIRECTIVE & CONTROLS:", boxX + 20, boxY + 16, 2,
+        { 255, 220, 50, 255 });
+    PixelFont::drawText(renderer_.get(), "[D] / [RIGHT]  ACCELERATE", boxX + 20, boxY + 48, 2,
+        { 220, 230, 245, 255 });
+    PixelFont::drawText(renderer_.get(), "[A] / [LEFT]   BRAKE / REVERSE", boxX + 20, boxY + 76, 2,
+        { 220, 230, 245, 255 });
+    PixelFont::drawText(renderer_.get(), "[SPACE] / [W]  VERTICAL JUMP THRUSTERS", boxX + 20, boxY + 104, 2,
+        { 220, 230, 245, 255 });
+    PixelFont::drawText(renderer_.get(), "[B] CYCLE BIOME   [ESC] ABORT MISSION", boxX + 20, boxY + 132, 2,
+        { 180, 190, 205, 255 });
+    PixelFont::drawText(renderer_.get(), "CLEAR CRATERS & REACH MILESTONE E", boxX + 20, boxY + 160, 2,
+        { 80, 240, 140, 255 });
+
+    const std::string hiNotice { "BEST RECORD: " + formatScore(highScore_, 6) + " PTS" };
+    const int hiNoticeW { PixelFont::getTextWidth(hiNotice, 2) };
+    PixelFont::drawText(renderer_.get(), hiNotice, (config_.windowWidth - hiNoticeW) / 2, cardY + 430, 2,
+        { 255, 220, 50, 255 });
+}
+
+void GameApp::renderStageClear() noexcept
+{
+    SDL_SetRenderDrawBlendMode(renderer_.get(), SDL_BLENDMODE_BLEND);
+
+    constexpr int cardW { 600 };
+    constexpr int cardH { 420 };
+    const int cardX { (config_.windowWidth - cardW) / 2 };
+    const int cardY { (config_.windowHeight - cardH) / 2 };
+
+    SDL_SetRenderDrawColor(renderer_.get(), 12, 24, 18, 230);
+    SDL_Rect cardBg { cardX, cardY, cardW, cardH };
+    SDL_RenderFillRect(renderer_.get(), &cardBg);
+
+    SDL_SetRenderDrawColor(renderer_.get(), 60, 240, 110, 255);
+    SDL_RenderDrawRect(renderer_.get(), &cardBg);
+
+    const std::string clearTitle { "STAGE CLEAR!" };
+    const int titleW { PixelFont::getTextWidth(clearTitle, 6) };
+    PixelFont::drawText(renderer_.get(), clearTitle, (config_.windowWidth - titleW) / 2, cardY + 40, 6,
+        { 60, 240, 110, 255 });
+
+    const std::string reachedStr { "MILESTONE E REACHED" };
+    const int reachW { PixelFont::getTextWidth(reachedStr, 3) };
+    PixelFont::drawText(renderer_.get(), reachedStr, (config_.windowWidth - reachW) / 2, cardY + 110, 3,
+        { 255, 255, 255, 255 });
+
+    const std::string timeStr { "STAGE TIME: " + formatTime(stageTime_) };
+    const std::string parStr { "PAR TIME:   045.0S" };
+    const std::string bonusStr { "TIME BONUS: +" + std::to_string(timeBonus_) + " PTS" };
+    const std::string scoreStr { "TOTAL SCORE: " + formatScore(score_, 6) + " PTS" };
+
+    PixelFont::drawText(renderer_.get(), timeStr, cardX + 110, cardY + 170, 3, { 220, 230, 245, 255 });
+    PixelFont::drawText(renderer_.get(), parStr, cardX + 110, cardY + 210, 3, { 240, 190, 40, 255 });
+    PixelFont::drawText(renderer_.get(), bonusStr, cardX + 110, cardY + 250, 3, { 60, 240, 100, 255 });
+    PixelFont::drawText(renderer_.get(), scoreStr, cardX + 110, cardY + 290, 3, { 255, 220, 50, 255 });
+
+    const std::string advancePrompt { "PRESS SPACE FOR NEXT BIOME" };
+    const int advW { PixelFont::getTextWidth(advancePrompt, 3) };
+    PixelFont::drawText(renderer_.get(), advancePrompt, (config_.windowWidth - advW) / 2, cardY + 355, 3,
+        { 100, 220, 255, 255 });
+}
+
+void GameApp::renderGameOver() noexcept
+{
+    SDL_SetRenderDrawBlendMode(renderer_.get(), SDL_BLENDMODE_BLEND);
+
+    constexpr int cardW { 580 };
+    constexpr int cardH { 380 };
+    const int cardX { (config_.windowWidth - cardW) / 2 };
+    const int cardY { (config_.windowHeight - cardH) / 2 };
+
+    SDL_SetRenderDrawColor(renderer_.get(), 28, 12, 14, 230);
+    SDL_Rect cardBg { cardX, cardY, cardW, cardH };
+    SDL_RenderFillRect(renderer_.get(), &cardBg);
+
+    SDL_SetRenderDrawColor(renderer_.get(), 240, 50, 40, 255);
+    SDL_RenderDrawRect(renderer_.get(), &cardBg);
+
+    const std::string goTitle { "GAME OVER" };
+    const int titleW { PixelFont::getTextWidth(goTitle, 7) };
+    PixelFont::drawText(renderer_.get(), goTitle, (config_.windowWidth - titleW) / 2, cardY + 40, 7,
+        { 240, 50, 40, 255 });
+
+    const std::string lostStr { "ALL ROVER UNITS LOST" };
+    const int lostW { PixelFont::getTextWidth(lostStr, 3) };
+    PixelFont::drawText(renderer_.get(), lostStr, (config_.windowWidth - lostW) / 2, cardY + 120, 3,
+        { 255, 255, 255, 255 });
+
+    const std::string finalScore { "FINAL SCORE: " + formatScore(score_, 6) + " PTS" };
+    const std::string bestScore { "HIGH SCORE:  " + formatScore(highScore_, 6) + " PTS" };
+    const int fsW { PixelFont::getTextWidth(finalScore, 3) };
+    const int bsW { PixelFont::getTextWidth(bestScore, 3) };
+    PixelFont::drawText(renderer_.get(), finalScore, (config_.windowWidth - fsW) / 2, cardY + 180, 3,
+        { 255, 220, 50, 255 });
+    PixelFont::drawText(renderer_.get(), bestScore, (config_.windowWidth - bsW) / 2, cardY + 225, 3,
+        { 240, 190, 40, 255 });
+
+    const std::string returnPrompt { "PRESS SPACE FOR TITLE SCREEN" };
+    const int retW { PixelFont::getTextWidth(returnPrompt, 3) };
+    PixelFont::drawText(renderer_.get(), returnPrompt, (config_.windowWidth - retW) / 2, cardY + 310, 3,
+        { 100, 220, 255, 255 });
 }
 
 bool GameApp::isRunning() const noexcept
