@@ -75,6 +75,17 @@ struct PlatformExtractionConfig {
     PlatformExtractionMethod method { PlatformExtractionMethod::FlatPlateau }; ///< Extraction algorithm.
 };
 
+/// @struct HeightfieldRayHit
+/// @brief Result of a 2D raycast query against the 1D heightfield terrain surface.
+struct HeightfieldRayHit {
+    math::Vec2 point { 0.0, 0.0 }; ///< World intersection point coordinates in meters.
+    math::Vec2 normal { 0.0, 1.0 }; ///< Upward surface unit normal at intersection point.
+    double distance { 0.0 }; ///< Distance from ray origin to intersection in meters.
+    double fraction { 0.0 }; ///< Normalized ray distance in [0.0, 1.0] (distance / maxDistance).
+    SurfaceMaterial material {}; ///< Physical surface material properties at intersection point.
+    bool hit { false }; ///< True if ray intersected terrain within maxDistance.
+};
+
 /// @struct HeightfieldPlatform
 /// @brief Extracted horizontal platform segment with associated surface material.
 struct HeightfieldPlatform {
@@ -274,6 +285,16 @@ public:
     /// @param[in] point World coordinates of test point.
     /// @return True if point elevation is strictly less than terrain surface height.
     [[nodiscard]] bool isUnderground(const math::Vec2& point) const noexcept;
+
+    /// @brief Performs a 2D raycast query against the terrain surface.
+    /// @details Evaluates intersection between a ray starting at origin along direction vector
+    /// and the terrain surface profile within maxDistance.
+    /// @param[in] origin Ray starting position in world space.
+    /// @param[in] direction Ray direction vector (does not need to be normalized).
+    /// @param[in] maxDistance Maximum query distance along ray in meters.
+    /// @return HeightfieldRayHit structure detailing intersection point, normal, distance, and material.
+    [[nodiscard]] HeightfieldRayHit raycast(
+        const math::Vec2& origin, const math::Vec2& direction, double maxDistance) const noexcept;
 
     /// @brief Extracts discrete horizontal platforms from heightfield profile.
     /// @param[in] config Platform extraction parameters.

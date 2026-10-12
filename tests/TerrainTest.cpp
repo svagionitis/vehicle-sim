@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/TrialsBikeDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 #include "libs/VehicleSimCore/terrain/ElevationMap2D.h"
@@ -1044,6 +1046,217 @@ TEST(TrackGeneratorTest, CircuitTrackCenterlineAndRibbonQueries)
     EXPECT_DOUBLE_EQ(track.startGridPosition.x, track2.startGridPosition.x);
     EXPECT_DOUBLE_EQ(track.startHeading, track2.startHeading);
     EXPECT_DOUBLE_EQ(track.centerline[5].x, track2.centerline[5].x);
+}
+
+TEST(Heightfield1DTest, RaycastHitsAndMisses)
+{
+    terrain::Heightfield1D hf {};
+    hf.setBaseHeight(0.0);
+    hf.setDefaultMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Concrete));
+    hf.addMaterialZone(15.0, 30.0, terrain::MaterialType::Mud);
+
+    // Ramp from x in [10, 20], rising from 0 to 5
+    hf.setSamples({ { 10.0, 0.0 }, { 20.0, 5.0 } });
+
+    // 1. Vertical downward hit onto base height at x = 0 (elevation = 0.0)
+    const math::Vec2 originA { 0.0, 10.0 };
+    const math::Vec2 dirDown { 0.0, -1.0 };
+    const auto hitA = hf.raycast(originA, dirDown, 20.0);
+    EXPECT_TRUE(hitA.hit);
+    EXPECT_DOUBLE_EQ(hitA.distance, 10.0);
+    EXPECT_DOUBLE_EQ(hitA.fraction, 10.0 / 20.0);
+    EXPECT_DOUBLE_EQ(hitA.point.x, 0.0);
+    EXPECT_DOUBLE_EQ(hitA.point.y, 0.0);
+    EXPECT_NEAR(hitA.normal.x, 0.0, 1e-9);
+    EXPECT_NEAR(hitA.normal.y, 1.0, 1e-9);
+    EXPECT_EQ(hitA.material.type, terrain::MaterialType::Concrete);
+
+    // 2. Vertical raycast pointing up away from terrain
+    const math::Vec2 dirUp { 0.0, 1.0 };
+    const auto hitUp = hf.raycast(originA, dirUp, 20.0);
+    EXPECT_FALSE(hitUp.hit);
+
+    // 3. Short max distance misses ground
+    const auto hitShort = hf.raycast(originA, dirDown, 5.0);
+    EXPECT_FALSE(hitShort.hit);
+
+    // 4. Origin already underground
+    const math::Vec2 originUnder { 0.0, -2.0 };
+    const auto hitUnder = hf.raycast(originUnder, dirDown, 10.0);
+    EXPECT_TRUE(hitUnder.hit);
+    EXPECT_DOUBLE_EQ(hitUnder.distance, 0.0);
+    EXPECT_DOUBLE_EQ(hitUnder.fraction, 0.0);
+
+    // 5. Angled raycast hitting mud ramp at x in [15, 20]
+    const math::Vec2 originRamp { 17.0, 10.0 };
+    const math::Vec2 dirAngled { 0.0, -1.0 };
+    const auto hitRamp = hf.raycast(originRamp, dirAngled, 30.0);
+    EXPECT_TRUE(hitRamp.hit);
+    EXPECT_GT(hitRamp.distance, 0.0);
+    EXPECT_NEAR(hitRamp.point.y, hf.getHeight(hitRamp.point.x), 1e-4);
+    EXPECT_EQ(hitRamp.material.type, terrain::MaterialType::Mud);
+
+    // 6. Zero distance or zero direction vector
+    EXPECT_FALSE(hf.raycast(originA, dirDown, 0.0).hit);
+    EXPECT_FALSE(hf.raycast(originA, math::Vec2 { 0.0, 0.0 }, 10.0).hit);
+}
+
+TEST(TerrainGeometricInvariantsTest, NormalAndTangentUnitLengthInvariants)
+{
+    // 1D Heightfield normal & tangent unit length and orthogonality
+    terrain::Heightfield1D hf {};
+    hf.enableNoise(true);
+    terrain::FractalConfig config {};
+    config.octaves = 4U;
+    config.amplitude = 12.0;
+    config.frequency = 0.05;
+    hf.setNoiseConfig(config);
+
+    for (double x { -40.0 }; x <= 40.0; x += 1.0) {
+        const auto sample = hf.sampleSurface(x);
+        const double normalLen = sample.normal.length();
+        const double tangentLen = sample.tangent.length();
+        const double dotProd = sample.normal.dot(sample.tangent);
+
+        EXPECT_NEAR(normalLen, 1.0, 1e-9);
+        EXPECT_NEAR(tangentLen, 1.0, 1e-9);
+        EXPECT_NEAR(dotProd, 0.0, 1e-9);
+        EXPECT_GT(sample.normal.y, 0.0); // Upward normal invariant
+    }
+
+    // 2D SurfaceMap normal unit length invariant
+    terrain::SurfaceMap2D map {};
+    map.enableNoise(true);
+    map.setNoiseConfig(config);
+
+    for (double x { -20.0 }; x <= 20.0; x += 2.0) {
+        for (double y { -20.0 }; y <= 20.0; y += 2.0) {
+            const auto sample2D = map.sampleSurface(x, y);
+            const double normLen3D = std::sqrt(sample2D.normal.x * sample2D.normal.x
+                + sample2D.normal.y * sample2D.normal.y + sample2D.normal.z * sample2D.normal.z);
+            EXPECT_NEAR(normLen3D, 1.0, 1e-9);
+            EXPECT_GT(sample2D.normal.z, 0.0); // Upward normal invariant
+        }
+    }
+}
+
+TEST(TerrainIntegrationTest, TrialsBikeTerrainClearanceAndWheelSuspensions)
+{
+    terrain::Heightfield1D hf {};
+    hf.setBaseHeight(0.0);
+
+    dynamics::TrialsBikeConfig bikeConfig {};
+    dynamics::TrialsBikeDynamics bike { bikeConfig };
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = bikeConfig.mass + bikeConfig.riderMass;
+    bodyConfig.inertia = 65.0;
+    bodyConfig.position = math::Vec2 { 0.0, 0.65 }; // Axles at 0.65 - 0.35 = 0.30 (sag 0.05)
+    physics::RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (std::int32_t step { 0 }; step < 30; ++step) {
+        const math::Vec2 pos = body.getPosition();
+        const math::Transform2D xf { pos, body.getOrientation() };
+
+        const math::Vec2 frontAxle = xf.transformPoint(bikeConfig.frontWheelOffset);
+        const math::Vec2 rearAxle = xf.transformPoint(bikeConfig.rearWheelOffset);
+
+        const double frontClearance = frontAxle.y - hf.getHeight(frontAxle.x);
+        const double rearClearance = rearAxle.y - hf.getHeight(rearAxle.x);
+
+        dynamics::TrialsBikeInput input {};
+        input.throttle = 1.0;
+        input.groundDistanceFront = frontClearance;
+        input.groundDistanceRear = rearClearance;
+
+        bike.setInput(input);
+        bike.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    const auto& telemetry = bike.getTelemetry();
+    EXPECT_GT(telemetry.forwardSpeed, 0.0);
+    EXPECT_GT(body.getPosition().x, 0.0);
+    EXPECT_FALSE(telemetry.isAirborne);
+}
+
+TEST(TerrainIntegrationTest, SideViewCarDrivingAlongGeneratedTerrain)
+{
+    terrain::PlatformerLevelConfig config {};
+    config.levelWidth = 100.0;
+    config.hasGroundFloor = true;
+    const terrain::PlatformerLevel level { terrain::TrackGenerator::generatePlatformerLevel(config) };
+
+    dynamics::SideViewCarConfig carConfig {};
+    dynamics::SideViewCarDynamics car { carConfig };
+    level.populateSideViewCar(car, true);
+    EXPECT_GT(car.getPlatformCount(), 0U);
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1500.0;
+    bodyConfig.position = math::Vec2 { level.spawnPoint.x, 0.35 };
+    physics::RigidBody2D body { bodyConfig };
+
+    dynamics::SideViewCarInput input {};
+    input.throttle = 1.0;
+    car.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (std::int32_t step { 0 }; step < 60; ++step) {
+        car.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(body.getPosition().x, level.spawnPoint.x);
+    EXPECT_GT(body.getLinearVelocity().x, 0.0);
+    EXPECT_NEAR(body.getPosition().y, 0.35, 0.05);
+    EXPECT_TRUE(car.isGrounded());
+    EXPECT_GT(car.getSpeed(), 0.0);
+}
+
+TEST(TerrainIntegrationTest, HovercraftSurfaceMapInteraction)
+{
+    terrain::SurfaceMap2D map {};
+    map.addBoxZone(math::Vec2 { 0.0, -10.0 }, math::Vec2 { 50.0, 10.0 }, terrain::MaterialType::Ice);
+
+    dynamics::HovercraftConfig hoverConfig {};
+    dynamics::HovercraftDynamics hovercraft { hoverConfig };
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1200.0;
+    bodyConfig.inertia = 2800.0;
+    bodyConfig.position = math::Vec2 { -10.0, 0.0 };
+    physics::RigidBody2D body { bodyConfig };
+
+    // Query surface at initial position (tarmac)
+    const auto tarmacSample = map.sampleSurface(body.getPosition().x, body.getPosition().y);
+    hovercraft.setSurfaceFriction(tarmacSample.material.friction);
+    EXPECT_DOUBLE_EQ(hovercraft.getConfig().surfaceFriction, 1.0);
+
+    // Query surface at ice zone
+    const auto iceSample = map.sampleSurface(15.0, 0.0);
+    hovercraft.setSurfaceFriction(iceSample.material.friction);
+    EXPECT_DOUBLE_EQ(hovercraft.getConfig().surfaceFriction, 0.10);
+
+    // Advance hovercraft with throttle
+    dynamics::HovercraftInput input {};
+    input.throttle = 1.0;
+    input.liftFanActive = true;
+    input.groundDistance = hoverConfig.hoverHeight;
+    hovercraft.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (std::int32_t step { 0 }; step < 30; ++step) {
+        hovercraft.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    EXPECT_GT(hovercraft.getTelemetry().forwardSpeed, 0.0);
 }
 
 } // namespace vehicle_sim::testing

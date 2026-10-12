@@ -317,6 +317,82 @@ bool Heightfield1D::isUnderground(const math::Vec2& point) const noexcept
     return point.y < getHeight(point.x);
 }
 
+HeightfieldRayHit Heightfield1D::raycast(
+    const math::Vec2& origin, const math::Vec2& direction, double maxDistance) const noexcept
+{
+    if (maxDistance <= 0.0 || direction.isZero()) {
+        return HeightfieldRayHit {};
+    }
+
+    const double originHeight { getHeight(origin.x) };
+    if (origin.y <= originHeight) {
+        return HeightfieldRayHit { origin, getNormal(origin.x), 0.0, 0.0, getMaterial(origin.x), true };
+    }
+
+    const math::Vec2 dir { direction.normalized() };
+
+    // Optimize vertical downwards raycast (common for wheel sensors)
+    if (std::abs(dir.x) <= 1e-9) {
+        if (dir.y >= 0.0) {
+            return HeightfieldRayHit {}; // Pointing upwards away from terrain
+        }
+        const double hitDist { (origin.y - originHeight) / (-dir.y) };
+        if (hitDist <= maxDistance) {
+            const math::Vec2 hitPoint { origin.x, originHeight };
+            return HeightfieldRayHit { hitPoint, getNormal(origin.x), hitDist, hitDist / maxDistance,
+                getMaterial(origin.x), true };
+        }
+        return HeightfieldRayHit {};
+    }
+
+    // General ray marching with bisection refinement
+    const double step { std::max(0.01, std::min(0.25, maxDistance / 32.0)) };
+    double prevT { 0.0 };
+    double t { step };
+    bool found { false };
+
+    while (t <= maxDistance) {
+        const math::Vec2 p { origin + dir * t };
+        const double h { getHeight(p.x) };
+        if (p.y <= h) {
+            found = true;
+            break;
+        }
+        prevT = t;
+        t += step;
+        if (t > maxDistance && prevT < maxDistance) {
+            t = maxDistance;
+            const math::Vec2 pEnd { origin + dir * t };
+            if (pEnd.y <= getHeight(pEnd.x)) {
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        return HeightfieldRayHit {};
+    }
+
+    double low { prevT };
+    double high { t };
+    for (std::int32_t i { 0 }; i < 16; ++i) {
+        const double mid { 0.5 * (low + high) };
+        const math::Vec2 pMid { origin + dir * mid };
+        const double hMid { getHeight(pMid.x) };
+        if (pMid.y <= hMid) {
+            high = mid;
+        } else {
+            low = mid;
+        }
+    }
+
+    const double hitT { 0.5 * (low + high) };
+    const math::Vec2 hitPoint { origin + dir * hitT };
+    return HeightfieldRayHit { hitPoint, getNormal(hitPoint.x), hitT, hitT / maxDistance, getMaterial(hitPoint.x),
+        true };
+}
+
 std::vector<HeightfieldPlatform> Heightfield1D::extractPlatforms(const PlatformExtractionConfig& config) const
 {
     std::vector<HeightfieldPlatform> platforms {};
