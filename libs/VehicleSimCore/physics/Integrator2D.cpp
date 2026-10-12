@@ -2,11 +2,13 @@
 
 #include <cmath>
 
+#include "libs/VehicleSimCore/math/Angle2D.h"
+
 namespace vehicle_sim::physics {
 
 double Integrator2D::normalizeAngle(double angleRadians) noexcept
 {
-    return std::atan2(std::sin(angleRadians), std::cos(angleRadians));
+    return math::Angle2D::normalizeRad(angleRadians);
 }
 
 void Integrator2D::integrate(RigidBody2D& body, double dt, const math::Vec2& gravity) noexcept

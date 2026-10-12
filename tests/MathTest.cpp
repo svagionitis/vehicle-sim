@@ -2,13 +2,17 @@
 
 #include <cmath>
 
+#include "libs/VehicleSimCore/math/Angle2D.h"
 #include "libs/VehicleSimCore/math/Mat2.h"
+#include "libs/VehicleSimCore/math/MathUtils.h"
 #include "libs/VehicleSimCore/math/Transform2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 
 namespace vehicle_sim::testing {
 
+using vehicle_sim::math::Angle2D;
 using vehicle_sim::math::Mat2;
+using vehicle_sim::math::MathUtils;
 using vehicle_sim::math::Transform2D;
 using vehicle_sim::math::Vec2;
 
@@ -21,7 +25,7 @@ inline constexpr double kEpsilon { 1e-9 };
 
 TEST(Vec2Test, DefaultAndStaticConstructors)
 {
-    const Vec2 vDefault { };
+    const Vec2 vDefault {};
     EXPECT_DOUBLE_EQ(vDefault.x, 0.0);
     EXPECT_DOUBLE_EQ(vDefault.y, 0.0);
 
@@ -308,6 +312,275 @@ TEST(Transform2DTest, AngleAccessors)
 
     t.setAngle(-1.25);
     EXPECT_NEAR(t.getAngle(), -1.25, kEpsilon);
+}
+
+// -----------------------------------------------------------------------------
+// Angle2D Tests
+// -----------------------------------------------------------------------------
+
+TEST(Angle2DTest, DefaultAndStaticConstructors)
+{
+    const Angle2D aDefault {};
+    EXPECT_DOUBLE_EQ(aDefault.radians(), 0.0);
+    EXPECT_DOUBLE_EQ(aDefault.degrees(), 0.0);
+
+    const Angle2D aZero { Angle2D::zero() };
+    EXPECT_DOUBLE_EQ(aZero.radians(), 0.0);
+
+    const Angle2D aPi { Angle2D::pi() };
+    EXPECT_DOUBLE_EQ(aPi.radians(), -Angle2D::kPi);
+}
+
+TEST(Angle2DTest, FromRadiansAndDegrees)
+{
+    const Angle2D aRad { Angle2D::fromRadians(Angle2D::kHalfPi) };
+    EXPECT_NEAR(aRad.radians(), Angle2D::kHalfPi, kEpsilon);
+    EXPECT_NEAR(aRad.degrees(), 90.0, kEpsilon);
+
+    const Angle2D aDeg { Angle2D::fromDegrees(180.0) };
+    EXPECT_NEAR(aDeg.radians(), Angle2D::kPi, kEpsilon);
+
+    const Angle2D aWrap { Angle2D::fromDegrees(450.0) };
+    EXPECT_NEAR(aWrap.degrees(), 90.0, kEpsilon);
+
+    EXPECT_NEAR(Angle2D::degToRad(180.0), Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::radToDeg(Angle2D::kPi), 180.0, kEpsilon);
+}
+
+TEST(Angle2DTest, VectorConversionRoundTrip)
+{
+    const Angle2D aAngle { Angle2D::fromRadians(Angle2D::kHalfPi) };
+    const Vec2 vDir { aAngle.toVector() };
+    EXPECT_NEAR(vDir.x, 0.0, kEpsilon);
+    EXPECT_NEAR(vDir.y, 1.0, kEpsilon);
+
+    const Angle2D aRecovered { Angle2D::fromVector(vDir) };
+    EXPECT_NEAR(aRecovered.radians(), Angle2D::kHalfPi, kEpsilon);
+
+    const Vec2 vUnitX { 1.0, 0.0 };
+    EXPECT_NEAR(Angle2D::toAngle(vUnitX), 0.0, kEpsilon);
+}
+
+TEST(Angle2DTest, OperatorsAndWrapping)
+{
+    const Angle2D a1 { Angle2D::fromDegrees(120.0) };
+    const Angle2D a2 { Angle2D::fromDegrees(90.0) };
+
+    const Angle2D aSum { a1 + a2 };
+    // 210 deg wraps to -150 deg
+    EXPECT_NEAR(aSum.degrees(), -150.0, kEpsilon);
+
+    const Angle2D aDiff { a1 - a2 };
+    EXPECT_NEAR(aDiff.degrees(), 30.0, kEpsilon);
+
+    const Angle2D aNeg { -a1 };
+    EXPECT_NEAR(aNeg.degrees(), -120.0, kEpsilon);
+
+    Angle2D aMut { a1 };
+    aMut += a2;
+    EXPECT_NEAR(aMut.degrees(), -150.0, kEpsilon);
+    aMut -= a2;
+    EXPECT_NEAR(aMut.degrees(), 120.0, kEpsilon);
+
+    EXPECT_TRUE(a1 == Angle2D::fromDegrees(120.0));
+    EXPECT_FALSE(a1 == a2);
+    EXPECT_TRUE(a1 != a2);
+}
+
+TEST(Angle2DTest, NormalizeRadBoundaries)
+{
+    EXPECT_NEAR(Angle2D::normalizeRad(0.0), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(Angle2D::kHalfPi), Angle2D::kHalfPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(-Angle2D::kHalfPi), -Angle2D::kHalfPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(-Angle2D::kPi), -Angle2D::kPi, kEpsilon);
+
+    // Boundary +Pi preserves sign on positive odd multiples
+    EXPECT_NEAR(Angle2D::normalizeRad(Angle2D::kPi), Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(3.0 * Angle2D::kPi), Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(-3.0 * Angle2D::kPi), -Angle2D::kPi, kEpsilon);
+
+    // Multiple revolutions
+    EXPECT_NEAR(Angle2D::normalizeRad(Angle2D::kTwoPi), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(-Angle2D::kTwoPi), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(100.0 * Angle2D::kPi), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad(101.0 * Angle2D::kPi), Angle2D::kPi, kEpsilon);
+
+    // Non-finite values
+    EXPECT_DOUBLE_EQ(Angle2D::normalizeRad(std::numeric_limits<double>::infinity()), 0.0);
+    EXPECT_DOUBLE_EQ(Angle2D::normalizeRad(-std::numeric_limits<double>::infinity()), 0.0);
+    EXPECT_DOUBLE_EQ(Angle2D::normalizeRad(std::numeric_limits<double>::quiet_NaN()), 0.0);
+}
+
+TEST(Angle2DTest, NormalizeDegBoundaries)
+{
+    EXPECT_NEAR(Angle2D::normalizeDeg(0.0), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeDeg(90.0), 90.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeDeg(-90.0), -90.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeDeg(180.0), 180.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeDeg(360.0), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeDeg(540.0), 180.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeDeg(-540.0), -180.0, kEpsilon);
+
+    EXPECT_DOUBLE_EQ(Angle2D::normalizeDeg(std::numeric_limits<double>::infinity()), 0.0);
+}
+
+TEST(Angle2DTest, NormalizeRad0To2Pi)
+{
+    EXPECT_NEAR(Angle2D::normalizeRad0To2Pi(0.0), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad0To2Pi(Angle2D::kPi), Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad0To2Pi(-Angle2D::kHalfPi), 1.5 * Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad0To2Pi(Angle2D::kTwoPi), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::normalizeRad0To2Pi(3.0 * Angle2D::kPi), Angle2D::kPi, kEpsilon);
+}
+
+TEST(Angle2DTest, DeltaAngleAndDistance)
+{
+    EXPECT_NEAR(Angle2D::deltaAngle(0.0, 0.0), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::deltaAngle(0.0, Angle2D::kHalfPi), Angle2D::kHalfPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::deltaAngle(Angle2D::kHalfPi, 0.0), -Angle2D::kHalfPi, kEpsilon);
+
+    // Shortest path crossing branch cut
+    const double a1 { 0.95 * Angle2D::kPi };
+    const double a2 { -0.95 * Angle2D::kPi };
+    EXPECT_NEAR(Angle2D::deltaAngle(a1, a2), 0.1 * Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::deltaAngle(a2, a1), -0.1 * Angle2D::kPi, kEpsilon);
+
+    EXPECT_NEAR(Angle2D::angularDistance(a1, a2), 0.1 * Angle2D::kPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::angularDistance(a2, a1), 0.1 * Angle2D::kPi, kEpsilon);
+}
+
+TEST(Angle2DTest, LerpAngleAcrossBranchCut)
+{
+    const double a1 { 0.9 * Angle2D::kPi };
+    const double a2 { -0.9 * Angle2D::kPi };
+
+    // Interpolating halfway from 0.9pi to -0.9pi passes through boundary (-pi / pi)
+    const double mid { Angle2D::lerpAngle(a1, a2, 0.5) };
+    EXPECT_NEAR(std::abs(mid), Angle2D::kPi, kEpsilon);
+
+    EXPECT_NEAR(Angle2D::lerpAngle(a1, a2, 0.0), a1, kEpsilon);
+    EXPECT_NEAR(Angle2D::lerpAngle(a1, a2, 1.0), a2, kEpsilon);
+}
+
+TEST(Angle2DTest, Slerp2DVectors)
+{
+    const Vec2 vX { 1.0, 0.0 };
+    const Vec2 vY { 0.0, 1.0 };
+
+    const Vec2 vMid { Angle2D::slerp2D(vX, vY, 0.5) };
+    EXPECT_NEAR(vMid.x, std::cos(Angle2D::kHalfPi * 0.5), kEpsilon);
+    EXPECT_NEAR(vMid.y, std::sin(Angle2D::kHalfPi * 0.5), kEpsilon);
+
+    // Collinear vectors
+    const Vec2 vCollinear1 { 2.0, 0.0 };
+    const Vec2 vCollinear2 { 4.0, 0.0 };
+    const Vec2 vCollinearMid { Angle2D::slerp2D(vCollinear1, vCollinear2, 0.5) };
+    EXPECT_NEAR(vCollinearMid.x, 3.0, kEpsilon);
+    EXPECT_NEAR(vCollinearMid.y, 0.0, kEpsilon);
+
+    // Opposite vectors
+    const Vec2 vOpposite { -1.0, 0.0 };
+    const Vec2 vOppositeMid { Angle2D::slerp2D(vX, vOpposite, 0.5) };
+    EXPECT_NEAR(vOppositeMid.length(), 1.0, kEpsilon);
+    EXPECT_NEAR(vOppositeMid.x, 0.0, kEpsilon);
+}
+
+TEST(Angle2DTest, SignedAngleBetween)
+{
+    const Vec2 vX { 1.0, 0.0 };
+    const Vec2 vY { 0.0, 1.0 };
+
+    EXPECT_NEAR(Angle2D::signedAngleBetween(vX, vY), Angle2D::kHalfPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::signedAngleBetween(vY, vX), -Angle2D::kHalfPi, kEpsilon);
+    EXPECT_NEAR(Angle2D::signedAngleBetween(vX, vX), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::signedAngleBetween(Vec2::zero(), vX), 0.0, kEpsilon);
+}
+
+TEST(Angle2DTest, ClampAngle)
+{
+    const double minA { -Angle2D::kHalfPi };
+    const double maxA { Angle2D::kHalfPi };
+
+    EXPECT_NEAR(Angle2D::clampAngle(0.0, minA, maxA), 0.0, kEpsilon);
+    EXPECT_NEAR(Angle2D::clampAngle(Angle2D::kPi, minA, maxA), maxA, kEpsilon);
+    EXPECT_NEAR(Angle2D::clampAngle(-2.0, minA, maxA), minA, kEpsilon);
+}
+
+// -----------------------------------------------------------------------------
+// MathUtils Tests
+// -----------------------------------------------------------------------------
+
+TEST(MathUtilsTest, LerpAndInverseLerp)
+{
+    EXPECT_DOUBLE_EQ(MathUtils::lerp(10.0, 20.0, 0.0), 10.0);
+    EXPECT_DOUBLE_EQ(MathUtils::lerp(10.0, 20.0, 1.0), 20.0);
+    EXPECT_DOUBLE_EQ(MathUtils::lerp(10.0, 20.0, 0.5), 15.0);
+
+    EXPECT_DOUBLE_EQ(MathUtils::inverseLerp(10.0, 20.0, 15.0), 0.5);
+    EXPECT_DOUBLE_EQ(MathUtils::inverseLerp(10.0, 20.0, 10.0), 0.0);
+    EXPECT_DOUBLE_EQ(MathUtils::inverseLerp(10.0, 20.0, 20.0), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::inverseLerp(10.0, 10.0, 10.0), 0.0);
+}
+
+TEST(MathUtilsTest, RemapAndClamp01)
+{
+    EXPECT_DOUBLE_EQ(MathUtils::clamp01(-0.5), 0.0);
+    EXPECT_DOUBLE_EQ(MathUtils::clamp01(0.5), 0.5);
+    EXPECT_DOUBLE_EQ(MathUtils::clamp01(1.5), 1.0);
+
+    EXPECT_DOUBLE_EQ(MathUtils::remap(0.0, 10.0, 100.0, 200.0, 5.0), 150.0);
+}
+
+TEST(MathUtilsTest, SmoothstepAndSmootherstep)
+{
+    EXPECT_DOUBLE_EQ(MathUtils::smoothstep(0.0, 1.0, -0.5), 0.0);
+    EXPECT_DOUBLE_EQ(MathUtils::smoothstep(0.0, 1.0, 1.5), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::smoothstep(0.0, 1.0, 0.5), 0.5);
+
+    EXPECT_DOUBLE_EQ(MathUtils::smootherstep(0.0, 1.0, -0.5), 0.0);
+    EXPECT_DOUBLE_EQ(MathUtils::smootherstep(0.0, 1.0, 1.5), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::smootherstep(0.0, 1.0, 0.5), 0.5);
+
+    EXPECT_DOUBLE_EQ(MathUtils::smoothstep(5.0, 5.0, 5.0), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::smoothstep(5.0, 5.0, 4.0), 0.0);
+}
+
+TEST(MathUtilsTest, ApplyDeadband)
+{
+    EXPECT_DOUBLE_EQ(MathUtils::applyDeadband(0.1, 0.2), 0.0);
+    EXPECT_DOUBLE_EQ(MathUtils::applyDeadband(-0.1, 0.2), 0.0);
+    EXPECT_NEAR(MathUtils::applyDeadband(1.0, 0.2), 1.0, kEpsilon);
+    EXPECT_NEAR(MathUtils::applyDeadband(-1.0, 0.2), -1.0, kEpsilon);
+    EXPECT_NEAR(MathUtils::applyDeadband(0.6, 0.2), 0.5, kEpsilon);
+    EXPECT_DOUBLE_EQ(MathUtils::applyDeadband(0.5, 0.0), 0.5);
+    EXPECT_DOUBLE_EQ(MathUtils::applyDeadband(0.5, 1.5, 1.0), 0.0);
+}
+
+TEST(MathUtilsTest, SignAndSignNonZero)
+{
+    EXPECT_DOUBLE_EQ(MathUtils::sign(5.0), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::sign(-5.0), -1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::sign(0.0), 0.0);
+
+    EXPECT_DOUBLE_EQ(MathUtils::signNonZero(5.0), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::signNonZero(0.0), 1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::signNonZero(-5.0), -1.0);
+}
+
+TEST(MathUtilsTest, NearlyEqualAndNearlyZero)
+{
+    EXPECT_TRUE(MathUtils::nearlyEqual(1.0, 1.0000000001, 1e-8));
+    EXPECT_FALSE(MathUtils::nearlyEqual(1.0, 1.1, 1e-4));
+
+    EXPECT_TRUE(MathUtils::nearlyZero(1e-10));
+    EXPECT_FALSE(MathUtils::nearlyZero(0.01));
+}
+
+TEST(MathUtilsTest, SafeDivide)
+{
+    EXPECT_DOUBLE_EQ(MathUtils::safeDivide(10.0, 2.0), 5.0);
+    EXPECT_DOUBLE_EQ(MathUtils::safeDivide(10.0, 0.0, -1.0), -1.0);
+    EXPECT_DOUBLE_EQ(MathUtils::safeDivide(10.0, 1e-13, 99.0), 99.0);
 }
 
 } // namespace vehicle_sim::testing

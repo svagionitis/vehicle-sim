@@ -3,27 +3,20 @@
 #include <algorithm>
 #include <cmath>
 
+#include "libs/VehicleSimCore/math/Angle2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 
 namespace vehicle_sim::dynamics {
 
 namespace {
-constexpr double kPi { 3.14159265358979323846 };
-
-double normalizeAngle(double angle) noexcept
-{
-    while (angle > kPi) {
-        angle -= (2.0 * kPi);
+    inline double normalizeAngle(double angle) noexcept
+    {
+        return math::Angle2D::normalizeRad(angle);
     }
-    while (angle < -kPi) {
-        angle += (2.0 * kPi);
-    }
-    return angle;
-}
 } // namespace
 
 ArticulatedTruckDynamics::ArticulatedTruckDynamics() noexcept
-    : ArticulatedTruckDynamics(ArticulatedTruckConfig { })
+    : ArticulatedTruckDynamics(ArticulatedTruckConfig {})
 {
 }
 
@@ -66,8 +59,8 @@ void ArticulatedTruckDynamics::step(physics::RigidBody2D& body, double dt) noexc
     // 4. Trailer orientation and articulation hitch angle integration
     const math::Vec2 trailerNormal { -std::sin(mTrailerHeading), std::cos(mTrailerHeading) };
     const double kingpinTransverseVel { kingpinWorldVel.dot(trailerNormal) };
-    const double trailerYawRate { (mConfig.trailerLength > 0.0)
-        ? (kingpinTransverseVel / mConfig.trailerLength) : 0.0 };
+    const double trailerYawRate { (mConfig.trailerLength > 0.0) ? (kingpinTransverseVel / mConfig.trailerLength)
+                                                                : 0.0 };
 
     mTrailerHeading = normalizeAngle(mTrailerHeading + (trailerYawRate * dt));
     mHitchAngle = normalizeAngle(mTrailerHeading - tractorHeading);
@@ -89,8 +82,8 @@ void ArticulatedTruckDynamics::step(physics::RigidBody2D& body, double dt) noexc
 
     const double driveForce { throttle * mConfig.maxDriveForce };
     const double tractorBrakeForce { serviceBrake * mConfig.maxTractorBrakeForce };
-    const double trailerBrakeForce { std::min(mConfig.maxTrailerBrakeForce,
-        (serviceBrake * 0.5 + trolleyBrake) * mConfig.maxTrailerBrakeForce) };
+    const double trailerBrakeForce { std::min(
+        mConfig.maxTrailerBrakeForce, (serviceBrake * 0.5 + trolleyBrake) * mConfig.maxTrailerBrakeForce) };
 
     const double speedSign { (forwardSpeed > 0.1) ? 1.0 : ((forwardSpeed < -0.1) ? -1.0 : 0.0) };
     const double rollingResistance { mConfig.rollingResistanceCoeff * speed };
@@ -112,16 +105,19 @@ void ArticulatedTruckDynamics::step(physics::RigidBody2D& body, double dt) noexc
     body.applyTorque(steeringYawTorque);
 
     // 7. Fifth-wheel jackknifing / tension restoring lateral forces
-    // Compressive force from tractor braking and reverse drive pushes kingpin; trailer hand-brake creates tension pulling kingpin straight
+    // Compressive force from tractor braking and reverse drive pushes kingpin; trailer hand-brake creates tension
+    // pulling kingpin straight
     const double reverseDrivePush { (forwardSpeed < -0.1)
-        ? (std::abs(driveForce) * (mConfig.trailerMass / (mConfig.tractorMass + mConfig.trailerMass))) : 0.0 };
-    const double compressivePush { (tractorBrakeForce + reverseDrivePush) * (mConfig.trailerMass / (mConfig.tractorMass + mConfig.trailerMass)) };
+            ? (std::abs(driveForce) * (mConfig.trailerMass / (mConfig.tractorMass + mConfig.trailerMass)))
+            : 0.0 };
+    const double compressivePush { (tractorBrakeForce + reverseDrivePush)
+        * (mConfig.trailerMass / (mConfig.tractorMass + mConfig.trailerMass)) };
     const double kingpinPushLat { compressivePush * std::sin(mHitchAngle) };
     const double kingpinTensionRestoring { -trailerBrakeForce * std::sin(mHitchAngle) };
     const double trailerLateralTireGrip { -mConfig.trailerCorneringStiffness * std::sin(mHitchAngle) };
 
-    const double totalKingpinLateralForce { std::clamp(kingpinPushLat + kingpinTensionRestoring + trailerLateralTireGrip,
-        -60000.0, 60000.0) };
+    const double totalKingpinLateralForce { std::clamp(
+        kingpinPushLat + kingpinTensionRestoring + trailerLateralTireGrip, -60000.0, 60000.0) };
     body.applyForceAtLocalPoint(body.toWorldVec(math::Vec2 { 0.0, totalKingpinLateralForce }), kingpinLocalPos);
 
     // 8. Fifth-wheel plate rotational friction
@@ -150,11 +146,11 @@ void ArticulatedTruckDynamics::step(physics::RigidBody2D& body, double dt) noexc
 
 void ArticulatedTruckDynamics::reset() noexcept
 {
-    mInput = ArticulatedTruckInput { };
+    mInput = ArticulatedTruckInput {};
     mSteerAngle = 0.0;
     mHitchAngle = 0.0;
     mTrailerHeading = 0.0;
-    mTelemetry = ArticulatedTruckTelemetry { };
+    mTelemetry = ArticulatedTruckTelemetry {};
     mTelemetry.totalMass = mConfig.tractorMass + mConfig.trailerMass;
 }
 

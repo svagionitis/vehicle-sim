@@ -7,6 +7,10 @@ add_library(VehicleSimCore STATIC
     math/Mat2.cpp
     math/Transform2D.h
     math/Transform2D.cpp
+    math/Angle2D.h
+    math/Angle2D.cpp
+    math/MathUtils.h
+    math/MathUtils.cpp
     math/Spline2D.h
     math/Spline2D.cpp
     physics/RigidBody2D.h
