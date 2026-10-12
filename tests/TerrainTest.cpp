@@ -1,11 +1,14 @@
 #include <gtest/gtest.h>
 
+#include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
+#include "libs/VehicleSimCore/terrain/ElevationMap2D.h"
 #include "libs/VehicleSimCore/terrain/FractalNoise.h"
 #include "libs/VehicleSimCore/terrain/GradientNoise.h"
 #include "libs/VehicleSimCore/terrain/Heightfield1D.h"
+#include "libs/VehicleSimCore/terrain/SurfaceMap2D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
 
 namespace vehicle_sim::testing {
@@ -583,6 +586,258 @@ TEST(Heightfield1DTest, PopulateSideViewCarDynamicsIntegration)
     EXPECT_TRUE(car.isGrounded());
     EXPECT_FALSE(car.isAirborne());
     EXPECT_NEAR(body.getPosition().y, car.getConfig().wheelRadius, 0.1);
+}
+
+TEST(SurfaceMap2DTest, DefaultConfigurationAndBaseHeight)
+{
+    const terrain::SurfaceMap2D map {};
+    EXPECT_DOUBLE_EQ(map.getBaseHeight(), 0.0);
+    EXPECT_FALSE(map.hasGrid());
+    EXPECT_EQ(map.getMaterialZoneCount(), 0U);
+    EXPECT_FALSE(map.isNoiseEnabled());
+    EXPECT_EQ(map.getDefaultMaterial().type, terrain::MaterialType::Tarmac);
+
+    terrain::SurfaceMap2D elevatedMap {};
+    elevatedMap.setBaseHeight(15.0);
+    EXPECT_DOUBLE_EQ(elevatedMap.getBaseHeight(), 15.0);
+
+    const auto sample = elevatedMap.sampleSurface(3.5, -4.2);
+    EXPECT_DOUBLE_EQ(sample.elevation, 15.0);
+    EXPECT_DOUBLE_EQ(sample.gradient.x, 0.0);
+    EXPECT_DOUBLE_EQ(sample.gradient.y, 0.0);
+    EXPECT_DOUBLE_EQ(sample.slopeAngle, 0.0);
+    EXPECT_DOUBLE_EQ(sample.downhill.x, 0.0);
+    EXPECT_DOUBLE_EQ(sample.downhill.y, 0.0);
+    EXPECT_DOUBLE_EQ(sample.normal.x, 0.0);
+    EXPECT_DOUBLE_EQ(sample.normal.y, 0.0);
+    EXPECT_DOUBLE_EQ(sample.normal.z, 1.0);
+    EXPECT_EQ(sample.material.type, terrain::MaterialType::Tarmac);
+}
+
+TEST(SurfaceMap2DTest, DiscreteGridBilinearInterpolationAndGradients)
+{
+    terrain::SurfaceMap2D map {};
+
+    // 3x3 regular grid spanning [0, 4] x [0, 4] with cell size (2, 2)
+    // Linear inclined plane: h(x, y) = 0.5 * x + 0.25 * y
+    // Row 0 (y = 0): x=0: 0.0,  x=2: 1.0,  x=4: 2.0
+    // Row 1 (y = 2): x=0: 0.5,  x=2: 1.5,  x=4: 2.5
+    // Row 2 (y = 4): x=0: 1.0,  x=2: 2.0,  x=4: 3.0
+    const std::vector<double> gridData { 0.0, 1.0, 2.0, 0.5, 1.5, 2.5, 1.0, 2.0, 3.0 };
+
+    map.setGrid(math::Vec2 { 0.0, 0.0 }, math::Vec2 { 2.0, 2.0 }, 3U, 3U, gridData);
+    map.setInterpolation(terrain::ElevationInterp2D::Bilinear);
+
+    EXPECT_TRUE(map.hasGrid());
+    EXPECT_EQ(map.getGridWidth(), 3U);
+    EXPECT_EQ(map.getGridHeight(), 3U);
+    EXPECT_DOUBLE_EQ(map.getGridElevation(1U, 1U), 1.5);
+
+    // Exact grid point queries
+    EXPECT_DOUBLE_EQ(map.getHeight(0.0, 0.0), 0.0);
+    EXPECT_DOUBLE_EQ(map.getHeight(2.0, 2.0), 1.5);
+    EXPECT_DOUBLE_EQ(map.getHeight(4.0, 4.0), 3.0);
+
+    // Mid-cell bilinear query at (1.0, 1.0): h = 0.5 * 1 + 0.25 * 1 = 0.75
+    const auto midSample = map.sampleSurface(1.0, 1.0);
+    EXPECT_DOUBLE_EQ(midSample.elevation, 0.75);
+
+    // Gradient dh/dx = 0.5, dh/dy = 0.25
+    EXPECT_NEAR(midSample.gradient.x, 0.5, 1e-9);
+    EXPECT_NEAR(midSample.gradient.y, 0.25, 1e-9);
+
+    // Downhill vector must be anti-parallel to gradient
+    const math::Vec2 expectedGrad { 0.5, 0.25 };
+    const math::Vec2 expectedDownhill { -expectedGrad * (1.0 / expectedGrad.length()) };
+    EXPECT_NEAR(midSample.downhill.x, expectedDownhill.x, 1e-9);
+    EXPECT_NEAR(midSample.downhill.y, expectedDownhill.y, 1e-9);
+
+    // Unit normal vector validation (nx^2 + ny^2 + nz^2 == 1, nz > 0)
+    const double normLenSq { midSample.normal.x * midSample.normal.x + midSample.normal.y * midSample.normal.y
+        + midSample.normal.z * midSample.normal.z };
+    EXPECT_NEAR(normLenSq, 1.0, 1e-9);
+    EXPECT_GT(midSample.normal.z, 0.0);
+}
+
+TEST(SurfaceMap2DTest, DiscreteGridBicubicSmoothnessAndBoundaryModes)
+{
+    terrain::SurfaceMap2D map {};
+
+    // 4x4 grid
+    const std::vector<double> elevations { 0.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0, 2.0, 2.0, 4.0, 5.0, 3.0, 1.0, 2.0, 3.0,
+        1.0 };
+
+    map.setGrid(math::Vec2 { 0.0, 0.0 }, math::Vec2 { 1.0, 1.0 }, 4U, 4U, elevations);
+    map.setInterpolation(terrain::ElevationInterp2D::Bicubic);
+
+    // Grid nodes must match exact elevation
+    EXPECT_NEAR(map.getHeight(1.0, 1.0), 3.0, 1e-6);
+    EXPECT_NEAR(map.getHeight(2.0, 2.0), 5.0, 1e-6);
+
+    // Bicubic C1 continuity: gradient evaluated on either side of boundary
+    constexpr double eps { 1e-4 };
+    const auto gradLeft = map.getGradient(1.5 - eps, 1.5);
+    const auto gradRight = map.getGradient(1.5 + eps, 1.5);
+    EXPECT_NEAR(gradLeft.x, gradRight.x, 1e-3);
+    EXPECT_NEAR(gradLeft.y, gradRight.y, 1e-3);
+
+    // Boundary modes
+    map.setBoundaryMode(terrain::ElevationBoundary2D::Clamp);
+    EXPECT_NEAR(map.getHeight(10.0, 10.0), map.getHeight(3.0, 3.0), 1e-9);
+
+    map.setBoundaryMode(terrain::ElevationBoundary2D::Zero);
+    EXPECT_DOUBLE_EQ(map.getHeight(10.0, 10.0), 0.0);
+
+    map.setBoundaryMode(terrain::ElevationBoundary2D::Repeat);
+    // (4.0, 4.0) wraps to (0.0, 0.0)
+    EXPECT_NEAR(map.getHeight(4.0, 4.0), map.getHeight(0.0, 0.0), 1e-9);
+}
+
+TEST(SurfaceMap2DTest, ProceduralNoiseLayerAndCompositeElevation)
+{
+    terrain::SurfaceMap2D map {};
+    map.setBaseHeight(5.0);
+
+    terrain::FractalConfig noiseCfg {};
+    noiseCfg.octaves = 3U;
+    noiseCfg.frequency = 0.1;
+    noiseCfg.amplitude = 1.0;
+    noiseCfg.seed = 2026U;
+
+    map.setNoiseConfig(noiseCfg);
+    map.setNoiseTransform(2.5, math::Vec2 { 1.0, 1.0 }, math::Vec2 { 0.0, 0.0 });
+    map.enableNoise(true);
+
+    EXPECT_TRUE(map.isNoiseEnabled());
+
+    const auto sample = map.sampleSurface(10.37, 15.62);
+    // Base height + noise (amplitude bounded by maxAmplitude * verticalScale)
+    EXPECT_NE(sample.elevation, 5.0);
+    EXPECT_NEAR(sample.elevation, 5.0, 2.5 * map.getNoise().getMaxAmplitude() + 1e-5);
+
+    // Normal vector must be normalized
+    const double lenSq { sample.normal.x * sample.normal.x + sample.normal.y * sample.normal.y
+        + sample.normal.z * sample.normal.z };
+    EXPECT_NEAR(lenSq, 1.0, 1e-9);
+
+    // Analytical gradient consistency against finite differences
+    constexpr double h { 1e-5 };
+    const double hxPlus { map.getHeight(10.37 + h, 15.62) };
+    const double hxMinus { map.getHeight(10.37 - h, 15.62) };
+    const double numGradX { (hxPlus - hxMinus) / (2.0 * h) };
+
+    const double hyPlus { map.getHeight(10.37, 15.62 + h) };
+    const double hyMinus { map.getHeight(10.37, 15.62 - h) };
+    const double numGradY { (hyPlus - hyMinus) / (2.0 * h) };
+
+    EXPECT_NEAR(sample.gradient.x, numGradX, 1e-3);
+    EXPECT_NEAR(sample.gradient.y, numGradY, 1e-3);
+}
+
+TEST(SurfaceMap2DTest, MaterialZonesBoxAndCircleWithLiquid)
+{
+    terrain::SurfaceMap2D map {};
+
+    // Default: Tarmac
+    EXPECT_EQ(map.getMaterial(0.0, 0.0).type, terrain::MaterialType::Tarmac);
+    EXPECT_FALSE(map.isLiquidAt(math::Vec2 { 0.0, 0.0 }));
+
+    // Box zone: Dirt in [-10, 10] x [10, 30]
+    map.addBoxZone(math::Vec2 { -10.0, 10.0 }, math::Vec2 { 10.0, 30.0 }, terrain::MaterialType::Dirt);
+
+    // Circle zone: Mud pit at center (0, 0) with radius 5.0
+    map.addCircleZone(math::Vec2 { 0.0, 0.0 }, 5.0, terrain::MaterialType::Mud);
+
+    EXPECT_EQ(map.getMaterialZoneCount(), 2U);
+
+    // Inside mud pit circle
+    EXPECT_EQ(map.getMaterial(0.0, 0.0).type, terrain::MaterialType::Mud);
+    EXPECT_TRUE(map.isLiquidAt(math::Vec2 { 0.0, 0.0 }));
+    EXPECT_DOUBLE_EQ(map.getMaterial(3.0, 3.0).friction, 0.40);
+
+    // Inside dirt box
+    EXPECT_EQ(map.getMaterial(0.0, 20.0).type, terrain::MaterialType::Dirt);
+    EXPECT_FALSE(map.isLiquidAt(math::Vec2 { 0.0, 20.0 }));
+    EXPECT_DOUBLE_EQ(map.getMaterial(0.0, 20.0).friction, 0.75);
+
+    // Outside all zones -> Tarmac
+    EXPECT_EQ(map.getMaterial(50.0, 50.0).type, terrain::MaterialType::Tarmac);
+    EXPECT_DOUBLE_EQ(map.getMaterial(50.0, 50.0).friction, 1.0);
+
+    // Priority test: adding ice patch over center overrides mud
+    map.addCircleZone(math::Vec2 { 0.0, 0.0 }, 2.0, terrain::MaterialType::Ice);
+    EXPECT_EQ(map.getMaterial(0.0, 0.0).type, terrain::MaterialType::Ice);
+    EXPECT_DOUBLE_EQ(map.getMaterial(0.0, 0.0).friction, 0.10);
+
+    map.clearMaterialZones();
+    EXPECT_EQ(map.getMaterialZoneCount(), 0U);
+    EXPECT_EQ(map.getMaterial(0.0, 0.0).type, terrain::MaterialType::Tarmac);
+}
+
+TEST(SurfaceMap2DTest, DownhillSlopeForceAndLiquidDrag)
+{
+    terrain::SurfaceMap2D map {};
+
+    // 2x2 grid with constant incline: dh/dx = 0.2, dh/dy = 0.0
+    const std::vector<double> elev { 0.0, 0.2, 0.0, 0.2 };
+    map.setGrid(math::Vec2 { 0.0, 0.0 }, math::Vec2 { 1.0, 1.0 }, 2U, 2U, elev);
+    map.setInterpolation(terrain::ElevationInterp2D::Bilinear);
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1000.0;
+    bodyConfig.position = math::Vec2 { 0.5, 0.5 };
+    physics::RigidBody2D body { bodyConfig };
+
+    // Gravity force pushes downhill along -X
+    const math::Vec2 slopeForce = map.computeSlopeForce(body, 9.81);
+    EXPECT_LT(slopeForce.x, 0.0);
+    EXPECT_NEAR(slopeForce.y, 0.0, 1e-9);
+
+    map.applySlopeForce(body, 9.81);
+    physics::Integrator2D::integrate(body, 0.1);
+    EXPECT_LT(body.getLinearVelocity().x, 0.0);
+
+    // Liquid drag test
+    map.addCircleZone(math::Vec2 { 0.0, 0.0 }, 10.0, terrain::MaterialType::Water);
+    body.setLinearVelocity(math::Vec2 { 10.0, 0.0 });
+
+    const math::Vec2 dragForce = map.computeLiquidDrag(body, 1.0);
+    EXPECT_LT(dragForce.x, 0.0); // Retarding
+    EXPECT_NEAR(dragForce.y, 0.0, 1e-9);
+}
+
+TEST(SurfaceMap2DTest, ArcadeCarDynamicsIntegration)
+{
+    terrain::SurfaceMap2D map {};
+
+    // Ice patch at front wheels (x in [1.5, 4.0]), dry tarmac elsewhere
+    map.addBoxZone(math::Vec2 { 1.5, -2.0 }, math::Vec2 { 4.0, 2.0 }, terrain::MaterialType::Ice);
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.position = math::Vec2 { 1.0, 0.0 }; // Car center at x = 1.0
+    bodyConfig.orientation = 0.0; // Facing east (+X)
+    physics::RigidBody2D body { bodyConfig };
+
+    dynamics::ArcadeCarDynamics car {};
+
+    map.applySurfaceToCar(car, body);
+    car.step(body, 1.0 / 60.0);
+
+    // Front wheels (index 0, 1 at x = 1.0 + 1.25 = 2.25) are inside ice patch
+    EXPECT_NEAR(car.getWheelTelemetry(dynamics::ArcadeCarDynamics::kFrontLeft).surfaceGrip, 0.10, 1e-5);
+    EXPECT_NEAR(car.getWheelTelemetry(dynamics::ArcadeCarDynamics::kFrontRight).surfaceGrip, 0.10, 1e-5);
+
+    // Rear wheels (index 2, 3 at x = 1.0 - 1.25 = -0.25) are on default tarmac
+    EXPECT_NEAR(car.getWheelTelemetry(dynamics::ArcadeCarDynamics::kRearLeft).surfaceGrip, 1.00, 1e-5);
+    EXPECT_NEAR(car.getWheelTelemetry(dynamics::ArcadeCarDynamics::kRearRight).surfaceGrip, 1.00, 1e-5);
+}
+
+TEST(SurfaceMap2DTest, ElevationMap2DAliasEquivalence)
+{
+    terrain::ElevationMap2D elevationMap {};
+    elevationMap.setBaseHeight(42.0);
+    EXPECT_DOUBLE_EQ(elevationMap.getBaseHeight(), 42.0);
+    EXPECT_DOUBLE_EQ(elevationMap.getHeight(0.0, 0.0), 42.0);
 }
 
 } // namespace vehicle_sim::testing

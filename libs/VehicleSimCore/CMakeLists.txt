@@ -50,6 +50,9 @@ add_library(VehicleSimCore STATIC
     terrain/FractalNoise.cpp
     terrain/Heightfield1D.h
     terrain/Heightfield1D.cpp
+    terrain/SurfaceMap2D.h
+    terrain/SurfaceMap2D.cpp
+    terrain/ElevationMap2D.h
 )
 
 target_include_directories(VehicleSimCore PUBLIC
