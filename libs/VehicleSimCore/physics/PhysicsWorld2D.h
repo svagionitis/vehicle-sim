@@ -10,6 +10,8 @@
 
 namespace vehicle_sim::physics {
 
+class FluidField2D;
+
 /// @class PhysicsWorld2D
 /// @brief World coordinator managing multiple 2D rigid bodies and global environment properties.
 /// @details Stepping the world advances all registered dynamic bodies using Symplectic Euler integration
@@ -64,9 +66,19 @@ public:
     [[nodiscard]] bool resolveCollision(
         RigidBody2D& bodyA, RigidBody2D* bodyB, const Contact2D& contact) const noexcept;
 
+    /// @brief Registers an environmental fluid field with the world.
+    /// @details Non-owning reference. Pass nullptr to disable environmental fluid forces.
+    /// @param[in] field Pointer to active FluidField2D or nullptr.
+    void setFluidField(const FluidField2D* field) noexcept;
+
+    /// @brief Gets active environmental fluid field pointer.
+    /// @return Pointer to FluidField2D or nullptr if disabled.
+    [[nodiscard]] const FluidField2D* getFluidField() const noexcept;
+
 private:
     math::Vec2 mGravity { 0.0, -9.81 };
     std::vector<RigidBody2D*> mBodies { };
+    const FluidField2D* mFluidField { nullptr };
 };
 
 } // namespace vehicle_sim::physics

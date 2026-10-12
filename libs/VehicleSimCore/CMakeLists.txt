@@ -35,6 +35,10 @@ add_library(VehicleSimCore STATIC
     physics/ContactSolver2D.cpp
     physics/PhysicsWorld2D.h
     physics/PhysicsWorld2D.cpp
+    physics/FluidField2D.h
+    physics/FluidField2D.cpp
+    physics/FluidDrag2D.h
+    physics/FluidDrag2D.cpp
     dynamics/IVehicleDynamics.h
     dynamics/ArcadeCarDynamics.h
     dynamics/ArcadeCarDynamics.cpp

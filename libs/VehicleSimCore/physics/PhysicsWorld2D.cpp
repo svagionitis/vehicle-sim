@@ -66,4 +66,14 @@ bool PhysicsWorld2D::resolveCollision(RigidBody2D& bodyA, RigidBody2D* bodyB, co
     return ContactSolver2D::resolve(bodyA, bodyB, contact);
 }
 
+void PhysicsWorld2D::setFluidField(const FluidField2D* field) noexcept
+{
+    mFluidField = field;
+}
+
+const FluidField2D* PhysicsWorld2D::getFluidField() const noexcept
+{
+    return mFluidField;
+}
+
 } // namespace vehicle_sim::physics
