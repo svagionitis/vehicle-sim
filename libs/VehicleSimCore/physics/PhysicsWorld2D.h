@@ -9,8 +9,13 @@
 #include "RigidBody2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 
+namespace vehicle_sim::terrain {
+class Heightfield1D;
+}
+
 namespace vehicle_sim::physics {
 
+class Collider2D;
 class FluidField2D;
 
 /// @class PhysicsWorld2D
@@ -108,13 +113,38 @@ public:
     /// @return Pointer to FluidField2D or nullptr if disabled.
     [[nodiscard]] const FluidField2D* getFluidField() const noexcept;
 
+    /// @brief Registers a collision volume with the physics world.
+    /// @param[in] collider Reference to collider component.
+    void addCollider(Collider2D& collider);
+
+    /// @brief Unregisters a collision volume from the physics world.
+    /// @param[in] collider Reference to collider component to remove.
+    void removeCollider(Collider2D& collider) noexcept;
+
+    /// @brief Clears all registered colliders from the world.
+    void clearColliders() noexcept;
+
+    /// @brief Gets the number of registered colliders.
+    /// @return Count of active colliders.
+    [[nodiscard]] std::size_t getColliderCount() const noexcept;
+
+    /// @brief Registers continuous 1D heightfield terrain with the world.
+    /// @param[in] terrain Pointer to terrain instance or nullptr.
+    void setTerrain(const terrain::Heightfield1D* terrain) noexcept;
+
+    /// @brief Gets active continuous 1D heightfield terrain pointer.
+    /// @return Pointer to Heightfield1D or nullptr.
+    [[nodiscard]] const terrain::Heightfield1D* getTerrain() const noexcept;
+
 private:
     math::Vec2 mGravity { 0.0, -9.81 };
     std::vector<RigidBody2D*> mBodies {};
     std::vector<Joint2D*> mJoints {};
+    std::vector<Collider2D*> mColliders {};
     std::size_t mVelocityIterations { 8 };
     std::size_t mPositionIterations { 3 };
     const FluidField2D* mFluidField { nullptr };
+    const terrain::Heightfield1D* mTerrain { nullptr };
 };
 
 } // namespace vehicle_sim::physics

@@ -4,9 +4,12 @@
 
 #include "libs/VehicleSimCore/math/AABB2D.h"
 #include "libs/VehicleSimCore/math/Angle2D.h"
+#include "libs/VehicleSimCore/math/Capsule2D.h"
+#include "libs/VehicleSimCore/math/Circle2D.h"
 #include "libs/VehicleSimCore/math/Mat2.h"
 #include "libs/VehicleSimCore/math/MathUtils.h"
 #include "libs/VehicleSimCore/math/OBB2D.h"
+#include "libs/VehicleSimCore/math/Polygon2D.h"
 #include "libs/VehicleSimCore/math/Ray2D.h"
 #include "libs/VehicleSimCore/math/Transform2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
@@ -15,10 +18,13 @@ namespace vehicle_sim::testing {
 
 using vehicle_sim::math::AABB2D;
 using vehicle_sim::math::Angle2D;
+using vehicle_sim::math::Capsule2D;
+using vehicle_sim::math::Circle2D;
 using vehicle_sim::math::Mat2;
 using vehicle_sim::math::MathUtils;
 using vehicle_sim::math::OBB2D;
 using vehicle_sim::math::OrientedBox2D;
+using vehicle_sim::math::Polygon2D;
 using vehicle_sim::math::Ray2D;
 using vehicle_sim::math::RayHit2D;
 using vehicle_sim::math::Transform2D;
@@ -928,6 +934,192 @@ TEST(OBB2DTest, RaycastRotated)
     // Miss ray
     const Ray2D rayMiss { Vec2 { -5.0, 5.0 }, Vec2 { 1.0, 0.0 }, 10.0 };
     EXPECT_FALSE(diamond.raycast(rayMiss).has_value());
+}
+
+// -----------------------------------------------------------------------------
+// Circle2D Tests
+// -----------------------------------------------------------------------------
+
+TEST(Circle2DTest, ConstructionAndQueries)
+{
+    const Circle2D defaultCircle {};
+    EXPECT_DOUBLE_EQ(defaultCircle.center.x, 0.0);
+    EXPECT_DOUBLE_EQ(defaultCircle.center.y, 0.0);
+    EXPECT_DOUBLE_EQ(defaultCircle.radius, 0.5);
+
+    const Circle2D circle { Vec2 { 3.0, 4.0 }, 2.0 };
+    EXPECT_TRUE(circle.contains(Vec2 { 3.0, 4.0 }));
+    EXPECT_TRUE(circle.contains(Vec2 { 5.0, 4.0 }));
+    EXPECT_FALSE(circle.contains(Vec2 { 5.1, 4.0 }));
+
+    const Vec2 closestInside { circle.closestPoint(Vec2 { 3.5, 4.0 }) };
+    EXPECT_NEAR(closestInside.x, 3.5, kEpsilon);
+    EXPECT_NEAR(closestInside.y, 4.0, kEpsilon);
+
+    const Vec2 closestOutside { circle.closestPoint(Vec2 { 10.0, 4.0 }) };
+    EXPECT_NEAR(closestOutside.x, 5.0, kEpsilon);
+    EXPECT_NEAR(closestOutside.y, 4.0, kEpsilon);
+
+    const AABB2D aabb { circle.computeAABB() };
+    EXPECT_NEAR(aabb.min.x, 1.0, kEpsilon);
+    EXPECT_NEAR(aabb.min.y, 2.0, kEpsilon);
+    EXPECT_NEAR(aabb.max.x, 5.0, kEpsilon);
+    EXPECT_NEAR(aabb.max.y, 6.0, kEpsilon);
+}
+
+TEST(Circle2DTest, Intersections)
+{
+    const Circle2D a { Vec2 { 0.0, 0.0 }, 1.0 };
+    const Circle2D b { Vec2 { 1.5, 0.0 }, 1.0 };
+    const Circle2D c { Vec2 { 3.0, 0.0 }, 0.5 };
+
+    EXPECT_TRUE(a.intersects(b));
+    EXPECT_FALSE(a.intersects(c));
+
+    const AABB2D aabbNear { Vec2 { 0.8, -0.5 }, Vec2 { 2.0, 0.5 } };
+    EXPECT_TRUE(a.intersects(aabbNear));
+
+    const AABB2D aabbFar { Vec2 { 2.0, 2.0 }, Vec2 { 4.0, 4.0 } };
+    EXPECT_FALSE(a.intersects(aabbFar));
+
+    const OBB2D obbNear { Vec2 { 1.5, 0.0 }, Vec2 { 0.6, 0.6 }, kPi * 0.25 };
+    EXPECT_TRUE(a.intersects(obbNear));
+}
+
+TEST(Circle2DTest, Raycast)
+{
+    const Circle2D circle { Vec2 { 0.0, 0.0 }, 2.0 };
+    const Ray2D rayHit { Vec2 { -5.0, 0.0 }, Vec2 { 1.0, 0.0 }, 10.0 };
+    const std::optional<RayHit2D> hit { circle.raycast(rayHit) };
+
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_NEAR(hit->point.x, -2.0, kEpsilon);
+    EXPECT_NEAR(hit->point.y, 0.0, kEpsilon);
+    EXPECT_NEAR(hit->distance, 3.0, kEpsilon);
+    EXPECT_NEAR(hit->normal.x, -1.0, kEpsilon);
+    EXPECT_NEAR(hit->normal.y, 0.0, kEpsilon);
+
+    const Ray2D rayMiss { Vec2 { -5.0, 3.0 }, Vec2 { 1.0, 0.0 }, 10.0 };
+    EXPECT_FALSE(circle.raycast(rayMiss).has_value());
+}
+
+// -----------------------------------------------------------------------------
+// Capsule2D Tests
+// -----------------------------------------------------------------------------
+
+TEST(Capsule2DTest, ConstructionAndQueries)
+{
+    const Capsule2D capsule { Vec2 { -2.0, 0.0 }, Vec2 { 2.0, 0.0 }, 1.0 };
+    EXPECT_DOUBLE_EQ(capsule.segmentLength(), 4.0);
+
+    EXPECT_TRUE(capsule.contains(Vec2 { 0.0, 0.5 }));
+    EXPECT_TRUE(capsule.contains(Vec2 { -2.5, 0.0 }));
+    EXPECT_TRUE(capsule.contains(Vec2 { 2.8, 0.0 }));
+    EXPECT_FALSE(capsule.contains(Vec2 { 3.2, 0.0 }));
+
+    const Vec2 ptNearCenter { capsule.closestPoint(Vec2 { 0.0, 3.0 }) };
+    EXPECT_NEAR(ptNearCenter.x, 0.0, kEpsilon);
+    EXPECT_NEAR(ptNearCenter.y, 1.0, kEpsilon);
+
+    const AABB2D aabb { capsule.computeAABB() };
+    EXPECT_NEAR(aabb.min.x, -3.0, kEpsilon);
+    EXPECT_NEAR(aabb.min.y, -1.0, kEpsilon);
+    EXPECT_NEAR(aabb.max.x, 3.0, kEpsilon);
+    EXPECT_NEAR(aabb.max.y, 1.0, kEpsilon);
+}
+
+TEST(Capsule2DTest, Intersections)
+{
+    const Capsule2D capA { Vec2 { -2.0, 0.0 }, Vec2 { 2.0, 0.0 }, 0.5 };
+    const Capsule2D capB { Vec2 { 0.0, -2.0 }, Vec2 { 0.0, 2.0 }, 0.5 };
+    const Capsule2D capFar { Vec2 { 0.0, 10.0 }, Vec2 { 2.0, 10.0 }, 0.5 };
+
+    EXPECT_TRUE(capA.intersects(capB));
+    EXPECT_FALSE(capA.intersects(capFar));
+
+    const Circle2D circNear { Vec2 { 2.5, 0.0 }, 0.5 };
+    EXPECT_TRUE(capA.intersects(circNear));
+
+    const Circle2D circFar { Vec2 { 5.0, 0.0 }, 0.5 };
+    EXPECT_FALSE(capA.intersects(circFar));
+}
+
+TEST(Capsule2DTest, Raycast)
+{
+    const Capsule2D capsule { Vec2 { -2.0, 0.0 }, Vec2 { 2.0, 0.0 }, 1.0 };
+
+    const Ray2D rayBody { Vec2 { 0.0, 5.0 }, Vec2 { 0.0, -1.0 }, 10.0 };
+    const std::optional<RayHit2D> hitBody { capsule.raycast(rayBody) };
+    ASSERT_TRUE(hitBody.has_value());
+    EXPECT_NEAR(hitBody->point.x, 0.0, kEpsilon);
+    EXPECT_NEAR(hitBody->point.y, 1.0, kEpsilon);
+    EXPECT_NEAR(hitBody->distance, 4.0, kEpsilon);
+
+    const Ray2D rayCap { Vec2 { 6.0, 0.0 }, Vec2 { -1.0, 0.0 }, 10.0 };
+    const std::optional<RayHit2D> hitCap { capsule.raycast(rayCap) };
+    ASSERT_TRUE(hitCap.has_value());
+    EXPECT_NEAR(hitCap->point.x, 3.0, kEpsilon);
+    EXPECT_NEAR(hitCap->point.y, 0.0, kEpsilon);
+    EXPECT_NEAR(hitCap->distance, 3.0, kEpsilon);
+}
+
+// -----------------------------------------------------------------------------
+// Polygon2D Tests
+// -----------------------------------------------------------------------------
+
+TEST(Polygon2DTest, ConstructionAndOBBConversion)
+{
+    const Polygon2D polyFromOBB { Polygon2D::fromOBB(Vec2 { 1.0, 2.0 }, Vec2 { 2.0, 1.0 }, 0.0) };
+    EXPECT_EQ(polyFromOBB.vertexCount(), 4U);
+    EXPECT_NEAR(polyFromOBB.computeArea(), 8.0, kEpsilon);
+
+    const Vec2 centroid { polyFromOBB.computeCentroid() };
+    EXPECT_NEAR(centroid.x, 1.0, kEpsilon);
+    EXPECT_NEAR(centroid.y, 2.0, kEpsilon);
+
+    EXPECT_TRUE(polyFromOBB.contains(Vec2 { 1.0, 2.0 }));
+    EXPECT_TRUE(polyFromOBB.contains(Vec2 { 2.5, 2.5 }));
+    EXPECT_FALSE(polyFromOBB.contains(Vec2 { 4.0, 2.0 }));
+}
+
+TEST(Polygon2DTest, EllipseFactoryApproximation)
+{
+    const Polygon2D ellipse8 { Polygon2D::fromEllipse(Vec2 { 0.0, 0.0 }, 2.0, 1.0, 0.0, 8) };
+    EXPECT_EQ(ellipse8.vertexCount(), 8U);
+
+    // Exact ellipse area = pi * a * b = pi * 2 * 1 = 2*pi ~= 6.283
+    // Regular 8-gon approximation underestimates by cos(pi/8) factor
+    const double area { ellipse8.computeArea() };
+    EXPECT_GT(area, 5.5);
+    EXPECT_LE(area, 2.0 * kPi);
+
+    const Vec2 centroid { ellipse8.computeCentroid() };
+    EXPECT_NEAR(centroid.x, 0.0, kEpsilon);
+    EXPECT_NEAR(centroid.y, 0.0, kEpsilon);
+
+    EXPECT_TRUE(ellipse8.contains(Vec2 { 0.0, 0.0 }));
+    EXPECT_TRUE(ellipse8.contains(Vec2 { 1.0, 0.5 }));
+    EXPECT_FALSE(ellipse8.contains(Vec2 { 3.0, 0.0 }));
+}
+
+TEST(Polygon2DTest, IntersectionsAndRaycast)
+{
+    const Polygon2D boxA { Polygon2D::fromOBB(Vec2 { 0.0, 0.0 }, Vec2 { 1.0, 1.0 }, 0.0) };
+    const Polygon2D boxB { Polygon2D::fromOBB(Vec2 { 1.5, 0.0 }, Vec2 { 1.0, 1.0 }, 0.0) };
+    const Polygon2D boxFar { Polygon2D::fromOBB(Vec2 { 5.0, 0.0 }, Vec2 { 1.0, 1.0 }, 0.0) };
+
+    EXPECT_TRUE(boxA.intersects(boxB));
+    EXPECT_FALSE(boxA.intersects(boxFar));
+
+    const Ray2D rayHit { Vec2 { -5.0, 0.0 }, Vec2 { 1.0, 0.0 }, 10.0 };
+    const std::optional<RayHit2D> hit { boxA.raycast(rayHit) };
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_NEAR(hit->point.x, -1.0, kEpsilon);
+    EXPECT_NEAR(hit->point.y, 0.0, kEpsilon);
+    EXPECT_NEAR(hit->distance, 4.0, kEpsilon);
+
+    const Ray2D rayMiss { Vec2 { -5.0, 5.0 }, Vec2 { 1.0, 0.0 }, 10.0 };
+    EXPECT_FALSE(boxA.raycast(rayMiss).has_value());
 }
 
 } // namespace vehicle_sim::testing

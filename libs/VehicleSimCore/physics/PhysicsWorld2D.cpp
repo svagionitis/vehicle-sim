@@ -2,7 +2,11 @@
 
 #include <algorithm>
 
+#include "Collider2D.h"
+#include "ContactManifold2D.h"
+#include "Narrowphase2D.h"
 #include "libs/VehicleSimCore/math/Angle2D.h"
+#include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 
 namespace vehicle_sim::physics {
 
@@ -95,7 +99,7 @@ void PhysicsWorld2D::step(double dt) noexcept
         return;
     }
 
-    if (mJoints.empty()) {
+    if (mJoints.empty() && mColliders.empty() && mTerrain == nullptr) {
         for (auto* body : mBodies) {
             if (body != nullptr) {
                 Integrator2D::integrate(*body, dt, mGravity);
@@ -153,7 +157,54 @@ void PhysicsWorld2D::step(double dt) noexcept
         }
     }
 
-    // 4. Symplectic position integration
+    // 4. Narrowphase collision detection & contact impulse resolution
+    if (!mColliders.empty()) {
+        const std::size_t numColliders { mColliders.size() };
+        ContactManifold2D manifold {};
+
+        for (std::size_t i { 0 }; i < numColliders; ++i) {
+            Collider2D* colA { mColliders[i] };
+            if (colA == nullptr) {
+                continue;
+            }
+
+            const math::AABB2D aabbA { colA->computeWorldAABB() };
+
+            for (std::size_t j { i + 1 }; j < numColliders; ++j) {
+                Collider2D* colB { mColliders[j] };
+                if (colB == nullptr) {
+                    continue;
+                }
+
+                if (colA->getBody() != nullptr && colA->getBody() == colB->getBody()) {
+                    continue;
+                }
+
+                if (aabbA.intersects(colB->computeWorldAABB())) {
+                    if (Narrowphase2D::detectColliders(*colA, *colB, manifold)) {
+                        if (!colA->isSensor() && !colB->isSensor()) {
+                            if (manifold.bodyA != nullptr) {
+                                for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
+                                    static_cast<void>(ContactSolver2D::resolve(
+                                        *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (mTerrain != nullptr && colA->getBody() != nullptr && !colA->isSensor()) {
+                if (Narrowphase2D::detectTerrain(*colA, *mTerrain, manifold)) {
+                    for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
+                        static_cast<void>(ContactSolver2D::resolve(*manifold.bodyA, nullptr, manifold.contacts[c]));
+                    }
+                }
+            }
+        }
+    }
+
+    // 5. Symplectic position integration
     for (auto* body : mBodies) {
         if (body == nullptr || body->isStatic()) {
             continue;
@@ -167,7 +218,7 @@ void PhysicsWorld2D::step(double dt) noexcept
         body->setOrientation(newAngle);
     }
 
-    // 5. Iterative position constraint solve
+    // 6. Iterative position constraint solve
     for (std::size_t i = 0; i < mPositionIterations; ++i) {
         bool allSatisfied { true };
         for (auto* joint : mJoints) {
@@ -200,6 +251,40 @@ void PhysicsWorld2D::setFluidField(const FluidField2D* field) noexcept
 const FluidField2D* PhysicsWorld2D::getFluidField() const noexcept
 {
     return mFluidField;
+}
+
+void PhysicsWorld2D::addCollider(Collider2D& collider)
+{
+    const auto it = std::find(mColliders.begin(), mColliders.end(), &collider);
+    if (it == mColliders.end()) {
+        mColliders.push_back(&collider);
+    }
+}
+
+void PhysicsWorld2D::removeCollider(Collider2D& collider) noexcept
+{
+    const auto it = std::remove(mColliders.begin(), mColliders.end(), &collider);
+    mColliders.erase(it, mColliders.end());
+}
+
+void PhysicsWorld2D::clearColliders() noexcept
+{
+    mColliders.clear();
+}
+
+std::size_t PhysicsWorld2D::getColliderCount() const noexcept
+{
+    return mColliders.size();
+}
+
+void PhysicsWorld2D::setTerrain(const terrain::Heightfield1D* terrain) noexcept
+{
+    mTerrain = terrain;
+}
+
+const terrain::Heightfield1D* PhysicsWorld2D::getTerrain() const noexcept
+{
+    return mTerrain;
 }
 
 } // namespace vehicle_sim::physics

@@ -8,6 +8,7 @@ add_executable(VehicleSimCoreTests
     FluidFieldTest.cpp
     DynamicsTest.cpp
     TerrainTest.cpp
+    NarrowphaseTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

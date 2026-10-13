@@ -19,6 +19,12 @@ add_library(VehicleSimCore STATIC
     math/AABB2D.cpp
     math/OBB2D.h
     math/OBB2D.cpp
+    math/Circle2D.h
+    math/Circle2D.cpp
+    math/Capsule2D.h
+    math/Capsule2D.cpp
+    math/Polygon2D.h
+    math/Polygon2D.cpp
     math/LowPassFilter.h
     math/LowPassFilter.cpp
     math/SlewRateLimiter.h
@@ -33,6 +39,13 @@ add_library(VehicleSimCore STATIC
     physics/Integrator2D.cpp
     physics/ContactSolver2D.h
     physics/ContactSolver2D.cpp
+    physics/ContactManifold2D.h
+    physics/CompoundShape2D.h
+    physics/CompoundShape2D.cpp
+    physics/Collider2D.h
+    physics/Collider2D.cpp
+    physics/Narrowphase2D.h
+    physics/Narrowphase2D.cpp
     physics/PhysicsWorld2D.h
     physics/PhysicsWorld2D.cpp
     physics/Joint2D.h
