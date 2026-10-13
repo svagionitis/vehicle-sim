@@ -33,6 +33,10 @@ add_library(VehicleSimCore STATIC
     math/PIDController.cpp
     math/KalmanFilter1D.h
     math/KalmanFilter1D.cpp
+    math/StanleyController.h
+    math/StanleyController.cpp
+    math/SpeedProfiler2D.h
+    math/SpeedProfiler2D.cpp
     physics/RigidBody2D.h
     physics/RigidBody2D.cpp
     physics/Integrator2D.h
@@ -89,6 +93,8 @@ add_library(VehicleSimCore STATIC
     dynamics/EarthRoverDynamics.cpp
     dynamics/PacejkaTireModel.h
     dynamics/PacejkaTireModel.cpp
+    dynamics/TrajectoryTracker2D.h
+    dynamics/TrajectoryTracker2D.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
     terrain/GradientNoise.h

@@ -175,6 +175,25 @@ Provide a real-time wave height perturbation simulation for watercraft, amphibio
   - Vehicle wakes deposit vertical momentum impulses: $\Delta v_z \propto \text{displacement} \cdot v_{\text{hull}}$.
   - Dynamic fluid pressure exerts buoyant and tilting torques on floating [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) instances.
 
+```
+  ASCII Diagram: Dynamic Shallow Water Surface Perturbation & Hull Wake
+
+               Hull Displacement (v_hull)
+                     \_______/
+     ~~~~~~~~~~~~~~~~~~\   /~~~~~~~~~~~~~~~~~~   <- Undisturbed Waterline (y_water)
+    /                   \_/                   \
+   /  Traveling Wave             Reflected Wave \  h(x, t) Grid Perturbation
+  +----------------------------------------------+
+```
+
+```mermaid
+graph TD
+    HullMotion["Boat Hull Velocity & Displacement"] --> Impulse["Inject Momentum Impulse Delta_vz to Wave Cell"]
+    Impulse --> WavePDE["2D Wave PDE Solver: d^2h/dt^2 = c^2 * Lap(h) - gamma * dh/dt"]
+    WavePDE --> Elevation["Updated Surface Water Elevation h(x,y,t)"]
+    Elevation --> BuoyancyForce["Dynamic Hydrostatic Pressure on RigidBody2D"]
+```
+
 ---
 
 ### 2.4 Deterministic Object and Hazard Scattering (Blue-Noise / Poisson Disk)
@@ -189,6 +208,70 @@ Deterministically seed track hazards (rocks, oil patches, boost pads, puddles, c
   - Spatial hash grid lookup guarantees $O(N)$ execution time.
 - **Track-Aware Seeding**:
   - Restricts obstacle placement to drivable ribbon or runoff shoulders using distance-to-centerline metrics from [CircuitTrack2D](../libs/VehicleSimCore/terrain/TrackGenerator.h#L138-L167).
+
+```
+  ASCII Diagram: Track-Corridor Blue-Noise Poisson Disk Scattering
+
+     Outer Track Boundary
+    --------------------------------------------------------------
+       ( ) r_min        (x) Oil Slick            ( ) Empty Annulus
+            \          /                              /
+             *--------*                 *------------*
+            /          \               /
+     (x) Cone          (x) Rock      (x) Hazard
+    --------------------------------------------------------------
+     Inner Track Boundary
+```
+
+```mermaid
+graph LR
+    TrackCenterline["Spline2D / CircuitTrack2D"] --> Corridor["Compute Ribbon & Shoulder Bounds"]
+    Corridor --> Bridson["Bridson Sampling: Candidates in [r_min, 2*r_min]"]
+    Bridson --> SpatialHash["Spatial Hash Grid Collision Check"]
+    SpatialHash --> PlacedObstacles["Deterministic Obstacle Array"]
+```
+
+---
+
+### 2.5 Multi-Layer Stratified Soil and Hydroplaning Model
+
+#### Objective
+Extend terramechanics in [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) from homogeneous ground to vertically stratified layers (e.g., mud/snow layer over bedrock or asphalt) and simulate wet-weather dynamic tire hydroplaning.
+
+#### Technical Formulation
+- **Stratified Soil Depth ($d_{\text{top}}$)**:
+  - Upper loose soil layer has finite depth $d_{\text{top}}(x, y)$ characterized by moduli $(k_c, k_\phi, n)_{\text{top}}$.
+  - When wheel sinkage $z \ge d_{\text{top}}$, sinkage depth is clamped, and normal contact stiffness sharply increases toward the rigid substrate bedrock:
+    $$k_{\text{eff}} = k_{\text{top}} + (k_{\text{bedrock}} - k_{\text{top}}) \cdot \sigma\left(\frac{z - d_{\text{top}}}{\epsilon}\right)$$
+- **Dynamic Hydroplaning Model**:
+  - Evaluates standing surface water film thickness $d_w(x, y)$ against tire tread grooving depth $d_{\text{tread}}$.
+  - NASA critical dynamic hydroplaning speed formula:
+    $$v_{\text{hydro}} = 6.36 \sqrt{p_{\text{tire,psi}}} \quad [\text{m/s}]$$
+  - Friction scaling factor $\eta_{\text{wet}} \in [0.05, 1.0]$ decays sharply when forward velocity $v_x > v_{\text{hydro}}$ and $d_w > d_{\text{tread}}$, capturing catastrophic loss of steering and braking traction.
+
+```
+  ASCII Diagram: Multi-Layer Soil Stratification & Hydroplaning Wedge
+
+          Tire Patch (Load Fz)            Water Film Wedge (dw > dtread)
+              .---------.                          \
+             /     |     \                       ---'---\
+            |    [Hub]    |                      ====\   \=== Hydroplaning Lift
+     -------'----+--------'---------------------------'---'--- Surface
+     Soft Mud / Snow Layer (d_top)      | Sinkage z <= d_top
+     ===================================|=====================
+     Hard Substrate / Bedrock Base      | Infinite Stiffness Barrier
+```
+
+```mermaid
+graph TD
+    TireLoad["Tire Load Fz & Contact Pressure p"] --> Sinkage["Compute Bekker Sinkage z"]
+    Sinkage --> DepthCheck{"Sinkage z > d_top?"}
+    DepthCheck -- Yes --> BedrockClamp["Clamp Rut Depth to d_top & Ramp Stiffness"]
+    DepthCheck -- No --> StandardBekker["Normal Bekker Plastic Rutting"]
+    WaterDepth["Water Film Depth dw vs Tread Depth"] --> HydroCheck{"vx > v_hydro & dw > d_tread?"}
+    HydroCheck -- Yes --> FrictionDecay["Scale Friction Coefficient mu down to 0.05"]
+    HydroCheck -- No --> NominalFriction["Nominal SurfaceMaterial Grip"]
+```
 
 ---
 
@@ -358,6 +441,56 @@ Standardize feedback control, sensor filtering, and optimal kinematic state esti
 
 ---
 
+### 3.5 Autonomous Path Following and Speed Profiler (`StanleyController`, `SpeedProfiler2D`) (Implemented)
+
+#### Objective
+Equip vehicle controllers with robust, non-linear geometric trajectory tracking along [Spline2D](../libs/VehicleSimCore/math/Spline2D.h) reference paths, combined with curvature-constrained optimal braking and acceleration speed profiling. Detailed specification and design: [Stanley Path Following Implementation Plan](StanleyPathFollowingImplementationPlan.md). Implemented via [StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h), [SpeedProfiler2D.h](../libs/VehicleSimCore/math/SpeedProfiler2D.h), and [TrajectoryTracker2D.h](../libs/VehicleSimCore/dynamics/TrajectoryTracker2D.h).
+
+#### Technical Formulation
+- **Stanley Steering Control Law**:
+  - Evaluated at the front axle reference point $\mathbf{x}_f = \mathbf{x}_{\text{cog}} + L_f \hat{\mathbf{u}}_{\text{heading}}$.
+  - Computes orthogonal projection onto [Spline2D](../libs/VehicleSimCore/math/Spline2D.h) yielding closest Frenet point $\mathbf{p}(s)$, unit tangent $\mathbf{T}(s)$, unit normal $\mathbf{N}(s)$, and path heading $\psi_{\text{path}}$.
+  - Heading error: $\theta_e = \text{deltaAngle}(\psi_{\text{vehicle}}, \psi_{\text{path}})$.
+  - Signed cross-track error: $e_y = (\mathbf{x}_f - \mathbf{p}(s)) \cdot \mathbf{N}(s)$.
+  - Non-linear steering angle control law:
+    $$\delta(t) = \theta_e(t) + \arctan\left(\frac{k_e \cdot e_y(t)}{v_x(t) + \epsilon}\right) + k_d \cdot \dot{e}_y(t)$$
+  - Steering saturation clamped to $[-\delta_{\text{max}}, \delta_{\text{max}}]$ and smoothed with [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h).
+- **Curvature-Constrained Speed Profiler ([SpeedProfiler2D](../libs/VehicleSimCore/math/SpeedProfiler2D.h))**:
+  - Maximum safe cornering speed at curvature $\kappa(s)$:
+    $$v_{\text{lat,max}}(s) = \sqrt{\frac{a_{y,\text{max}}}{|\kappa(s)| + \epsilon}} = \sqrt{\frac{\mu g}{|\kappa(s)| + \epsilon}}$$
+  - Two-pass dynamic programming:
+    - Backward pass (deceleration/braking limit): $v_i \le \sqrt{v_{i+1}^2 + 2 a_{\text{brake}} \Delta s}$.
+    - Forward pass (traction acceleration limit): $v_{i+1} \le \sqrt{v_i^2 + 2 a_{\text{accel}} \Delta s}$.
+  - Closed-loop speed tracking driving throttle and braking via [PIDController](../libs/VehicleSimCore/math/PIDController.h).
+
+```
+  ASCII Diagram: Stanley Front-Axle Steering Geometry on Spline2D
+
+                          Heading Error theta_e
+                                  \   ^ Front Wheel Steering (delta)
+                                   \ /
+                            [ Front Axle x_f ]
+                                   /    \
+                                  /      \  Cross-track error e_y
+       Spline Centerline P(s)    /        \
+   -----+-----------------------*----------+--------------------> Tangent T(s)
+       /                        ^ Closest Point
+      / Unit Normal N(s)
+```
+
+```mermaid
+graph TD
+    Spline["Spline2D Track Centerline"] --> Nearest["Find Closest Point: Tangent T(s), Curvature kappa(s)"]
+    Nearest --> FrenetErrors["Evaluate Errors: Heading theta_e & Cross-Track e_y"]
+    FrenetErrors --> StanleyLaw["Stanley Law: delta = theta_e + atan(k_e * e_y / v)"]
+    StanleyLaw --> SlewRate["SlewRateLimiter Clamped Steering Output"]
+    Nearest --> CurvatureLimit["Curvature Speed: v_corner = sqrt(mu * g / |kappa|)"]
+    CurvatureLimit --> TwoPass["Two-Pass Dynamic Programming Profile"]
+    TwoPass --> PIDSpeed["PIDController Throttle & Brake Pedals"]
+```
+
+---
+
 ## 4. Physics and Simulation Mechanics
 
 ### 4.1 Rigid Body Joints and Multi-Body Constraints (Implemented)
@@ -488,7 +621,321 @@ Implemented via [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h) 
 
 ---
 
-## 5. Architectural Roadmap and Priority Matrix
+### 4.5 Dynamic Bounding Volume Hierarchy Broadphase (`DynamicBVH2D`)
+
+#### Objective
+Accelerate collision pair generation in [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) from $O(N^2)$ brute force to $O(N \log N)$ or $O(N)$, allowing high-density simulation with hundreds of rigid bodies, track debris, and obstacle colliders.
+
+#### Technical Formulation
+- **Self-Balancing AABB Tree**:
+  - Fat bounding boxes $\mathbf{B}_{\text{fat}} = \text{AABB}(\mathbf{p}_t, \mathbf{p}_t + \mathbf{v}\Delta t) + \Delta_{\text{margin}}$ enclose bodies and their predicted linear trajectories.
+  - Surface Area Heuristic (SAH) or minimal perimeter increase determines optimal leaf node insertion.
+  - Fast query primitives:
+    - Raycast traversal: `raycast(const Ray2D& ray, RayCallback callback)`.
+    - Area overlap queries: `query(const AABB2D& aabb, OverlapCallback callback)`.
+    - Pair manager filtering out broadphase duplicates and non-colliding layer masks before narrowphase evaluation.
+
+```
+  ASCII Diagram: Dynamic AABB Tree & Broadphase Query
+
+                  [ Root AABB: Node 0 ]
+                     /              \
+         [ Branch: Node 1 ]      [ Branch: Node 2 ]
+            /          \            /          \
+       [ Leaf A ]  [ Leaf B ]  [ Leaf C ]  [ Leaf D ]
+       (Vehicle 1) (Trailer 1) (Rock #12)  (Tire Stack)
+```
+
+```mermaid
+graph TD
+    RigidBodies["RigidBody2D Instances"] --> FatAABB["Fattened AABB with Velocity Extrusion"]
+    FatAABB --> BVHInsert["DynamicBVH2D Incremental Tree Insertion"]
+    BVHInsert --> TreeWalk["Recursive Node Overlap Traversal"]
+    TreeWalk --> Potentials["Broadphase Overlapping Pairs"]
+    Potentials --> Narrowphase["Narrowphase2D SAT / ContactManifold"]
+```
+
+---
+
+### 4.6 Continuous Collision Detection (CCD) & Speculative Contacts
+
+#### Objective
+Prevent high-speed vehicles (such as [AntiGravityRacerDynamics](../libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h), [RocketDynamics](../libs/VehicleSimCore/dynamics/RocketDynamics.h), or high-speed racing cars) from tunneling through thin track barriers or terrain edges during large simulation time steps $\Delta t$.
+
+#### Technical Formulation
+- **Time-of-Impact (TOI) Root Finding**:
+  - Solves for separation distance $d(t) = \min_{\mathbf{x}_A \in A, \mathbf{x}_B \in B} \|\mathbf{x}_A(t) - \mathbf{x}_B(t)\|$ over $t \in [0, \Delta t]$.
+  - Solves the earliest contact time $t^* \in [0, \Delta t]$ using Conservative Advancement or swept-shape raycasting.
+- **Speculative Contacts**:
+  - Creates virtual contacts prior to intersection with negative separation distance $d_0$.
+  - Limits normal closing velocity $\mathbf{v}_{\text{rel}} \cdot \mathbf{n} \le d_0 / \Delta t$ to halt penetration exactly at the surface boundary.
+
+```
+  ASCII Diagram: Continuous Collision Detection & Swept Volume
+
+     Body Position t = 0                        Body Position t = Delta t
+        (   A   ) ===========================> (   A   )
+                     Swept Hull Volume               |
+        ------------------------------------*--------+-------- Thin Wall Obstacle
+                                            ^ Impact Time t* (TOI)
+```
+
+```mermaid
+graph LR
+    StepStart["Body State at t = 0"] --> Sweep["Compute Swept AABB & Velocity Ray"]
+    Sweep --> TOISolver["Conservative Advancement: Find Earliest Root t*"]
+    TOISolver --> Advance["Sub-step Integrate Body to t*"]
+    Advance --> ContactResolution["Solve Contact Impulses at Boundary"]
+```
+
+---
+
+### 4.7 Extended Constraint Joints (`PrismaticJoint2D`, `WheelJoint2D`, `WeldJoint2D`)
+
+#### Objective
+Expand the multi-body constraint system ([Joint2D](../libs/VehicleSimCore/physics/Joint2D.h)) to support telescopic suspension struts, hydraulic rams, steering linkages, and breakable structural attachments.
+
+#### Technical Formulation
+1. **`PrismaticJoint2D` (Slider / Piston)**:
+   - Constrains relative rotation to zero and relative translation to a 1D linear axis $\mathbf{u}$.
+   - Includes linear spring-damper limits $[s_{\text{min}}, s_{\text{max}}]$ and optional powered motor.
+2. **`WheelJoint2D` (Suspension Strut)**:
+   - Constrains linear translation along suspension axis $\mathbf{u}$ with soft spring stiffness $k_s$ and damping $c_s$.
+   - Allows unconstrained 1-DOF rotation of the attached wheel hub body.
+3. **`WeldJoint2D` (Fixed Structural Bond)**:
+   - Constrains all 3 planar degrees of freedom (2 translation, 1 rotation) between bodies.
+   - Monitors constraint impulse $J$; if $\|J\| > J_{\text{break}}$, the joint ruptures for simulated structural damage.
+
+```
+  ASCII Diagram: WheelJoint2D Suspension Geometry
+
+          +-----------------------+
+          |      Chassis Body     |
+          |       Anchor A        |
+          +-----------*-----------+
+                      |
+                      |  Suspension Axis (u)
+                      v  [Spring k_s / Damper c_s]
+                      |
+               [==== Hub B ====]   <-- Rotational DOF (Wheel Spin)
+```
+
+```mermaid
+graph LR
+    Chassis["Chassis Body"] --- Strut["WheelJoint2D: 1D Prismatic Axis"]
+    Strut --- WheelHub["Wheel Hub Body"]
+    WheelHub --- Pacejka["PacejkaTireModel Traction"]
+    Strut -.-> SpringForce["Restoring Spring Force F = -k*x - c*v"]
+```
+
+---
+
+### 4.8 Submerged Hydrostatic Buoyancy & Hull Slicing (`Buoyancy2D`)
+
+#### Objective
+Provide realistic hydrostatic and hydrodynamic simulation for watercraft ([WatercraftDynamics](../libs/VehicleSimCore/dynamics/WatercraftDynamics.h)) and submarines ([SubmarineDynamics](../libs/VehicleSimCore/dynamics/SubmarineDynamics.h)) by coupling vehicle geometries with dynamic waterlines.
+
+#### Technical Formulation
+- **Polygon Hull Waterline Clipping**:
+  - Slices [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h) against water elevation $y_{\text{water}}(x)$ via Sutherland-Hodgman polygon clipping.
+- **Center of Buoyancy $\mathbf{C}_b$ & Hydrostatic Force**:
+  - Evaluates submerged area $A_{\text{sub}}$ and geometric centroid $\mathbf{C}_b$.
+  - Generates upward buoyant force: $\mathbf{F}_{\text{buoyant}} = \rho_{\text{water}} A_{\text{sub}} g \hat{\mathbf{j}}$.
+  - Restoring righting torque: $\tau = (\mathbf{C}_b - \mathbf{X}_{\text{cog}}) \times \mathbf{F}_{\text{buoyant}}$.
+- **Hydrodynamic Form Drag**:
+  - Submerged hull skin friction drag: $\mathbf{F}_{\text{drag}} = -\frac{1}{2} \rho C_d A_{\text{sub}} \|\mathbf{v}\| \mathbf{v}$.
+
+```
+  ASCII Diagram: Submerged Polygon Hull Slicing & Buoyancy
+
+     ~~~~~~~~~~~~~~~~~~~~ Waterline y_water ~~~~~~~~~~~~~~~~~~~~
+        \                                                     /
+         \   Submerged Polygon Area (A_sub)                  /
+          \              * Center of Buoyancy (C_b)         /
+           \             | F_buoyant                       /
+            '------------+--------------------------------'
+```
+
+```mermaid
+graph TD
+    Hull["RigidBody2D Polygon2D Hull"] --> Clip["Sutherland-Hodgman Waterline Clipping"]
+    Clip --> Submerged["Submerged Polygon: Area A_sub & Centroid C_b"]
+    Submerged --> Forces["F_buoyant = rho * A_sub * g, Tau = (C_b - Cog) x F"]
+    Submerged --> ViscousDrag["Hydrodynamic Skin Friction Drag"]
+    Forces --> ApplyForces["Apply Resulting Impulses to RigidBody2D"]
+```
+
+---
+
+## 5. Vehicle Dynamics and Powertrain Systems
+
+### 5.1 Modular Internal Combustion Engine and Electric Powertrain (`Powertrain2D`)
+
+#### Objective
+Replace simplified wheel torque scaling in wheeled vehicles with realistic internal combustion and electric propulsion models, multi-gear transmissions, and differential torque vectoring.
+
+#### Technical Formulation
+1. **Engine Model**:
+   - Internal Combustion: Cubic polynomial or lookup table torque curve $T_e(\omega_e)$, idle RPM governor, throttle lag, and redline fuel cut.
+   - Electric Motor: Constant-torque below base speed, constant-power above base speed, and regenerative braking torque.
+2. **Flywheel & Clutch**:
+   - Rotational flywheel inertia: $I_e \frac{d\omega_e}{dt} = T_e - T_{\text{clutch}}$.
+   - Coulomb dry friction clutch with lockup detection.
+3. **Multi-Ratio Transmission**:
+   - Discrete gear ratios $\{R_1, R_2, \dots, R_N\}$ and reverse $R_{\text{rev}}$.
+   - Configurable shift duration with torque interruption and rev matching.
+4. **Differential Models**:
+   - **Open Differential**: $T_L = T_R = \frac{1}{2} T_{\text{prop}}$, unconstrained relative wheel speed.
+   - **Limited-Slip Differential (LSD)**: Clutch pack or viscous coupling transferring torque across $\Delta \omega$.
+   - **Torsen Differential**: Torque-biasing ratio $B_{\text{ratio}} = T_{\text{high}} / T_{\text{low}}$.
+   - **Locked Spool**: Enforces $\omega_L = \omega_R$.
+
+```
+  ASCII Diagram: Modular Powertrain Torque Flow
+
+  [ Engine / Motor ] 
+          | Torque T_e, Flywheel RPM
+          v
+  [ Clutch / Flywheel ]
+          | T_clutch
+          v
+  [ Transmission Box ] (Gears 1..6, Reverse)
+          | T_trans = T_clutch * R_gear
+          v
+  [ Final Drive & Differential ] (Open / LSD / Torsen / Spool)
+         /              \
+        v                v
+  [ Left Axle ]    [ Right Axle ]
+   (Wheel #1)       (Wheel #2)
+```
+
+```mermaid
+graph TD
+    Throttle["Throttle Input [0..1]"] --> Engine["Engine Model: T_e(RPM)"]
+    Engine --> Clutch["Clutch Model & Inertia: T_clutch"]
+    Clutch --> Gearbox["Gearbox Ratio R_gear"]
+    Gearbox --> Diff["Differential Model: Open / LSD / Spool"]
+    Diff --> WheelLeft["Left Wheel Torque T_L"]
+    Diff --> WheelRight["Right Wheel Torque T_R"]
+    WheelLeft --> Pacejka["PacejkaTireModel Slip & Traction"]
+    WheelRight --> Pacejka
+    Pacejka --> Feedback["Wheel Angular Velocities w_L, w_R"]
+    Feedback --> Diff
+```
+
+---
+
+### 5.2 Ground Effect Downforce and Active DRS Flaps
+
+#### Objective
+Model realistic aerodynamic ground effects and active drag reduction flaps for formula cars, hypercars, and anti-gravity racing vehicles.
+
+#### Technical Formulation
+- **Underbody Venturi Downforce**:
+  - Downforce scales non-linearly with ground clearance $h_{\text{ride}}$:
+    $$F_{\text{downforce}} = \frac{1}{2}\rho v^2 C_{L0} \left(1 + \frac{k_{\text{venturi}}}{h_{\text{ride}} + \epsilon}\right)$$
+  - Aerodynamic stall when ride height drops below critical threshold $h_{\text{stall}}$ (bottoming out inducing sudden downforce collapse).
+- **Active DRS (Drag Reduction System)**:
+  - Actuated flap angle $\theta_{\text{flap}} \in [0^\circ, 25^\circ]$ reducing drag coefficient $C_d$ by up to $30\%$, smoothed with [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h).
+
+```
+  ASCII Diagram: Ground Effect Airflow & Underbody Suction
+
+                    Active Rear Wing / DRS Flap [=====]
+                             \                       /
+                 .------------+---------------------+------------.
+                /                                                 \
+               [                   Vehicle Body                    ]
+                \                                                 /
+   Front Wing    '---=========================================---'
+      \                 \___ Underbody Diffuser Venturi ___/
+  ======                 ---------------------------------
+  ------------------------------------------------------------------- Ground
+                           Ride Height (h_ride)
+```
+
+```mermaid
+graph TD
+    Velocity["Vehicle Velocity & Ride Height h_ride"] --> GroundEffect["Ground Effect Venturi Downforce Calculation"]
+    GroundEffect --> StallCheck{"h_ride < h_stall?"}
+    StallCheck -- Yes --> StallCollapse["Aerodynamic Suction Stall"]
+    StallCheck -- No --> NominalDownforce["Venturi Suction Downforce Applied"]
+    DRSCommand["DRS Activation Input"] --> DRSFlap["SlewRateLimiter Actuation"]
+    DRSFlap --> DragReduction["Cd Reduction Applied to FluidDrag2D"]
+```
+
+---
+
+## 6. Simulation Telemetry and Deterministic Serialization
+
+### 6.1 Bit-Exact State Snapshotting and Rollback Netcode (`SimulationSnapshot2D`)
+
+#### Objective
+Support GGPO-style rollback netcode, rewind mechanics, and differential regression testing via IEEE 754 bit-exact simulation snapshots.
+
+#### Technical Formulation
+- **Complete World State Serialization**:
+  - Rigid body position, velocity, orientation, angular velocity, and sleep state.
+  - Joint warm-starting constraint impulses and internal limit states.
+  - Active [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) elevation delta sparse grids.
+- **Rollback API**:
+  - `SimulationSnapshot2D snapshot = world.captureSnapshot();`
+  - `world.restoreSnapshot(snapshot);`
+  - Guaranteed $O(N)$ execution time and zero heap allocations during gameplay ticks.
+
+```
+  ASCII Diagram: Deterministic Simulation Snapshot & Rewind Pipeline
+
+       Simulation Tick:  T0       T1       T2       T3 (Rollback Event)
+                          |        |        |        |
+       World State:     [S0] ---> [S1] ---> [S2]    ===
+                          |                           | Restore [S0]
+                          +---------------------------+ Re-simulate to T3
+```
+
+```mermaid
+graph LR
+    WorldState["PhysicsWorld2D Active State"] --> Capture["captureSnapshot() -> SimulationSnapshot2D"]
+    Capture --> FrameRing["Fixed-Capacity Frame Ring Buffer"]
+    NetworkRollback["Network Desync / Rewind Request"] --> Restore["restoreSnapshot(snapshot)"]
+    Restore --> ReSimulate["Deterministically Resimulate Ahead"]
+```
+
+---
+
+### 6.2 Synchronous Telemetry Ring-Buffer (`TelemetryRecorder2D`)
+
+#### Objective
+Capture high-rate flight/driving telemetry for offline analysis, HUD displays, or synthetic sensor streaming.
+
+#### Technical Formulation
+- **Fixed-Capacity Circular Buffer**:
+  - Zero dynamic heap allocations during simulation steps.
+  - Records per-frame metrics: speed, $G$-forces, tire slip angles, slip ratios, suspension travel, engine RPM, steering angle.
+- **Exporters**:
+  - CSV export for standard telemetry software (e.g., MoTeC, PlotJuggler).
+  - Synthetic sensor streaming (MISB / KLV compatible) for aerospace payloads.
+
+```
+  ASCII Diagram: Telemetry Ring Buffer
+
+     [ Channel 0: Time / Pos ]
+     [ Channel 1: Velocity / G ]   ====> Fixed Capacity Circular Ring ====> CSV / Telemetry Stream
+     [ Channel 2: Tire Slips   ]
+     [ Channel 3: Powertrain   ]
+```
+
+```mermaid
+graph TD
+    DynamicsCoordinator["Vehicle Dynamics Step"] --> Sample["Sample Telemetry Channels (Slips, G-Forces, RPM)"]
+    Sample --> RingBuffer["TelemetryRecorder2D Ring Buffer (MISRA Compliant)"]
+    RingBuffer --> CSVExport["Export CSV / Data Log"]
+    RingBuffer --> SensorStream["Synthetic Telemetry Stream"]
+```
+
+---
+
+## 7. Architectural Roadmap and Priority Matrix
 
 | Feature | Subsystem | Complexity | Dependencies | Primary Use Cases |
 | :--- | :--- | :--- | :--- | :--- |
@@ -503,10 +950,22 @@ Implemented via [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h) 
 | **Banked / Cambered Tracks (Implemented)** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | High-speed racing circuits ([BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h)) |
 | **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | Planes, rockets, trucks, boats, subs ([FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h)) |
 | **Earth Patrol (3-Axle Rover & SDL Game) (Implemented)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [Earth Patrol Plan](EarthPatrolImplementationPlan.md) - Moon Patrol style side-scroller on Earth ([apps/EarthPatrol](../apps/EarthPatrol)) |
+| **Stanley Path Following & Speed Profiler (Implemented)** | Math / Dynamics | Low-Med | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [PIDController](../libs/VehicleSimCore/math/PIDController.h) | [Stanley Path Plan](StanleyPathFollowingImplementationPlan.md) - Racing AI, trajectory navigation, autopilot ([StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h)) |
+| **DynamicBVH2D Broadphase** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | Multi-car collision, scaling to 100+ bodies & obstacles |
+| **Extended Joints (`Wheel`, `Prismatic`, `Weld`)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Suspension struts, breakable parts, hydraulic linkages |
+| **Modular Powertrain & Differentials** | Dynamics | High | [MathUtils](../libs/VehicleSimCore/math/MathUtils.h), [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | Realistic engine RPM, gearboxes, LSD / Torsen handling |
+| **Poisson-Disk Object Scattering** | Terrain | Medium | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) | Procedural track hazards, cones, obstacles |
+| **Continuous Collision Detection (CCD)** | Physics | High | [Narrowphase2D](../libs/VehicleSimCore/physics/Narrowphase2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | Anti-tunneling for high-speed craft (AntiGravity, rockets) |
+| **Dynamic Shallow Water PDE** | Terrain / Physics | Med-High | [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Watercraft wakes, boat bobbing, wave forces |
+| **Hydrostatic Buoyancy & Hull Slicing** | Physics | Medium | [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h), [FluidField2D](../libs/VehicleSimCore/physics/FluidField2D.h) | Boat flotation, righting moments, submarines |
+| **Ground Effect & Active DRS** | Dynamics | Low-Med | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h) | High-speed downforce, aerodynamic stalling |
+| **Deterministic Snapshotting & Rollback** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Rewind mechanics, GGPO rollback netcode, testing |
+| **Stratified Terramechanics & Hydroplaning** | Terrain | Medium | [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Snow over bedrock, standing water aquaplaning loss of grip |
+| **Telemetry Ring-Buffer & Exporters** | Core / Diagnostic | Low | None | Telemetry analysis, CSV logging, sensor streaming |
 
 ---
 
-## 6. Compliance and Coding Standards
+## 8. Compliance and Coding Standards
 
 All future implementations must comply with:
 - **Language Standard**: Pure ISO C++17 (`-std=c++17` on GCC/Clang, `/std:c++17` on MSVC).

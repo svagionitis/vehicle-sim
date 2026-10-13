@@ -11,6 +11,9 @@ add_executable(VehicleSimCoreTests
     DeformableTerrainTest.cpp
     NarrowphaseTest.cpp
     TireModelTest.cpp
+    StanleyControllerTest.cpp
+    SpeedProfilerTest.cpp
+    TrajectoryTrackerTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE
