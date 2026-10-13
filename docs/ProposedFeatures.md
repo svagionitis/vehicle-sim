@@ -33,6 +33,9 @@ graph TD
         TB["TrialsBikeDynamics"]
         AT["ArticulatedTruckDynamics"]
         AP["AerodynamicPlaneDynamics"]
+        RC["RaceCarDynamics"]
+        FL["ForkliftDynamics"]
+        QD["QuadcopterDroneDynamics"]
     end
 
     subgraph PhysicsLayer ["Physics Layer"]
@@ -866,6 +869,457 @@ graph TD
 
 ---
 
+### 5.3 High-Performance Track and Motorsport Dynamics
+
+#### 5.3.1 Full-Vehicle 4-Wheel Race Car Dynamics (`RaceCarDynamics`) (Implemented)
+
+##### Objective
+Deliver a dedicated high-performance motorsport vehicle dynamics model featuring dynamic 4-wheel load transfer, combined slip tire traction, aerodynamic downforce coupling, and cockpit brake balance adjustments. Detailed architectural and engineering specification: [Race Car Implementation Plan](RaceCarImplementationPlan.md).
+
+##### Technical Formulation
+1. **Dynamic 4-Wheel Normal Load Transfer**:
+   - Computes dynamic vertical normal forces $F_{z,\text{FL}}, F_{z,\text{FR}}, F_{z,\text{RL}}, F_{z,\text{RR}}$ by coupling static weight distribution with longitudinal acceleration load transfer ($\Delta F_{z,x} = m a_x \frac{h}{L}$), lateral load transfer partitioned across front/rear anti-roll bars ($\Delta F_{z,y} = m a_y \frac{h}{T}$), and aerodynamic downforce.
+2. **Pacejka Combined Slip Friction Ellipse**:
+   - Couples longitudinal traction slip ratio $\kappa_i$ with lateral cornering slip angle $\alpha_i$ (Ackermann steering geometry) using [PacejkaTireModel.h](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h).
+3. **Aerodynamic Coupling**:
+   - Direct integration with [GroundEffectAero2D.h](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h) for underbody Venturi downforce, stall limits, and active DRS flap drag reduction.
+
+```
+  ASCII Diagram: RaceCarDynamics 4-Wheel Load Transfer & Forces
+
+     [FL Wheel: F_z,FL, delta_FL] ======== [FR Wheel: F_z,FR, delta_FR]
+                  \                              /
+                   \   Front Wing & Underbody   /
+                    \   Aero Center of Pressure/
+                     \           [COG]        /
+                      \   (ax, ay Load Shift)/
+                       \                    /
+     [RL Wheel: F_z,RL] ================== [RR Wheel: F_z,RR]
+                    Rear Wing & DRS Flap
+```
+
+```mermaid
+graph TD
+    DriverInputs["Driver Inputs: Throttle, Brake, Steer, DRS"] --> RaceCar["RaceCarDynamics::step()"]
+    RaceCar --> LoadTransfer["4-Wheel Dynamic Load Transfer (ax, ay, Aero Downforce)"]
+    LoadTransfer --> NormalForces["Dynamic Wheel Loads: F_z,FL, F_z,FR, F_z,RL, F_z,RR"]
+    RaceCar --> Ackermann["Ackermann Steering Geometry & Slip Angles"]
+    NormalForces --> Pacejka["Pacejka Magic Formula Combined Slip Ellipse"]
+    Ackermann --> Pacejka
+    RaceCar --> GroundEffect["GroundEffectAero2D: Venturi Downforce & DRS Drag"]
+    Pacejka --> BodyForce["Apply Net Force & Yaw Torque to RigidBody2D"]
+    GroundEffect --> BodyForce
+    RaceCar --> Telemetry["TelemetryFrame2D: Loads, Slip Angles, G-Forces"]
+```
+
+---
+
+#### 5.3.2 Drift Car Dynamics (`DriftCarDynamics`)
+
+##### Objective
+Simulate extreme slip-angle vehicle handling, progressive oversteer transitions, self-aligning counter-steering torque feedback, and tire thermal friction drop.
+
+##### Technical Formulation
+- **Inertia Drift Equilibrium**:
+  - Balances rear tire traction loss against lateral momentum, enabling sustained yaw slip angles $\beta_{\text{body}} \in [20^\circ, 65^\circ]$.
+- **Counter-Steer Torque Feedback**:
+  - Front pneumatic trail produces caster self-aligning torque $\tau_{\text{align}}$ steering into the skid.
+- **Clutch Kick & Handbrake Disconnect**:
+  - Instantaneous rear wheel lockup command breaking rear static adhesion, coupled with throttle surge breaking longitudinal traction.
+- **Dynamic Thermal Friction Degradation**:
+  - Friction coefficient decays under prolonged high slip velocity $v_{\text{slip}}$: $\mu_{\text{effective}} = \mu_{\text{cold}} \left(1 - \lambda \tanh(T_{\text{tire}} / T_0)\right)$.
+
+```
+  ASCII Diagram: Drift Car Yaw Slip & Counter-Steer Balance
+
+                    Heading Velocity Vector V
+                           ^
+                          /
+                         /  Yaw Slip Angle Beta
+                        /
+           [FL Wheel]--/---------[FR Wheel] (Counter-Steer Angle Delta)
+               |      /              |
+               |     /               |
+               |    * (COG)          |
+               |                     |
+           [RL Wheel]-----------[RR Wheel] (High Slip Spin, Smoke/Wear)
+```
+
+```mermaid
+graph TD
+    ThrottleHandbrake["Throttle, Clutch Kick & Handbrake Input"] --> DriftCar["DriftCarDynamics::step()"]
+    DriftCar --> SlipAngle["Body Yaw Slip Angle Beta = atan2(v, u)"]
+    SlipAngle --> ThermalTire["Tire Temperature & Dynamic Friction Degradation"]
+    ThermalTire --> RearTraction["Rear Axle Lateral Breakaway (Oversteer)"]
+    RearTraction --> SelfAlign["Pneumatic Trail Self-Aligning Counter-Steer Torque"]
+    SelfAlign --> ChassisState["RigidBody2D Inertia Drift Response"]
+```
+
+---
+
+#### 5.3.3 Kart Racing Dynamics (`GoKartDynamics`)
+
+##### Objective
+Model lightweight sprint go-karts characterized by a spool solid rear axle (no differential), direct 1:1 steering ratio, and frame-flex tripod cornering mechanics.
+
+##### Technical Formulation
+- **Spool Solid Rear Axle Kinematics**:
+  - Left and right rear wheels are locked together on a common solid drive shaft ($\omega_{\text{RL}} = \omega_{\text{RR}}$), causing continuous tire scrub unless inside tire lifts.
+- **Frame Flex & Inside Wheel Lift**:
+  - Front steering geometry with aggressive kingpin inclination and caster forces the inside rear wheel to unweight and lift off the track surface:
+    $$\Delta F_{z,\text{jack}} = k_{\text{flex}} \cdot \theta_{\text{steer}} \cdot v_x$$
+    When $\Delta F_{z,\text{jack}} \ge F_{z,\text{static,inner}}$, the inside rear wheel fully unweights, eliminating axle binding and allowing agile cornering.
+- **Direct 1:1 Steering Response**:
+  - Steering column connects directly via tie rods to front spindles with zero steering box backlash or ratio reduction.
+
+```
+  ASCII Diagram: Go-Kart Chassis Flex & Inside Rear Wheel Lift
+
+      [Front-Left] ============================ [Front-Right]
+           \                                         /
+            \                                       /
+             \            Chassis Frame Flex       /
+              \           Caster Jacking Effect   /
+               \                                 /
+     (LIFTED)  [ O ]                           [ O ] (LOADED)
+     Rear-Left Unweighted                     Rear-Right Takes 100% Rear Load
+            ======================================= Solid Spool Axle
+```
+
+```mermaid
+graph TD
+    DirectSteer["Direct 1:1 Steering Wheel Angle"] --> Kart["GoKartDynamics::step()"]
+    Kart --> CasterJacking["Kingpin Caster Chassis Flex Jacking Effect"]
+    CasterJacking --> InsideLift{"Inside Rear Wheel Unweighted?"}
+    InsideLift -- Yes --> FreeCornering["Inner Wheel Lifts: Zero Axle Binding, Sharp Turn"]
+    InsideLift -- No --> AxleScrub["Rear Solid Spool Axle Wheel Scrub Friction"]
+    Kart --> SolidSpoolTorque["Drive Torque Evenly Distributed to Both Wheels"]
+```
+
+---
+
+### 5.4 Utility, Heavy Industry, and Guided Rail Dynamics
+
+#### 5.4.1 Rear-Steer Industrial Forklift Dynamics (`ForkliftDynamics`) (Implemented)
+
+##### Objective
+Simulate counterbalanced industrial warehouse forklifts featuring rear-wheel pivot steering up to $\pm 90^\circ$ (zero-radius pivot), dynamic mast elevation, and stability triangle rollover boundaries. Detailed architectural and engineering specification: [Forklift Implementation Plan](ForkliftImplementationPlan.md).
+
+##### Technical Formulation
+1. **Rear-Wheel Steer Kinematics**:
+   - Instantaneous center of rotation (ICR) collinear with the front drive axle: $R_{\text{icr}} = L / \tan(\delta_{\text{rear}})$. At $\delta = \pm 90^\circ$, vehicle spins in place around front axle midpoint.
+2. **Dynamic Center of Gravity & Mast Lift Kinematics**:
+   - Dynamic payload mass $m_{\text{load}}$ at mast height $h_{\text{mast}}$ shifts composite vehicle Center of Gravity $(x_{\text{cog}}, h_{\text{cog}})$.
+3. **Stability Triangle Rollover Margin**:
+   - 3-point stability base evaluated between front drive wheels and rear steer axle pivot pin. Dynamic rollover index $I_{\text{rollover}} = |a_y| h_{\text{cog}} / (g \cdot w_{\text{eff}})$.
+
+```
+  ASCII Diagram: Forklift 3-Point Stability Triangle & Rear Pivot
+
+                  Front Drive & Service Brake Axle
+             [Front-Left] ================= [Front-Right]
+                   \                               /
+                    \     Stability Triangle      /
+                     \                           /
+                      \    * (x_cog, h_cog)     /
+                       \   [Shifts with Mast]  /
+                        \                     /
+                         \                   /
+                          \                 /
+                           \               /
+                            \             /
+                             [    (O)    ] Rear Steer Pivot (+/- 90 deg)
+```
+
+```mermaid
+graph TD
+    Controls["Operator: Throttle, Brake, Rear Steer, Mast Lift, Payload"] --> Forklift["ForkliftDynamics::step()"]
+    Forklift --> CompCG["Compute Composite CG (x_cog, h_cog) from Mast Height"]
+    Forklift --> ICR["Calculate Rear-Steer Instantaneous Center of Rotation"]
+    CompCG --> NormalLoads["Calculate Front Wheel Loads & Rear Pivot Load"]
+    NormalLoads --> RolloverIndex["Evaluate Dynamic Rollover Index & Tipping Boundary"]
+    RolloverIndex --> Warning{"Rollover Index >= 1.0?"}
+    Warning -- Yes --> TipOver["Tip-Over Dynamic Incident Flag"]
+    Warning -- No --> StableDrive["Front Axle Hydraulic Traction & Rear Pivot Forces"]
+    StableDrive --> ApplyForces["RigidBody2D Step & Telemetry Export"]
+```
+
+---
+
+#### 5.4.2 Guided Track and Railway Dynamics (`TrainRailDynamics`)
+
+##### Objective
+Provide rail vehicle kinematics and dynamics constrained to 1D curvilinear coordinates along parametric [Spline2D](../libs/VehicleSimCore/math/Spline2D.h) railway tracks, featuring wheel flange hunting oscillations, adhesion limits, and multi-car coupler slack action.
+
+##### Technical Formulation
+- **Curvilinear Track Constraint ($s, \dot{s}, \ddot{s}$)**:
+  - Motion parameterization along track centerline arc-length $s$, mapping curve radius $R(s)$ and cant/superelevation angle $\theta_{\text{cant}}(s)$ directly into normal and lateral load distributions.
+- **Wheel-Rail Creep & Adhesion Limits**:
+  - Kalker linear creep theory for longitudinal tractive creepage and flange contact reaction forces. Sander injection increases adhesion coefficient $\mu_{\text{rail}}$ from $0.15$ (wet/greasy rail) to $0.40$.
+- **Coupler Slack Action & Draft Gear**:
+  - Non-linear spring-damper coupling with deadband slack space $[-\delta_{\text{slack}}, \delta_{\text{slack}}]$ between linked rail cars.
+
+```
+  ASCII Diagram: Rail Bogie & Flange Friction Mechanics
+
+                 Rail Flange Clearance
+            |<- delta_gap ->|
+      [Wheel Flange]       |       [Wheel Flange]
+        |    \             |             /    |
+        |     \________    |    ________/     |
+        |              \   |   /              |
+     ====== Rail Head =====+===== Rail Head ======
+```
+
+```mermaid
+graph TD
+    TrackSpline["Spline2D Track Centerline & Superelevation"] --> RailCar["TrainRailDynamics::step()"]
+    RailCar --> ArcLength["Arc-Length Kinematic Projection s(t)"]
+    ArcLength --> FlangeForces["Flange Reaction & Hunting Damping Forces"]
+    RailCar --> CreepCalc["Wheel-Rail Longitudinal Creep & Adhesion Limit"]
+    CreepCalc --> Coupler["Multi-Car Coupler Draft Gear & Slack Action"]
+    Coupler --> RailDispatch["Advance Train Consist State on Track"]
+```
+
+---
+
+#### 5.4.3 Dual-Track Hydraulic Excavator Dynamics (`ExcavatorDynamics`)
+
+##### Objective
+Simulate heavy construction equipment featuring a dual-track crawler undercarriage with skid-steer kinematics, a $360^\circ$ continuous rotating upper superstructure (slew ring), and multi-link articulated hydraulic excavator arm kinematics.
+
+##### Technical Formulation
+- **Dual-Track Skid-Steer Undercarriage**:
+  - Independent left and right continuous crawler track speeds ($v_L, v_R$), generating high ground contact friction and turning moments through ground shearing.
+- **Superstructure Slew Ring Bearing**:
+  - Continuous rotating upper cabin driven by a hydraulic slew motor:
+    $$I_{\text{upper}} \ddot{\theta}_{\text{slew}} = \tau_{\text{slew}} - c_{\text{slew}} \dot{\theta}_{\text{slew}}$$
+- **Articulated Multi-Link Arm Kinematics**:
+  - Planar kinematic chain representing Boom ($\theta_1$), Arm/Stick ($\theta_2$), and Bucket ($\theta_3$) with hydraulic cylinder extension constraints and digging reaction force vectors.
+
+```
+  ASCII Diagram: Excavator Multi-Link Arm & Continuous Slew Ring
+
+                       Stick / Arm (theta_2)
+                           o==============o Bucket (theta_3)
+                          /                \   /
+                         /                  \_/ Digging Force F_dig
+         Boom (theta_1) /
+                       o
+                      /
+     [ Upper Cabin ] /
+     =============== Slew Ring Bearing (360 deg Continuous Rotation)
+     [ Left Track  ] ================= [ Right Track ] (Skid Steer)
+```
+
+```mermaid
+graph TD
+    OperatorInput["Track Drive, Slew Ring Motor, Boom/Stick/Bucket Cylinders"] --> Excavator["ExcavatorDynamics::step()"]
+    Excavator --> Undercarriage["Dual-Track Skid-Steer Ground Interaction"]
+    Excavator --> SlewRing["Slew Ring Inertia & Rotational Torque tau_slew"]
+    Excavator --> ArmKinematics["Forward Kinematics: Boom, Stick, Bucket Tool Center Point"]
+    ArmKinematics --> DigReaction["Ground Resistance & Soil Digging Force Resolution"]
+    Undercarriage --> ForceAccum["Sum Undercarriage & Dig Forces into RigidBody2D"]
+    DigReaction --> ForceAccum
+```
+
+---
+
+### 5.5 Specialized All-Terrain and Single-Track Dynamics
+
+#### 5.5.1 Dual-Ski and Track Snowmobile Dynamics (`SnowmobileDynamics`)
+
+##### Objective
+Model winter powersport snowmobiles with dual front steerable skis carving into packed snow/ice, a rear continuous propulsion rubber track, and rider dynamic body weight roll leaning.
+
+##### Technical Formulation
+- **Steerable Ski Carving Mechanics**:
+  - Lateral ski force modeled as a combination of surface friction and ski edge angle carving resistance $\beta_{\text{edge}}$:
+    $$F_{y,\text{ski}} = F_{z,\text{ski}} \left(\mu_{\text{snow}} \sin(\alpha) + k_{\text{edge}} \tan(\theta_{\text{roll}})\right)$$
+- **Rear Drive Track Propulsion**:
+  - Continuous rubber track with paddles displacing snow, coupling track drive speed $\omega_{\text{track}} R$ with slip sinkage drag.
+- **Rider Body Lean Coupling**:
+  - Dynamic lateral weight shift alters chassis roll moment and front ski normal load balance during aggressive counter-leaning in deep powder.
+
+```
+  ASCII Diagram: Snowmobile Front Ski & Drive Track Configuration
+
+     [ Left Steer Ski ] =============== [ Right Steer Ski ]
+              \                                 /
+               \         Chassis Frame         /
+                \     (Rider Roll Leaning)    /
+                 \                           /
+                  [ Rear Continuous Track  ] (Paddle Drive Traction)
+```
+
+```mermaid
+graph TD
+    Controls["Throttle, Brake, Handlebar Steer, Rider Body Lean"] --> Snowmobile["SnowmobileDynamics::step()"]
+    Snowmobile --> SkiForces["Front Ski Edge-Carving & Steering Lateral Resistance"]
+    Snowmobile --> TrackDrive["Rear Paddle Track Drive Force & Snow Sinkage"]
+    Snowmobile --> RiderLean["Rider Roll Mass Shift & Anti-Roll Moment"]
+    SkiForces --> BodyStep["Accumulate Forces & Update RigidBody2D Position"]
+    TrackDrive --> BodyStep
+```
+
+---
+
+#### 5.5.2 Single-Track Whipple Bicycle Dynamics (`BicycleDynamics`)
+
+##### Objective
+Implement the benchmark Whipple single-track bicycle model, featuring roll-steer kinematic coupling, counter-steering initiation, and front wheel gyroscopic self-stability above critical forward speed.
+
+##### Technical Formulation
+- **Dynamic Degrees of Freedom**:
+  - Lean/roll angle $\phi$, steering angle $\delta$, and forward speed $v_x$.
+- **Counter-Steering Dynamics**:
+  - Steering momentarily away from the turn ($\delta < 0$) produces a lateral tire force at the contact patch that initiates vehicle roll torque into the desired cornering direction ($\ddot{\phi} > 0$).
+- **Gyroscopic & Trail Self-Stabilization**:
+  - Front wheel angular momentum $I_{\text{wheel}} \omega_{\text{wheel}}$ and positive mechanical caster trail $c_{\text{trail}}$ provide self-righting stability when forward velocity exceeds critical speed $v_{\text{crit}} \approx \sqrt{g L / \tan(\theta_{\text{head}})}$.
+
+```
+  ASCII Diagram: Bicycle Steering Geometry & Mechanical Trail
+
+          Handlebars
+              |
+              | Fork (Head Tube Angle theta)
+              |
+              o Front Wheel Hub
+             / \
+            /   \
+           /     \
+    ======*=======+================ Ground Plane
+       Contact  Projected
+        Patch     Axis
+       |<- Trail ->|
+```
+
+```mermaid
+graph TD
+    RiderSteer["Rider Steer Torque & Body Lean Command"] --> Bike["BicycleDynamics::step()"]
+    Bike --> CounterSteer["Counter-Steer Initiation (Roll Acceleration)"]
+    Bike --> Gyroscopic["Front Wheel Gyroscopic Precession & Caster Trail"]
+    CounterSteer --> DynamicEquilibrium["2-DOF Roll-Steer Dynamic Equilibrium"]
+    Gyroscopic --> DynamicEquilibrium
+    DynamicEquilibrium --> TirePatches["Front & Rear Single-Track Contact Patch Forces"]
+    TirePatches --> RigidBodyUpdate["RigidBody2D Kinematics Update"]
+```
+
+---
+
+#### 5.5.3 All-Terrain Vehicle Quad Bike Dynamics (`QuadBikeDynamics`)
+
+##### Objective
+Simulate 4-wheel all-terrain vehicles (ATVs) featuring low-pressure compliant balloon tires, a solid rear drive axle, independent front double-wishbone suspension, and dynamic rider active mass displacement.
+
+##### Technical Formulation
+- **Low-Pressure Balloon Tire Compliance**:
+  - Large tire carcass deflection acting as a secondary series spring-damper system over uneven terrain: $F_{z,\text{tire}} = k_{\text{tire}} \Delta z_{\text{tire}} + c_{\text{tire}} \Delta \dot{z}_{\text{tire}}$.
+- **Solid Rear Axle with Open/Locked Differential**:
+  - High ground clearance solid swingarm rear axle maintaining constant track width under terrain vertical articulation.
+- **Rider Active Weight Shifting**:
+  - Dynamic pitch and roll shifts of the rider's upper torso repositioning the Center of Gravity to prevent rollover on steep hill climbs and high-speed off-camber sweeps.
+
+```
+  ASCII Diagram: ATV Quad Bike Suspension & Compliant Balloon Tires
+
+     [Front-Left Balloon] ===== (A-Arms) ===== [Front-Right Balloon]
+             \                                      /
+              \           Rider Torso Mass         /
+               \         (Pitch/Roll Shift)       /
+                \                                /
+     [Rear-Left Balloon] ===== (Solid Axle) ===== [Rear-Right Balloon]
+```
+
+```mermaid
+graph TD
+    ATVInputs["Throttle, Front/Rear Brakes, Handlebars, Rider Torso Lean"] --> QuadBike["QuadBikeDynamics::step()"]
+    QuadBike --> BalloonTires["Balloon Tire Carcass Deflection & Soft Soil Grip"]
+    QuadBike --> SolidAxle["Solid Rear Swingarm Axle Articulation"]
+    QuadBike --> RiderShift["Active Rider CG Shift (Hill Climb & Off-Camber Stability)"]
+    BalloonTires --> TerrainForces["Wheel Forces Dispatched to RigidBody2D"]
+    SolidAxle --> TerrainForces
+```
+
+---
+
+### 5.6 Aerial and Multi-Rotor Advanced Systems
+
+#### 5.6.1 Four-Rotor Quadcopter Drone Dynamics (`QuadcopterDroneDynamics`) (Implemented)
+
+##### Objective
+Simulate multi-rotor aerial drones utilizing an 'X' frame configuration with four independent motors, motor spool time constants, gyroscopic anti-torque cancellation, and cascaded attitude/altitude PID flight stabilization. Detailed architectural and engineering specification: [Quadcopter Drone Implementation Plan](QuadcopterDroneImplementationPlan.md).
+
+##### Technical Formulation
+1. **Rotor Thrust & Torque**:
+   - Individual thrust $T_i = k_t \omega_i^2$ and reactionary aerodynamic drag torque $Q_i = k_q \omega_i^2$. Alternating CW/CCW motor pairs cancel yaw reactionary torque in hover.
+2. **Motor Mixer Matrix**:
+   - Resolves total collective lift, pitch moment, and yaw torque into individual target motor speeds $\omega_{\text{cmd},i}$. First-order ESC motor lag filters speed updates.
+3. **Cascaded Flight Stabilization**:
+   - Integrates [PIDController.h](../libs/VehicleSimCore/math/PIDController.h) for rate/attitude stabilization and vertical altitude climb-rate hold.
+
+```
+  ASCII Diagram: Quadcopter 'X' Configuration Rotor Layout
+
+        Front
+    (1) CW \       / (2) CCW      Total Thrust: T = sum(T_i)
+            \     /                Pitch Torque: tau_pitch = L * (T_rear - T_front)
+             [COG]                 Yaw Torque:   tau_yaw = sum(sigma_i * Q_i)
+            /     \
+   (3) CCW /       \ (4) CW
+        Rear
+```
+
+```mermaid
+graph TD
+    Commands["Autopilot/Pilot Commands: Throttle, Pitch, Roll, Yaw"] --> Drone["QuadcopterDroneDynamics::step()"]
+    Drone --> CascadedPID["Cascaded PID: Attitude & Altitude Stabilizer"]
+    CascadedPID --> Mixer["4-Rotor Differential Thrust Mixer Matrix"]
+    Mixer --> ESCLag["ESC First-Order Response Lag d(omega_i)/dt"]
+    ESCLag --> MotorForces["Compute Thrust T_i and Drag Torque Q_i (FL, FR, RL, RR)"]
+    MotorForces --> NetForces["Sum Net Thrust & Aerodynamic Control Torques"]
+    NetForces --> RigidBody["RigidBody2D Step & Telemetry Export"]
+```
+
+---
+
+#### 5.6.2 Tilt-Rotor VTOL Aircraft Dynamics (`VTOLTiltRotorDynamics`)
+
+##### Objective
+Model vertical takeoff and landing (VTOL) tilt-rotor aircraft featuring rotatable nacelles transitioning smoothly between hover helicopter mode and fixed-wing aerodynamic cruising flight.
+
+##### Technical Formulation
+- **Nacelle Tilt Kinematics ($\theta_{\text{nacelle}} \in [0^\circ, 90^\circ]$)**:
+  - $\theta_{\text{nacelle}} = 90^\circ$: Vertical hover mode (pure rotor vertical lift, cyclic pitch control).
+  - $\theta_{\text{nacelle}} = 0^\circ$: Forward cruise mode (horizontal tractor propulsion, aerodynamic wing lift $L_{\text{wing}} = \frac{1}{2}\rho v^2 S C_L$).
+- **Conversion Corridor Envelope**:
+  - Smooth tilt rate limiter transitioning aerodynamic lift from rotor thrust to fixed wing surfaces as forward airspeed $v_x$ surpasses wing stall speed $v_{\text{stall}}$.
+
+```
+  ASCII Diagram: Tilt-Rotor Nacelle Transition Corridor
+
+      Hover Mode (theta = 90 deg)            Cruise Mode (theta = 0 deg)
+               ^ Vertical Thrust                       ===> Forward Thrust
+               |                                      [Rotor]
+            [Rotor]                                      |
+               |                                   +-----+-----+
+           +---+---+                               |   Wing    |
+           | Wing  |                               +-----+-----+
+```
+
+```mermaid
+graph TD
+    PilotTransition["Pilot Commands: Thrust, Tilt Transition Input, Pitch/Elevator"] --> VTOL["VTOLTiltRotorDynamics::step()"]
+    VTOL --> NacelleTilt["Nacelle Angle Slew-Rate Limiter (0 deg to 90 deg)"]
+    NacelleTilt --> RotorThrust["Vector Rotor Thrust: T * [-cos(theta), sin(theta)]"]
+    VTOL --> WingAero["Wing Aerodynamic Lift & Induced Drag Calculation (v_x)"]
+    RotorThrust --> NetVTOL["Blend Rotor Lift with Wing Aerodynamic Lift"]
+    WingAero --> NetVTOL
+    NetVTOL --> BodyDispatch["Apply Net Forces to RigidBody2D"]
+```
+
+---
+
 ## 6. Simulation Telemetry and Deterministic Serialization
 
 ### 6.1 Bit-Exact State Snapshotting and Rollback Netcode (`SimulationSnapshot2D`)
@@ -965,6 +1419,13 @@ graph TD
 | **Deterministic Snapshotting & Rollback** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Rewind mechanics, GGPO rollback netcode, testing |
 | **Stratified Terramechanics & Hydroplaning** | Terrain | Medium | [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Snow over bedrock, standing water aquaplaning loss of grip |
 | **Telemetry Ring-Buffer & Exporters (Implemented)** | Core / Diagnostic | Low | None | [Telemetry Plan](TelemetryRingBufferImplementationPlan.md) - Telemetry analysis, CSV logging, sensor streaming ([TelemetryRingBuffer2D.h](../libs/VehicleSimCore/telemetry/TelemetryRingBuffer2D.h)) |
+| **RaceCarDynamics (Motorsport) (Implemented)** | Dynamics | Medium | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [GroundEffectAero2D](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h) | [Race Car Plan](RaceCarImplementationPlan.md) - Closed-circuit racing, 4-wheel load transfer, Pacejka slip, DRS ([RaceCarDynamics.h](../libs/VehicleSimCore/dynamics/RaceCarDynamics.h)) |
+| **ForkliftDynamics (Rear-Steer Industrial) (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Forklift Plan](ForkliftImplementationPlan.md) - Rear-wheel pivot steering, mast height CG shift, rollover index ([ForkliftDynamics.h](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h)) |
+| **QuadcopterDroneDynamics (4-Rotor Aerial) (Implemented)** | Dynamics | Medium | [PIDController](../libs/VehicleSimCore/math/PIDController.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Quadcopter Plan](QuadcopterDroneImplementationPlan.md) - 4-rotor thrust mixer, attitude PID, aerial robotics ([QuadcopterDroneDynamics.h](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h)) |
+| **DriftCarDynamics & GoKartDynamics** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | Oversteer slip-angle balance, solid rear axle spool cornering |
+| **TrainRailDynamics & ExcavatorDynamics** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | Guided track railway adhesion, dual-track excavator slew ring & multi-link arm |
+| **Snowmobile, Bicycle & QuadBike Dynamics** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Ski carving, single-track Whipple counter-steering, balloon tire ATV |
+| **VTOLTiltRotorDynamics** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | Tilt-rotor transition corridor between vertical hover and fixed-wing cruise |
 
 ---
 

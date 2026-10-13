@@ -97,6 +97,12 @@ add_library(VehicleSimCore STATIC
     dynamics/GroundEffectAero2D.cpp
     dynamics/TrajectoryTracker2D.h
     dynamics/TrajectoryTracker2D.cpp
+    dynamics/RaceCarDynamics.h
+    dynamics/RaceCarDynamics.cpp
+    dynamics/ForkliftDynamics.h
+    dynamics/ForkliftDynamics.cpp
+    dynamics/QuadcopterDroneDynamics.h
+    dynamics/QuadcopterDroneDynamics.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
     terrain/GradientNoise.h
