@@ -87,11 +87,11 @@ struct EarthRoverWheelState {
 ///            |      Earth Patrol Chassis       |
 ///            +----+-------------+-------------+
 ///                 |             |             |
-///            k,c  |        k,c  |        k,c  |  (Spring-Damper Struts)
-///                / \           / \           / \
-///               |   |         |   |         |   |
-///                \ /           \ /           \ /
-///                 |             |             |
+///            k,c  |        k,c  |        k,c  |  (Spring-Damper Struts)  |
+///                / \           / \           / \                        |
+///               |   |         |   |         |   |                       |
+///                \ /           \ /           \ /                        |
+///                 |             |             |                         |
 ///              (Rear)       (Middle)       (Front)
 ///              [ W0 ]        [ W1 ]        [ W2 ]
 ///          ======/=============\============\=======  Terrain Surface h(x)
@@ -192,10 +192,10 @@ private:
     /// @param[in,out] body Target chassis rigid body.
     void applyAttitudeStabilizer(physics::RigidBody2D& body) noexcept;
 
-    EarthRoverConfig config_ { };
-    EarthRoverInput input_ { };
+    EarthRoverConfig config_ {};
+    EarthRoverInput input_ {};
     const terrain::Heightfield1D* terrain_ { nullptr };
-    std::array<EarthRoverWheelState, kWheelCount> wheelStates_ { };
+    std::array<EarthRoverWheelState, kWheelCount> wheelStates_ {};
 
     double forwardSpeed_ { 0.0 };
     bool isAirborne_ { true };

@@ -25,6 +25,7 @@ function(apply_compiler_flags TARGET_NAME)
             /wd4324                 # Suppress C4324: structure padded due to alignment specifier (alignas/SIMD)
             /permissive-            # Enforce strict standard C++ conformance (disables Microsoft non-standard extensions)
             /Zc:__cplusplus         # Correctly report __cplusplus conforming to C++17 (201703L)
+            /Zc:preprocessor        # Enforce standards-conforming ISO C++ preprocessor
             /utf-8                  # Set both source and execution character sets to UTF-8
             /MP                     # Multi-processor compilation for MSBuild/Visual Studio
             /FS                     # Force synchronous PDB access across concurrent compilation jobs
@@ -44,6 +45,7 @@ function(apply_compiler_flags TARGET_NAME)
             /w14457                 # C4457: declaration hides function parameter (-Wshadow)
             /w14458                 # C4458: declaration hides class member (-Wshadow)
             /w15038                 # C5038: member initialization order mismatch (-Wreorder)
+            /w14010                 # C4010: single-line comment contains line-continuation character (-Wcomment)
         )
 
         if(WARNINGS_AS_ERRORS)
