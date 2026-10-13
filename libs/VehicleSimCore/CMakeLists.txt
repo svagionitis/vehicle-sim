@@ -112,6 +112,16 @@ add_library(VehicleSimCore STATIC
     terrain/BankedTrack.cpp
     terrain/TrackGenerator.h
     terrain/TrackGenerator.cpp
+    telemetry/TelemetryFrame2D.h
+    telemetry/TelemetryFrame2D.cpp
+    telemetry/TelemetryRingBuffer2D.h
+    telemetry/TelemetryRingBuffer2D.cpp
+    telemetry/TelemetrySampler2D.h
+    telemetry/TelemetrySampler2D.cpp
+    telemetry/CsvTelemetryExporter.h
+    telemetry/CsvTelemetryExporter.cpp
+    telemetry/KlvTelemetryExporter.h
+    telemetry/KlvTelemetryExporter.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC

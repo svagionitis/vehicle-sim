@@ -14,6 +14,7 @@ add_executable(VehicleSimCoreTests
     StanleyControllerTest.cpp
     SpeedProfilerTest.cpp
     TrajectoryTrackerTest.cpp
+    TelemetryTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

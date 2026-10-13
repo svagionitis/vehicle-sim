@@ -903,7 +903,10 @@ graph LR
 
 ---
 
-### 6.2 Synchronous Telemetry Ring-Buffer (`TelemetryRecorder2D`)
+### 6.2 Synchronous Telemetry Ring-Buffer (`TelemetryRecorder2D`) (Implemented)
+
+#### Implementation Plan
+Detailed technical specifications, mathematical derivations, C++17 interfaces, and MISRA compliance mappings are defined in the [Telemetry Implementation Plan](TelemetryRingBufferImplementationPlan.md). Implemented via [TelemetryFrame2D.h](../libs/VehicleSimCore/telemetry/TelemetryFrame2D.h), [TelemetryRingBuffer2D.h](../libs/VehicleSimCore/telemetry/TelemetryRingBuffer2D.h), [TelemetrySampler2D.h](../libs/VehicleSimCore/telemetry/TelemetrySampler2D.h), [CsvTelemetryExporter.h](../libs/VehicleSimCore/telemetry/CsvTelemetryExporter.h), and [KlvTelemetryExporter.h](../libs/VehicleSimCore/telemetry/KlvTelemetryExporter.h).
 
 #### Objective
 Capture high-rate flight/driving telemetry for offline analysis, HUD displays, or synthetic sensor streaming.
@@ -961,7 +964,7 @@ graph TD
 | **Ground Effect & Active DRS** | Dynamics | Low-Med | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h) | High-speed downforce, aerodynamic stalling |
 | **Deterministic Snapshotting & Rollback** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Rewind mechanics, GGPO rollback netcode, testing |
 | **Stratified Terramechanics & Hydroplaning** | Terrain | Medium | [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Snow over bedrock, standing water aquaplaning loss of grip |
-| **Telemetry Ring-Buffer & Exporters** | Core / Diagnostic | Low | None | Telemetry analysis, CSV logging, sensor streaming |
+| **Telemetry Ring-Buffer & Exporters (Implemented)** | Core / Diagnostic | Low | None | [Telemetry Plan](TelemetryRingBufferImplementationPlan.md) - Telemetry analysis, CSV logging, sensor streaming ([TelemetryRingBuffer2D.h](../libs/VehicleSimCore/telemetry/TelemetryRingBuffer2D.h)) |
 
 ---
 
