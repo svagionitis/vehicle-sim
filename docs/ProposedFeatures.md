@@ -914,10 +914,10 @@ graph TD
 
 ---
 
-#### 5.3.2 Drift Car Dynamics (`DriftCarDynamics`)
+#### 5.3.2 Drift Car Dynamics (`DriftCarDynamics`) (Implemented)
 
 ##### Objective
-Simulate extreme slip-angle vehicle handling, progressive oversteer transitions, self-aligning counter-steering torque feedback, and tire thermal friction drop.
+Simulate extreme slip-angle vehicle handling, progressive oversteer transitions, self-aligning counter-steering torque feedback, and tire thermal friction drop. Detailed architectural and engineering specification: [Drift Car & Go-Kart Implementation Plan](DriftCarGoKartImplementationPlan.md).
 
 ##### Technical Formulation
 - **Inertia Drift Equilibrium**:
@@ -957,10 +957,10 @@ graph TD
 
 ---
 
-#### 5.3.3 Kart Racing Dynamics (`GoKartDynamics`)
+#### 5.3.3 Kart Racing Dynamics (`GoKartDynamics`) (Implemented)
 
 ##### Objective
-Model lightweight sprint go-karts characterized by a spool solid rear axle (no differential), direct 1:1 steering ratio, and frame-flex tripod cornering mechanics.
+Model lightweight sprint go-karts characterized by a spool solid rear axle (no differential), direct 1:1 steering ratio, and frame-flex tripod cornering mechanics. Detailed architectural and engineering specification: [Drift Car & Go-Kart Implementation Plan](DriftCarGoKartImplementationPlan.md).
 
 ##### Technical Formulation
 - **Spool Solid Rear Axle Kinematics**:
@@ -1422,7 +1422,7 @@ graph TD
 | **RaceCarDynamics (Motorsport) (Implemented)** | Dynamics | Medium | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [GroundEffectAero2D](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h) | [Race Car Plan](RaceCarImplementationPlan.md) - Closed-circuit racing, 4-wheel load transfer, Pacejka slip, DRS ([RaceCarDynamics.h](../libs/VehicleSimCore/dynamics/RaceCarDynamics.h)) |
 | **ForkliftDynamics (Rear-Steer Industrial) (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Forklift Plan](ForkliftImplementationPlan.md) - Rear-wheel pivot steering, mast height CG shift, rollover index ([ForkliftDynamics.h](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h)) |
 | **QuadcopterDroneDynamics (4-Rotor Aerial) (Implemented)** | Dynamics | Medium | [PIDController](../libs/VehicleSimCore/math/PIDController.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Quadcopter Plan](QuadcopterDroneImplementationPlan.md) - 4-rotor thrust mixer, attitude PID, aerial robotics ([QuadcopterDroneDynamics.h](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h)) |
-| **DriftCarDynamics & GoKartDynamics** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | Oversteer slip-angle balance, solid rear axle spool cornering |
+| **DriftCarDynamics & GoKartDynamics (Implemented)** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Drift & Go-Kart Plan](DriftCarGoKartImplementationPlan.md) - Oversteer slip-angle balance, solid rear axle spool cornering ([DriftCarDynamics.h](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h), [GoKartDynamics.h](../libs/VehicleSimCore/dynamics/GoKartDynamics.h)) |
 | **TrainRailDynamics & ExcavatorDynamics** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | Guided track railway adhesion, dual-track excavator slew ring & multi-link arm |
 | **Snowmobile, Bicycle & QuadBike Dynamics** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Ski carving, single-track Whipple counter-steering, balloon tire ATV |
 | **VTOLTiltRotorDynamics** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | Tilt-rotor transition corridor between vertical hover and fixed-wing cruise |

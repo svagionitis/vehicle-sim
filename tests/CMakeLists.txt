@@ -19,6 +19,8 @@ add_executable(VehicleSimCoreTests
     RaceCarDynamicsTest.cpp
     ForkliftDynamicsTest.cpp
     QuadcopterDroneDynamicsTest.cpp
+    DriftCarDynamicsTest.cpp
+    GoKartDynamicsTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE
