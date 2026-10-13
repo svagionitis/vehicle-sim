@@ -32,6 +32,7 @@ MonsterCarDynamics::MonsterCarDynamics(const MonsterCarConfig& config) noexcept
         tire.setConfig(mConfig.pacejkaConfig);
     }
 
+    mGroundEffectAero.setConfig(mConfig.groundEffectConfig);
     updateWheelLayout();
 }
 
@@ -270,7 +271,23 @@ void MonsterCarDynamics::step(physics::RigidBody2D& body, double dt) noexcept
 
     const math::Vec2 linVel { body.getLinearVelocity() };
     const double currentSpeed { linVel.length() };
-    if (currentSpeed > 1e-4) {
+    if (mConfig.useGroundEffect) {
+        GroundEffectAeroInput aeroIn {};
+        const double baseRideHeight { 0.05 + mFlightZ };
+        aeroIn.frontRideHeight = std::max(0.005, baseRideHeight);
+        aeroIn.rearRideHeight = std::max(0.005, baseRideHeight);
+        aeroIn.brakeDemand = mInput.brake;
+        aeroIn.steerDemand = mInput.steer;
+        aeroIn.isAirborne = isAirborne();
+        aeroIn.requestDrs = mInput.requestDrs;
+
+        physics::FluidSample2D fluidSample {};
+        fluidSample.density = 1.225;
+        fluidSample.velocity = math::Vec2::zero();
+        fluidSample.medium = physics::FluidMediumType::Air;
+
+        static_cast<void>(mGroundEffectAero.applyForces(body, aeroIn, fluidSample, dt));
+    } else if (currentSpeed > 1e-4) {
         const math::Vec2 dragForce { -mConfig.airDragCoefficient * currentSpeed * linVel };
         body.applyForce(dragForce);
     }
@@ -322,6 +339,7 @@ void MonsterCarDynamics::reset() noexcept
     for (auto& tire : mPacejkaTires) {
         tire.reset();
     }
+    mGroundEffectAero.reset();
 }
 
 [[nodiscard]] bool MonsterCarDynamics::isAirborne() const noexcept
@@ -350,7 +368,13 @@ void MonsterCarDynamics::setConfig(const MonsterCarConfig& config) noexcept
     for (auto& tire : mPacejkaTires) {
         tire.setConfig(mConfig.pacejkaConfig);
     }
+    mGroundEffectAero.setConfig(mConfig.groundEffectConfig);
     updateWheelLayout();
+}
+
+[[nodiscard]] const GroundEffectAero2D& MonsterCarDynamics::getGroundEffect() const noexcept
+{
+    return mGroundEffectAero;
 }
 
 void MonsterCarDynamics::setGear(std::int32_t gear) noexcept

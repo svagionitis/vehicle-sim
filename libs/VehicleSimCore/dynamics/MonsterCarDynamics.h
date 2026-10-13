@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "libs/VehicleSimCore/dynamics/GroundEffectAero2D.h"
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/PacejkaTireModel.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
@@ -80,6 +81,9 @@ struct MonsterCarConfig {
 
     bool usePacejkaTire { false }; ///< When true, evaluates non-linear tire forces via Pacejka Magic Formula.
     PacejkaConfig pacejkaConfig {}; ///< Empirical Pacejka tire configuration parameters.
+
+    bool useGroundEffect { false }; ///< When true, evaluates underbody ground effect downforce and active DRS flaps.
+    GroundEffectAeroConfig groundEffectConfig {}; ///< Configuration parameters for ground effect aerodynamics.
 };
 
 /// @struct MonsterCarInput
@@ -90,6 +94,7 @@ struct MonsterCarInput {
     double brake { 0.0 }; ///< Service brake pedal position in [0.0, 1.0].
     double clutch { 0.0 }; ///< Clutch pedal position in [0.0, 1.0] (0.0 = engaged).
     bool handbrake { false }; ///< True if handbrake is actively applied.
+    bool requestDrs { false }; ///< Command to deploy active DRS drag reduction flap.
 };
 
 /// @struct MonsterWheelTelemetry
@@ -244,6 +249,10 @@ public:
     /// @return Flight altitude in meters.
     [[nodiscard]] double getFlightHeight() const noexcept;
 
+    /// @brief Gets active ground effect aerodynamics coordinator.
+    /// @return Const reference to GroundEffectAero2D.
+    [[nodiscard]] const GroundEffectAero2D& getGroundEffect() const noexcept;
+
 private:
     void updateWheelLayout() noexcept;
     void updateSteering(double dt) noexcept;
@@ -257,6 +266,7 @@ private:
     std::array<MonsterWheelTelemetry, kWheelCount> mWheels {};
     std::array<double, kWheelCount> mWheelGripModifiers { 1.0, 1.0, 1.0, 1.0 };
     std::array<PacejkaTireModel, kWheelCount> mPacejkaTires {};
+    GroundEffectAero2D mGroundEffectAero {};
 
     double mGlobalGripModifier { 1.0 };
     double mGlobalDragModifier { 1.0 };

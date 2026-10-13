@@ -825,10 +825,10 @@ graph TD
 
 ---
 
-### 5.2 Ground Effect Downforce and Active DRS Flaps
+### 5.2 Ground Effect Downforce and Active DRS Flaps (Implemented)
 
 #### Objective
-Model realistic aerodynamic ground effects and active drag reduction flaps for formula cars, hypercars, and anti-gravity racing vehicles.
+Model realistic aerodynamic ground effects and active drag reduction flaps for formula cars, hypercars, and anti-gravity racing vehicles. Detailed architectural and aerodynamic design specification: [Ground Effect & Active DRS Plan](GroundEffectDrsImplementationPlan.md).
 
 #### Technical Formulation
 - **Underbody Venturi Downforce**:
@@ -961,7 +961,7 @@ graph TD
 | **Continuous Collision Detection (CCD)** | Physics | High | [Narrowphase2D](../libs/VehicleSimCore/physics/Narrowphase2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | Anti-tunneling for high-speed craft (AntiGravity, rockets) |
 | **Dynamic Shallow Water PDE** | Terrain / Physics | Med-High | [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Watercraft wakes, boat bobbing, wave forces |
 | **Hydrostatic Buoyancy & Hull Slicing** | Physics | Medium | [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h), [FluidField2D](../libs/VehicleSimCore/physics/FluidField2D.h) | Boat flotation, righting moments, submarines |
-| **Ground Effect & Active DRS** | Dynamics | Low-Med | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h) | High-speed downforce, aerodynamic stalling |
+| **Ground Effect & Active DRS (Implemented)** | Dynamics | Low-Med | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h) | [Ground Effect & DRS Plan](GroundEffectDrsImplementationPlan.md) - High-speed downforce, aerodynamic stalling, DRS flaps ([GroundEffectAero2D.h](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h)) |
 | **Deterministic Snapshotting & Rollback** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Rewind mechanics, GGPO rollback netcode, testing |
 | **Stratified Terramechanics & Hydroplaning** | Terrain | Medium | [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Snow over bedrock, standing water aquaplaning loss of grip |
 | **Telemetry Ring-Buffer & Exporters (Implemented)** | Core / Diagnostic | Low | None | [Telemetry Plan](TelemetryRingBufferImplementationPlan.md) - Telemetry analysis, CSV logging, sensor streaming ([TelemetryRingBuffer2D.h](../libs/VehicleSimCore/telemetry/TelemetryRingBuffer2D.h)) |
