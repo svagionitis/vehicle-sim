@@ -4,6 +4,7 @@ add_executable(VehicleSimCoreTests
     ControlTest.cpp
     Spline2DTest.cpp
     PhysicsTest.cpp
+    JointTest.cpp
     FluidFieldTest.cpp
     DynamicsTest.cpp
     TerrainTest.cpp

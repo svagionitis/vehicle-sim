@@ -5,6 +5,7 @@
 
 #include "ContactSolver2D.h"
 #include "Integrator2D.h"
+#include "Joint2D.h"
 #include "RigidBody2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 
@@ -13,9 +14,9 @@ namespace vehicle_sim::physics {
 class FluidField2D;
 
 /// @class PhysicsWorld2D
-/// @brief World coordinator managing multiple 2D rigid bodies and global environment properties.
-/// @details Stepping the world advances all registered dynamic bodies using Symplectic Euler integration
-/// and applies global gravitational forces.
+/// @brief World coordinator managing multiple 2D rigid bodies, multi-body joints, and environment.
+/// @details Advances all registered dynamic bodies using Symplectic Euler integration,
+/// applies global gravitational forces, and solves multi-body joint constraints via sequential impulses.
 class PhysicsWorld2D {
 public:
     /// @brief Default constructor with standard downward gravity (0, -9.81).
@@ -49,7 +50,39 @@ public:
     /// @return Number of registered bodies.
     [[nodiscard]] std::size_t getBodyCount() const noexcept;
 
-    /// @brief Advances all registered rigid bodies by dt seconds.
+    /// @brief Registers a joint constraint with the physics world.
+    /// @details Non-owning reference. Does not re-add duplicate joints.
+    /// @param[in] joint Reference to joint constraint to simulate.
+    void addJoint(Joint2D& joint);
+
+    /// @brief Unregisters a joint constraint from the physics world.
+    /// @param[in] joint Reference to joint constraint to remove.
+    void removeJoint(Joint2D& joint) noexcept;
+
+    /// @brief Clears all registered joints from the world.
+    void clearJoints() noexcept;
+
+    /// @brief Gets the count of registered joints.
+    /// @return Number of registered joints.
+    [[nodiscard]] std::size_t getJointCount() const noexcept;
+
+    /// @brief Gets the number of velocity solver iterations.
+    /// @return Number of velocity iterations.
+    [[nodiscard]] std::size_t getVelocityIterations() const noexcept;
+
+    /// @brief Sets the number of velocity solver iterations.
+    /// @param[in] iterations Number of velocity iterations.
+    void setVelocityIterations(std::size_t iterations) noexcept;
+
+    /// @brief Gets the number of position solver iterations.
+    /// @return Number of position iterations.
+    [[nodiscard]] std::size_t getPositionIterations() const noexcept;
+
+    /// @brief Sets the number of position solver iterations.
+    /// @param[in] iterations Number of position iterations.
+    void setPositionIterations(std::size_t iterations) noexcept;
+
+    /// @brief Advances all registered rigid bodies and joints by dt seconds.
     /// @param[in] dt Time step in seconds.
     void step(double dt) noexcept;
 
@@ -77,7 +110,10 @@ public:
 
 private:
     math::Vec2 mGravity { 0.0, -9.81 };
-    std::vector<RigidBody2D*> mBodies { };
+    std::vector<RigidBody2D*> mBodies {};
+    std::vector<Joint2D*> mJoints {};
+    std::size_t mVelocityIterations { 8 };
+    std::size_t mPositionIterations { 3 };
     const FluidField2D* mFluidField { nullptr };
 };
 
