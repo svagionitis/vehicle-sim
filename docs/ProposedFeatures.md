@@ -441,7 +441,7 @@ Automate contact generation between rigid bodies and terrain, directly driving [
 
 ---
 
-### 4.3 Semi-Empirical Pacejka 'Magic Formula' Tire Model
+### 4.3 Semi-Empirical Pacejka 'Magic Formula' Tire Model (Implemented)
 
 #### Objective
 Upgrade vehicle traction models from linear cornering stiffness to non-linear tire slip saturation.
@@ -456,6 +456,8 @@ where:
 - $E$: Curvature factor governing post-peak drop-off.
 - **Combined Slip Ellipse**: Couples longitudinal acceleration and lateral cornering demand:
   $$\left(\frac{F_x}{F_{x,\text{max}}}\right)^2 + \left(\frac{F_y}{F_{y,\text{max}}}\right)^2 \le 1.0$$
+- Implemented in [PacejkaTireModel.h](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) and verified in [TireModelTest.cpp](../tests/TireModelTest.cpp).
+- Detailed specification and architecture: [Pacejka Tire Implementation Plan](PacejkaTireImplementationPlan.md).
 
 ---
 
@@ -496,7 +498,7 @@ Implemented via [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h) 
 | **PIDController, Filters & Kalman (Implemented)** | Math | Low | None | Autopilots, cruise control, sensor fusion ([PIDController.h](../libs/VehicleSimCore/math/PIDController.h)) |
 | **Revolute & Distance Joints (Implemented)** | Physics | High | `RigidBody2D`, `PhysicsWorld2D` | `ArticulatedTruckDynamics`, suspensions ([RevoluteJoint2D.h](../libs/VehicleSimCore/physics/RevoluteJoint2D.h)) |
 | **Narrowphase Collision (Implemented)** | Physics | High | `AABB2D`, `OBB2D`, `Polygon2D`, `Contact2D` | [Narrowphase Plan](NarrowphaseImplementationPlan.md) - Automated body & terrain collisions |
-| **Pacejka Tire Model** | Dynamics / Physics | Medium | `SurfaceMaterial` | Realistic wheeled dynamics (`ArcadeCar`, etc.) |
+| **Pacejka Tire Model (Implemented)** | Dynamics / Physics | Medium | `SurfaceMaterial` | [Pacejka Tire Plan](PacejkaTireImplementationPlan.md) - Realistic wheeled dynamics ([PacejkaTireModel.h](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [MonsterCarDynamics.h](../libs/VehicleSimCore/dynamics/MonsterCarDynamics.h)) |
 | **Deformable Rutting** | Terrain | Medium | `SurfaceMap2D`, `SurfaceMaterial` | Off-road tanks, monster trucks in mud/snow |
 | **Banked / Cambered Tracks (Implemented)** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | High-speed racing circuits ([BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h)) |
 | **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | Planes, rockets, trucks, boats, subs ([FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h)) |

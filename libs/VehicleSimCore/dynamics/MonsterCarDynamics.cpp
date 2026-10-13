@@ -8,7 +8,7 @@
 namespace vehicle_sim::dynamics {
 
 MonsterCarDynamics::MonsterCarDynamics() noexcept
-    : MonsterCarDynamics(MonsterCarConfig { })
+    : MonsterCarDynamics(MonsterCarConfig {})
 {
 }
 
@@ -27,6 +27,10 @@ MonsterCarDynamics::MonsterCarDynamics(const MonsterCarConfig& config) noexcept
     mWheels[kFrontRight].normalLoad = 0.5 * mFrontAxleWeight;
     mWheels[kRearLeft].normalLoad = 0.5 * mRearAxleWeight;
     mWheels[kRearRight].normalLoad = 0.5 * mRearAxleWeight;
+
+    for (auto& tire : mPacejkaTires) {
+        tire.setConfig(mConfig.pacejkaConfig);
+    }
 
     updateWheelLayout();
 }
@@ -175,38 +179,84 @@ void MonsterCarDynamics::step(physics::RigidBody2D& body, double dt) noexcept
         const double surfaceGrip { mGlobalGripModifier * mWheelGripModifiers[i] };
         wheel.surfaceGrip = surfaceGrip;
 
-        const double corneringStiff { wheel.isSteering ? mConfig.frontCorneringStiffness
-                                                       : mConfig.rearCorneringStiffness };
-        double fLat { -corneringStiff * slipAngle * surfaceGrip };
-
         double fLong { 0.0 };
-        if (wheel.isDriven) {
-            fLong += drivePerWheel * surfaceGrip;
-        }
+        double fLat { 0.0 };
 
-        const double rollingRes { -mConfig.rollingResistanceCoeff * vLong * mGlobalDragModifier };
-        fLong += rollingRes;
+        if (mConfig.usePacejkaTire) {
+            if (wheel.isDriven) {
+                fLong += drivePerWheel * surfaceGrip;
+            }
+            const double rollingRes { -mConfig.rollingResistanceCoeff * vLong * mGlobalDragModifier };
+            fLong += rollingRes;
 
-        if (brakePerWheel > 0.0 && std::abs(vLong) > 1e-3) {
-            const double brakeDir { (vLong > 0.0) ? -1.0 : 1.0 };
-            fLong += brakeDir * brakePerWheel * surfaceGrip;
-        }
+            if (brakePerWheel > 0.0 && std::abs(vLong) > 1e-3) {
+                const double brakeDir { (vLong > 0.0) ? -1.0 : 1.0 };
+                fLong += brakeDir * brakePerWheel * surfaceGrip;
+            }
+            if (mInput.handbrake && !wheel.isSteering && std::abs(vLong) > 1e-3) {
+                const double hbDir { (vLong > 0.0) ? -1.0 : 1.0 };
+                fLong += hbDir * (mConfig.handbrakeBrakeForce * 0.5) * surfaceGrip;
+            }
 
-        if (mInput.handbrake && !wheel.isSteering && std::abs(vLong) > 1e-3) {
-            const double hbDir { (vLong > 0.0) ? -1.0 : 1.0 };
-            fLong += hbDir * (mConfig.handbrakeBrakeForce * 0.5) * surfaceGrip;
-        }
+            TireState tState {};
+            tState.forwardSpeed = vLong;
+            tState.lateralSpeed = vLat;
+            tState.angularVelocity = vLong / mConfig.wheelRadius;
+            tState.normalLoad = wheel.normalLoad;
+            tState.surfaceFriction = surfaceGrip;
+            tState.surfaceDrag = mGlobalDragModifier;
 
-        const double fMax { mConfig.tireFrictionCoefficient * surfaceGrip * wheel.normalLoad };
-        const double fMag { std::hypot(fLong, fLat) };
+            const TireForces tForces { mPacejkaTires[i].evaluateForces(tState, dt) };
+            const double fLat0 { tForces.fLat };
 
-        if (fMag > fMax && fMag > 1e-6) {
-            const double scale { fMax / fMag };
-            fLong *= scale;
-            fLat *= scale;
-            wheel.isSaturated = true;
+            const double fMax { mConfig.tireFrictionCoefficient * surfaceGrip * wheel.normalLoad };
+            const double Dx { (fMax > 1e-3) ? fMax : 1.0 };
+            const double Dy { Dx };
+            const double rho { std::hypot(fLong / Dx, fLat0 / Dy) };
+
+            if (rho > 1.0) {
+                fLong /= rho;
+                fLat = fLat0 / rho;
+                wheel.isSaturated = true;
+            } else {
+                fLat = fLat0;
+                wheel.isSaturated = (rho > 0.95);
+            }
+
+            body.applyTorque(tForces.alignTorque);
         } else {
-            wheel.isSaturated = false;
+            const double corneringStiff { wheel.isSteering ? mConfig.frontCorneringStiffness
+                                                           : mConfig.rearCorneringStiffness };
+            fLat = -corneringStiff * slipAngle * surfaceGrip;
+
+            if (wheel.isDriven) {
+                fLong += drivePerWheel * surfaceGrip;
+            }
+
+            const double rollingRes { -mConfig.rollingResistanceCoeff * vLong * mGlobalDragModifier };
+            fLong += rollingRes;
+
+            if (brakePerWheel > 0.0 && std::abs(vLong) > 1e-3) {
+                const double brakeDir { (vLong > 0.0) ? -1.0 : 1.0 };
+                fLong += brakeDir * brakePerWheel * surfaceGrip;
+            }
+
+            if (mInput.handbrake && !wheel.isSteering && std::abs(vLong) > 1e-3) {
+                const double hbDir { (vLong > 0.0) ? -1.0 : 1.0 };
+                fLong += hbDir * (mConfig.handbrakeBrakeForce * 0.5) * surfaceGrip;
+            }
+
+            const double fMax { mConfig.tireFrictionCoefficient * surfaceGrip * wheel.normalLoad };
+            const double fMag { std::hypot(fLong, fLat) };
+
+            if (fMag > fMax && fMag > 1e-6) {
+                const double scale { fMax / fMag };
+                fLong *= scale;
+                fLat *= scale;
+                wheel.isSaturated = true;
+            } else {
+                wheel.isSaturated = false;
+            }
         }
 
         wheel.longitudinalForce = fLong;
@@ -228,7 +278,7 @@ void MonsterCarDynamics::step(physics::RigidBody2D& body, double dt) noexcept
 
 void MonsterCarDynamics::reset() noexcept
 {
-    mInput = MonsterCarInput { };
+    mInput = MonsterCarInput {};
     mCurrentGear = 1;
     mSteerAngle = 0.0;
     mEngineRPM = mConfig.engine.idleRPM;
@@ -268,6 +318,10 @@ void MonsterCarDynamics::reset() noexcept
         wheel.surfaceGrip = 1.0;
         wheel.isSaturated = false;
     }
+
+    for (auto& tire : mPacejkaTires) {
+        tire.reset();
+    }
 }
 
 [[nodiscard]] bool MonsterCarDynamics::isAirborne() const noexcept
@@ -293,6 +347,9 @@ void MonsterCarDynamics::setInput(const MonsterCarInput& input) noexcept
 void MonsterCarDynamics::setConfig(const MonsterCarConfig& config) noexcept
 {
     mConfig = config;
+    for (auto& tire : mPacejkaTires) {
+        tire.setConfig(mConfig.pacejkaConfig);
+    }
     updateWheelLayout();
 }
 

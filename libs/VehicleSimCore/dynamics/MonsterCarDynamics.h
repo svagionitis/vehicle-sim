@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
+#include "libs/VehicleSimCore/dynamics/PacejkaTireModel.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 
 namespace vehicle_sim::physics {
@@ -74,8 +75,11 @@ struct MonsterCarConfig {
     double jumpVerticalSpeed { 5.0 }; ///< Initial vertical jump velocity in m/s.
     double gravityZ { 9.81 }; ///< Vertical flight gravity acceleration in m/s^2.
 
-    EngineConfig engine { }; ///< Powertrain engine configuration.
-    TransmissionConfig transmission { }; ///< Powertrain gearbox configuration.
+    EngineConfig engine {}; ///< Powertrain engine configuration.
+    TransmissionConfig transmission {}; ///< Powertrain gearbox configuration.
+
+    bool usePacejkaTire { false }; ///< When true, evaluates non-linear tire forces via Pacejka Magic Formula.
+    PacejkaConfig pacejkaConfig {}; ///< Empirical Pacejka tire configuration parameters.
 };
 
 /// @struct MonsterCarInput
@@ -247,11 +251,12 @@ private:
     void updateTransmission(double dt) noexcept;
     [[nodiscard]] double calculateTorque(double rpm) const noexcept;
 
-    MonsterCarConfig mConfig { };
-    MonsterCarInput mInput { };
+    MonsterCarConfig mConfig {};
+    MonsterCarInput mInput {};
 
-    std::array<MonsterWheelTelemetry, kWheelCount> mWheels { };
+    std::array<MonsterWheelTelemetry, kWheelCount> mWheels {};
     std::array<double, kWheelCount> mWheelGripModifiers { 1.0, 1.0, 1.0, 1.0 };
+    std::array<PacejkaTireModel, kWheelCount> mPacejkaTires {};
 
     double mGlobalGripModifier { 1.0 };
     double mGlobalDragModifier { 1.0 };

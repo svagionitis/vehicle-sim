@@ -87,6 +87,8 @@ add_library(VehicleSimCore STATIC
     dynamics/ArticulatedTruckDynamics.cpp
     dynamics/EarthRoverDynamics.h
     dynamics/EarthRoverDynamics.cpp
+    dynamics/PacejkaTireModel.h
+    dynamics/PacejkaTireModel.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
     terrain/GradientNoise.h
