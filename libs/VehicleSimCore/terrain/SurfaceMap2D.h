@@ -8,6 +8,7 @@
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
+#include "libs/VehicleSimCore/terrain/DeformableTerrain.h"
 #include "libs/VehicleSimCore/terrain/FractalNoise.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
 
@@ -359,6 +360,63 @@ public:
     /// @param[in] body Associated vehicle rigid body in world space.
     void applySurfaceToCar(dynamics::ArcadeCarDynamics& car, const physics::RigidBody2D& body) const noexcept;
 
+    /// @brief Enables or disables deformable soil rutting layer.
+    /// @param[in] enable True to enable deformable soil rutting.
+    void enableDeformableLayer(bool enable) noexcept;
+
+    /// @brief Queries whether deformable soil rutting is enabled.
+    /// @return True if deformable layer is active.
+    [[nodiscard]] bool isDeformableEnabled() const noexcept;
+
+    /// @brief Configures deformable soil rutting grid dimensions.
+    /// @param[in] origin Minimum corner coordinates in world meters.
+    /// @param[in] cellSize Cell dimensions [dx, dy] in meters.
+    /// @param[in] width Number of columns.
+    /// @param[in] height Number of rows.
+    void initDeformableLayer(
+        const math::Vec2& origin, const math::Vec2& cellSize, std::size_t width, std::size_t height);
+
+    /// @brief Applies a wheel or track rut stamp and mutates surface elevations.
+    /// @param[in] stamp Wheel footprint geometry, load, and kinematics.
+    /// @return SoilSinkageResult containing forces and sinkage depth.
+    SoilSinkageResult applyRutStamp(const RutStamp2D& stamp) noexcept;
+
+    /// @brief Advances viscoelastic soil recovery over timestep dt.
+    /// @param[in] dt Elapsed time in seconds.
+    void updateRutRecovery(double dt) noexcept;
+
+    /// @brief Clears all accumulated wheel ruts from the deformable layer.
+    void clearRuts() noexcept;
+
+    /// @brief Evaluates total surface elevation including deformable rutting.
+    /// @param[in] x World X coordinate in meters.
+    /// @param[in] y World Y coordinate in meters.
+    /// @return Surface elevation in meters.
+    [[nodiscard]] double getDeformedHeight(double x, double y) const noexcept;
+
+    /// @brief Evaluates total surface elevation including deformable rutting.
+    /// @param[in] point World coordinates in meters.
+    /// @return Surface elevation in meters.
+    [[nodiscard]] double getDeformedHeight(const math::Vec2& point) const noexcept;
+
+    /// @brief Evaluates rut elevation offset (negative in ruts, positive on berms).
+    /// @param[in] x World X coordinate in meters.
+    /// @param[in] y World Y coordinate in meters.
+    /// @return Rut delta in meters.
+    [[nodiscard]] double getRutDelta(double x, double y) const noexcept;
+
+    /// @brief Gets maximum depth among all accumulated wheel ruts.
+    /// @return Maximum rut depression in meters (positive value).
+    [[nodiscard]] double getMaxRutDepth() const noexcept;
+
+    /// @brief Gets const reference to underlying deformable terrain layer.
+    /// @return Const reference to internal DeformableTerrainLayer.
+    [[nodiscard]] const DeformableTerrainLayer& getDeformableLayer() const noexcept;
+
+    /// @brief Gets mutable reference to underlying deformable terrain layer.
+    /// @return Mutable reference to internal DeformableTerrainLayer.
+    [[nodiscard]] DeformableTerrainLayer& getDeformableLayer() noexcept;
+
 private:
     [[nodiscard]] std::pair<double, math::Vec2> sampleGrid(double x, double y) const noexcept;
     [[nodiscard]] double getGridSample(int ix, int iy) const noexcept;
@@ -380,6 +438,9 @@ private:
     SurfaceMaterial mDefaultMaterial {};
     FractalNoise mNoise {};
     std::vector<MaterialZone2D> mMaterialZones {};
+
+    bool mEnableDeformable { false };
+    DeformableTerrainLayer mDeformableLayer {};
 };
 
 /// @brief Type alias for 2D top-down surface and elevation map.

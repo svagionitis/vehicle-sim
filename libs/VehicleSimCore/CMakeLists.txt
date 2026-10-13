@@ -99,6 +99,8 @@ add_library(VehicleSimCore STATIC
     terrain/Heightfield1D.cpp
     terrain/SurfaceMap2D.h
     terrain/SurfaceMap2D.cpp
+    terrain/DeformableTerrain.h
+    terrain/DeformableTerrain.cpp
     terrain/ElevationMap2D.h
     terrain/BankedTrack.h
     terrain/BankedTrack.cpp

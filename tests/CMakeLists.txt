@@ -8,6 +8,7 @@ add_executable(VehicleSimCoreTests
     FluidFieldTest.cpp
     DynamicsTest.cpp
     TerrainTest.cpp
+    DeformableTerrainTest.cpp
     NarrowphaseTest.cpp
     TireModelTest.cpp
 )

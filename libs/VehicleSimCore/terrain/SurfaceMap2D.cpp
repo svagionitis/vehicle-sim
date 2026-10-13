@@ -50,6 +50,10 @@ void SurfaceMap2D::setGrid(const math::Vec2& origin, const math::Vec2& cellSize,
     mGridWidth = width;
     mGridHeight = height;
     mGridData = elevations;
+
+    if (mEnableDeformable) {
+        mDeformableLayer.initGrid(origin, cellSize, width, height);
+    }
 }
 
 void SurfaceMap2D::setGridElevation(std::size_t xIndex, std::size_t yIndex, double elevation) noexcept
@@ -387,6 +391,10 @@ SurfaceSample2D SurfaceMap2D::sampleSurface(double x, double y) const noexcept
         totalGrad.y += mVerticalScale * mHorizontalScale.y * noiseSample.gradient.y;
     }
 
+    if (mEnableDeformable && mDeformableLayer.isInitialized()) {
+        totalElevation += mDeformableLayer.getRutDelta(x, y);
+    }
+
     sample.elevation = totalElevation;
     sample.gradient = totalGrad;
 
@@ -462,6 +470,87 @@ void SurfaceMap2D::applySurfaceToCar(dynamics::ArcadeCarDynamics& car, const phy
         const auto wheelSample = sampleSurface(worldPos);
         car.setWheelSurfaceModifier(w, wheelSample.material.friction);
     }
+}
+
+void SurfaceMap2D::enableDeformableLayer(bool enable) noexcept
+{
+    mEnableDeformable = enable;
+    if (mEnableDeformable && hasGrid() && !mDeformableLayer.isInitialized()) {
+        mDeformableLayer.initGrid(mGridOrigin, mCellSize, mGridWidth, mGridHeight);
+    }
+}
+
+bool SurfaceMap2D::isDeformableEnabled() const noexcept
+{
+    return mEnableDeformable;
+}
+
+void SurfaceMap2D::initDeformableLayer(
+    const math::Vec2& origin, const math::Vec2& cellSize, std::size_t width, std::size_t height)
+{
+    mDeformableLayer.initGrid(origin, cellSize, width, height);
+}
+
+SoilSinkageResult SurfaceMap2D::applyRutStamp(const RutStamp2D& stamp) noexcept
+{
+    if (!mEnableDeformable) {
+        return SoilSinkageResult {};
+    }
+
+    if (!mDeformableLayer.isInitialized() && hasGrid()) {
+        mDeformableLayer.initGrid(mGridOrigin, mCellSize, mGridWidth, mGridHeight);
+    }
+
+    const SurfaceMaterial mat = getMaterial(stamp.position);
+    return mDeformableLayer.applyRutStamp(stamp, mat.soil);
+}
+
+void SurfaceMap2D::updateRutRecovery(double dt) noexcept
+{
+    if (mEnableDeformable && mDeformableLayer.isInitialized()) {
+        mDeformableLayer.updateRelaxation(dt, mDefaultMaterial.soil);
+    }
+}
+
+void SurfaceMap2D::clearRuts() noexcept
+{
+    mDeformableLayer.clearRuts();
+}
+
+double SurfaceMap2D::getDeformedHeight(double x, double y) const noexcept
+{
+    return sampleSurface(x, y).elevation;
+}
+
+double SurfaceMap2D::getDeformedHeight(const math::Vec2& point) const noexcept
+{
+    return sampleSurface(point.x, point.y).elevation;
+}
+
+double SurfaceMap2D::getRutDelta(double x, double y) const noexcept
+{
+    if (!mEnableDeformable || !mDeformableLayer.isInitialized()) {
+        return 0.0;
+    }
+    return mDeformableLayer.getRutDelta(x, y);
+}
+
+double SurfaceMap2D::getMaxRutDepth() const noexcept
+{
+    if (!mDeformableLayer.isInitialized()) {
+        return 0.0;
+    }
+    return mDeformableLayer.getMaxRutDepth();
+}
+
+const DeformableTerrainLayer& SurfaceMap2D::getDeformableLayer() const noexcept
+{
+    return mDeformableLayer;
+}
+
+DeformableTerrainLayer& SurfaceMap2D::getDeformableLayer() noexcept
+{
+    return mDeformableLayer;
 }
 
 } // namespace vehicle_sim::terrain

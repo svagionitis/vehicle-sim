@@ -20,16 +20,36 @@ enum class MaterialType : std::uint8_t {
     Grass ///< Natural turf with moderate grip and higher rolling drag.
 };
 
+/// @struct SoilMechanicsConfig
+/// @brief Physical terramechanics parameters governing soil deformation and rutting.
+/// @details Parameterizes the semi-empirical Bekker pressure-sinkage equation,
+/// Hegazy-Bekker bulldozing resistance, and viscoelastic recovery dynamics.
+struct SoilMechanicsConfig {
+    double cohesionModulus { 1000.0 }; ///< Modulus of soil cohesion kc in N/m^(n+1).
+    double frictionModulus { 50000.0 }; ///< Modulus of soil internal friction kphi in N/m^(n+2).
+    double sinkageExponent { 0.8 }; ///< Dimensionless sinkage exponent n in range [0.3, 1.5].
+    double maxPlasticDepth { 0.25 }; ///< Hardpan refusal depth z_max in meters.
+    double plasticRatio { 0.75 }; ///< Ratio of permanent plastic deformation in [0.0, 1.0].
+    double recoveryTime { 0.0 }; ///< Viscoelastic relaxation time tau in seconds (0 = permanent).
+    double compactionRatio { 0.40 }; ///< Soil volume compaction ratio in [0.0, 1.0].
+    double bulkDensity { 1600.0 }; ///< Soil bulk density rho in kg/m^3.
+    double cohesion { 2000.0 }; ///< Soil cohesive shear strength c in N/m^2 (Pa).
+    double frictionAngle { 0.45 }; ///< Soil internal friction angle phi in radians (~26 deg).
+    double hardeningRate { 2.0 }; ///< Multi-pass compaction hardening multiplier.
+    bool isDeformable { false }; ///< True if material permits physical sinkage and rutting.
+};
+
 /// @struct SurfaceMaterial
 /// @brief Physical surface traction, drag, and restitution parameters.
 /// @details Defines Coulomb friction multiplier, rolling resistance multiplier,
-/// normal restitution coefficient, and fluid status.
+/// normal restitution coefficient, fluid status, and terramechanics soil properties.
 struct SurfaceMaterial {
     MaterialType type { MaterialType::Tarmac };
     double friction { 1.0 }; ///< Coulomb friction coefficient multiplier.
     double rollingDrag { 1.0 }; ///< Rolling resistance multiplier.
     double restitution { 0.1 }; ///< Collision normal restitution coefficient.
     bool isLiquid { false }; ///< True if medium is penetrable liquid.
+    SoilMechanicsConfig soil {}; ///< Terramechanics soil properties.
 
     /// @brief Gets preset physical surface material parameters for a given type.
     /// @param[in] materialType Target material classification.

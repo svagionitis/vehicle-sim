@@ -67,10 +67,10 @@ This specification details proposed architectural and algorithmic enhancements a
 
 ## 2. Terrain Systems
 
-### 2.1 Soil Mechanics and Deformable Surface Rutting (Bekker-Wong Model)
+### 2.1 Soil Mechanics and Deformable Surface Rutting (Bekker-Wong Model) (Implemented)
 
 #### Objective
-Enable physical plastic and elastic deformation of deformable terrain (mud, sand, soft dirt, snow) caused by tire contact forces, leaving permanent or viscoelastic wheel ruts.
+Enable physical plastic and elastic deformation of deformable terrain (mud, sand, soft dirt, snow) caused by tire contact forces, leaving permanent or viscoelastic wheel ruts. Detailed architectural and terramechanics design specification: [Deformable Rutting Plan](DeformableRuttingImplementationPlan.md).
 
 #### Technical Formulation
 - **Sinkage Model**: Based on the semi-empirical Bekker pressure-sinkage relationship:
@@ -499,7 +499,7 @@ Implemented via [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h) 
 | **Revolute & Distance Joints (Implemented)** | Physics | High | `RigidBody2D`, `PhysicsWorld2D` | `ArticulatedTruckDynamics`, suspensions ([RevoluteJoint2D.h](../libs/VehicleSimCore/physics/RevoluteJoint2D.h)) |
 | **Narrowphase Collision (Implemented)** | Physics | High | `AABB2D`, `OBB2D`, `Polygon2D`, `Contact2D` | [Narrowphase Plan](NarrowphaseImplementationPlan.md) - Automated body & terrain collisions |
 | **Pacejka Tire Model (Implemented)** | Dynamics / Physics | Medium | `SurfaceMaterial` | [Pacejka Tire Plan](PacejkaTireImplementationPlan.md) - Realistic wheeled dynamics ([PacejkaTireModel.h](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [MonsterCarDynamics.h](../libs/VehicleSimCore/dynamics/MonsterCarDynamics.h)) |
-| **Deformable Rutting** | Terrain | Medium | `SurfaceMap2D`, `SurfaceMaterial` | Off-road tanks, monster trucks in mud/snow |
+| **Deformable Rutting (Implemented)** | Terrain | Medium | `SurfaceMap2D`, `SurfaceMaterial` | [Deformable Rutting Plan](DeformableRuttingImplementationPlan.md) - Soil sinkage, permanent ruts, compaction drag ([DeformableTerrain.h](../libs/VehicleSimCore/terrain/DeformableTerrain.h)) |
 | **Banked / Cambered Tracks (Implemented)** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | High-speed racing circuits ([BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h)) |
 | **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | Planes, rockets, trucks, boats, subs ([FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h)) |
 | **Earth Patrol (3-Axle Rover & SDL Game) (Implemented)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [Earth Patrol Plan](EarthPatrolImplementationPlan.md) - Moon Patrol style side-scroller on Earth ([apps/EarthPatrol](../apps/EarthPatrol)) |
