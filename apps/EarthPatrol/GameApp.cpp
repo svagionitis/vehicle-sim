@@ -31,7 +31,7 @@ namespace {
 } // namespace
 
 GameApp::GameApp()
-    : GameApp(GameAppConfig { })
+    : GameApp(GameAppConfig {})
 {
 }
 
@@ -39,14 +39,14 @@ GameApp::GameApp(const GameAppConfig& config)
     : config_ { config }
     , lives_ { config.initialLives }
 {
-    CameraConfig camConfig { };
+    CameraConfig camConfig {};
     camConfig.viewportWidth = config_.windowWidth;
     camConfig.viewportHeight = config_.windowHeight;
     camera_.setConfig(camConfig);
 
     rover_.setTerrain(&course_.getHeightfield());
 
-    vehicle_sim::physics::RigidBodyConfig bodyConfig { };
+    vehicle_sim::physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 850.0;
     bodyConfig.inertia = 650.0;
     bodyConfig.position = vehicle_sim::math::Vec2 { 0.0, 1.20 };
@@ -185,7 +185,7 @@ void GameApp::advanceStage() noexcept
 
 void GameApp::processEvents() noexcept
 {
-    SDL_Event event { };
+    SDL_Event event {};
     auto input { rover_.getInput() };
 
     while (SDL_PollEvent(&event) != 0) {
@@ -413,7 +413,10 @@ void GameApp::updatePhysics(double dt) noexcept
     roverBody_.clearForces();
 
     course_.update(roverBody_.getPosition().x, dt);
-    camera_.update(roverBody_.getPosition(), rover_.getSpeed(), dt);
+    const double roverX { roverBody_.getPosition().x };
+    const double groundElev { course_.getHeightfield().getHeight(roverX) };
+    const double targetCamY { groundElev + 0.80 };
+    camera_.update(vehicle_sim::math::Vec2 { roverX, targetCamY }, rover_.getSpeed(), dt);
     parallax_.update(dt);
     obstacles_.updateDynamic(dt, course_.getHeightfield());
 
@@ -556,6 +559,22 @@ void GameApp::renderFrame() noexcept
         return;
     }
 
+    Uint8 bgR { 20 };
+    Uint8 bgG { 26 };
+    Uint8 bgB { 42 };
+    if (biomeIndex_ == 1) { // Desert Badlands
+        bgR = 40;
+        bgG = 25;
+        bgB = 20;
+    } else if (biomeIndex_ == 2) { // Alpine Forest Pass
+        bgR = 25;
+        bgG = 55;
+        bgB = 95;
+    }
+
+    SDL_SetRenderDrawColor(renderer_.get(), bgR, bgG, bgB, 255);
+    SDL_RenderClear(renderer_.get());
+
     parallax_.render(renderer_.get(), camera_, biomeIndex_);
     renderTerrain();
     obstacles_.render(renderer_.get(), camera_);
@@ -663,8 +682,8 @@ void GameApp::renderCheckpoints() noexcept
         SDL_RenderFillRect(renderer_.get(), &flagRect);
 
         // Render milestone letter flag
-        PixelFont::drawText(renderer_.get(), std::string(1, cp.letter), pylonX + 8, pylonTopY + 3, 2,
-            { 20, 25, 35, 255 });
+        PixelFont::drawText(
+            renderer_.get(), std::string(1, cp.letter), pylonX + 8, pylonTopY + 3, 2, { 20, 25, 35, 255 });
     }
 }
 
@@ -683,8 +702,8 @@ void GameApp::renderRover() noexcept
         const auto hubScreen { camera_.worldToScreen(ws.worldPos) };
 
         SDL_SetRenderDrawColor(renderer_.get(), 180, 185, 195, 255);
-        SDL_RenderDrawLine(renderer_.get(), roverX + static_cast<int>(wheelXOffset * 22.0),
-            roverY, static_cast<int>(hubScreen.x), static_cast<int>(hubScreen.y));
+        SDL_RenderDrawLine(renderer_.get(), roverX + static_cast<int>(wheelXOffset * 22.0), roverY,
+            static_cast<int>(hubScreen.x), static_cast<int>(hubScreen.y));
 
         SDL_SetRenderDrawColor(renderer_.get(), 30, 32, 40, 255);
         SDL_Rect tireRect { static_cast<int>(hubScreen.x) - 10, static_cast<int>(hubScreen.y) - 10, 20, 20 };
@@ -820,8 +839,8 @@ void GameApp::renderHUD() noexcept
         biomeName = "ALPINE PASS";
     }
     const int badgeW { PixelFont::getTextWidth(biomeName, 2) };
-    PixelFont::drawText(renderer_.get(), biomeName, config_.windowWidth - badgeW - 24,
-        config_.windowHeight - 38, 2, { 160, 200, 220, 255 });
+    PixelFont::drawText(renderer_.get(), biomeName, config_.windowWidth - badgeW - 24, config_.windowHeight - 38, 2,
+        { 160, 200, 220, 255 });
 }
 
 void GameApp::renderTitleScreen() noexcept
@@ -843,19 +862,19 @@ void GameApp::renderTitleScreen() noexcept
     // Title banner
     const std::string title { "EARTH PATROL" };
     const int titleW { PixelFont::getTextWidth(title, 7) };
-    PixelFont::drawText(renderer_.get(), title, (config_.windowWidth - titleW) / 2, cardY + 36, 7,
-        { 255, 190, 40, 255 });
+    PixelFont::drawText(
+        renderer_.get(), title, (config_.windowWidth - titleW) / 2, cardY + 36, 7, { 255, 190, 40, 255 });
 
     const std::string subTitle { "TERRESTRIAL SURFACE DEFENSE SQUADRON" };
     const int subW { PixelFont::getTextWidth(subTitle, 2) };
-    PixelFont::drawText(renderer_.get(), subTitle, (config_.windowWidth - subW) / 2, cardY + 98, 2,
-        { 100, 220, 255, 255 });
+    PixelFont::drawText(
+        renderer_.get(), subTitle, (config_.windowWidth - subW) / 2, cardY + 98, 2, { 100, 220, 255, 255 });
 
     // Start prompt
     const std::string startPrompt { "PRESS SPACE OR ENTER TO START" };
     const int promptW { PixelFont::getTextWidth(startPrompt, 3) };
-    PixelFont::drawText(renderer_.get(), startPrompt, (config_.windowWidth - promptW) / 2, cardY + 150, 3,
-        { 255, 255, 255, 255 });
+    PixelFont::drawText(
+        renderer_.get(), startPrompt, (config_.windowWidth - promptW) / 2, cardY + 150, 3, { 255, 255, 255, 255 });
 
     // Mission controls box
     const int boxX { cardX + 40 };
@@ -864,23 +883,22 @@ void GameApp::renderTitleScreen() noexcept
     SDL_Rect boxRect { boxX, boxY, cardW - 80, 190 };
     SDL_RenderFillRect(renderer_.get(), &boxRect);
 
-    PixelFont::drawText(renderer_.get(), "MISSION DIRECTIVE & CONTROLS:", boxX + 20, boxY + 16, 2,
-        { 255, 220, 50, 255 });
-    PixelFont::drawText(renderer_.get(), "[D] / [RIGHT]  ACCELERATE", boxX + 20, boxY + 48, 2,
-        { 220, 230, 245, 255 });
-    PixelFont::drawText(renderer_.get(), "[A] / [LEFT]   BRAKE / REVERSE", boxX + 20, boxY + 76, 2,
-        { 220, 230, 245, 255 });
-    PixelFont::drawText(renderer_.get(), "[SPACE] / [W]  VERTICAL JUMP THRUSTERS", boxX + 20, boxY + 104, 2,
-        { 220, 230, 245, 255 });
-    PixelFont::drawText(renderer_.get(), "[B] CYCLE BIOME   [ESC] ABORT MISSION", boxX + 20, boxY + 132, 2,
-        { 180, 190, 205, 255 });
-    PixelFont::drawText(renderer_.get(), "CLEAR CRATERS & REACH MILESTONE E", boxX + 20, boxY + 160, 2,
-        { 80, 240, 140, 255 });
+    PixelFont::drawText(
+        renderer_.get(), "MISSION DIRECTIVE & CONTROLS:", boxX + 20, boxY + 16, 2, { 255, 220, 50, 255 });
+    PixelFont::drawText(renderer_.get(), "[D] / [RIGHT]  ACCELERATE", boxX + 20, boxY + 48, 2, { 220, 230, 245, 255 });
+    PixelFont::drawText(
+        renderer_.get(), "[A] / [LEFT]   BRAKE / REVERSE", boxX + 20, boxY + 76, 2, { 220, 230, 245, 255 });
+    PixelFont::drawText(
+        renderer_.get(), "[SPACE] / [W]  VERTICAL JUMP THRUSTERS", boxX + 20, boxY + 104, 2, { 220, 230, 245, 255 });
+    PixelFont::drawText(
+        renderer_.get(), "[B] CYCLE BIOME   [ESC] ABORT MISSION", boxX + 20, boxY + 132, 2, { 180, 190, 205, 255 });
+    PixelFont::drawText(
+        renderer_.get(), "CLEAR CRATERS & REACH MILESTONE E", boxX + 20, boxY + 160, 2, { 80, 240, 140, 255 });
 
     const std::string hiNotice { "BEST RECORD: " + formatScore(highScore_, 6) + " PTS" };
     const int hiNoticeW { PixelFont::getTextWidth(hiNotice, 2) };
-    PixelFont::drawText(renderer_.get(), hiNotice, (config_.windowWidth - hiNoticeW) / 2, cardY + 430, 2,
-        { 255, 220, 50, 255 });
+    PixelFont::drawText(
+        renderer_.get(), hiNotice, (config_.windowWidth - hiNoticeW) / 2, cardY + 430, 2, { 255, 220, 50, 255 });
 }
 
 void GameApp::renderStageClear() noexcept
@@ -901,13 +919,13 @@ void GameApp::renderStageClear() noexcept
 
     const std::string clearTitle { "STAGE CLEAR!" };
     const int titleW { PixelFont::getTextWidth(clearTitle, 6) };
-    PixelFont::drawText(renderer_.get(), clearTitle, (config_.windowWidth - titleW) / 2, cardY + 40, 6,
-        { 60, 240, 110, 255 });
+    PixelFont::drawText(
+        renderer_.get(), clearTitle, (config_.windowWidth - titleW) / 2, cardY + 40, 6, { 60, 240, 110, 255 });
 
     const std::string reachedStr { "MILESTONE E REACHED" };
     const int reachW { PixelFont::getTextWidth(reachedStr, 3) };
-    PixelFont::drawText(renderer_.get(), reachedStr, (config_.windowWidth - reachW) / 2, cardY + 110, 3,
-        { 255, 255, 255, 255 });
+    PixelFont::drawText(
+        renderer_.get(), reachedStr, (config_.windowWidth - reachW) / 2, cardY + 110, 3, { 255, 255, 255, 255 });
 
     const std::string timeStr { "STAGE TIME: " + formatTime(stageTime_) };
     const std::string parStr { "PAR TIME:   045.0S" };
@@ -921,8 +939,8 @@ void GameApp::renderStageClear() noexcept
 
     const std::string advancePrompt { "PRESS SPACE FOR NEXT BIOME" };
     const int advW { PixelFont::getTextWidth(advancePrompt, 3) };
-    PixelFont::drawText(renderer_.get(), advancePrompt, (config_.windowWidth - advW) / 2, cardY + 355, 3,
-        { 100, 220, 255, 255 });
+    PixelFont::drawText(
+        renderer_.get(), advancePrompt, (config_.windowWidth - advW) / 2, cardY + 355, 3, { 100, 220, 255, 255 });
 }
 
 void GameApp::renderGameOver() noexcept
@@ -943,27 +961,27 @@ void GameApp::renderGameOver() noexcept
 
     const std::string goTitle { "GAME OVER" };
     const int titleW { PixelFont::getTextWidth(goTitle, 7) };
-    PixelFont::drawText(renderer_.get(), goTitle, (config_.windowWidth - titleW) / 2, cardY + 40, 7,
-        { 240, 50, 40, 255 });
+    PixelFont::drawText(
+        renderer_.get(), goTitle, (config_.windowWidth - titleW) / 2, cardY + 40, 7, { 240, 50, 40, 255 });
 
     const std::string lostStr { "ALL ROVER UNITS LOST" };
     const int lostW { PixelFont::getTextWidth(lostStr, 3) };
-    PixelFont::drawText(renderer_.get(), lostStr, (config_.windowWidth - lostW) / 2, cardY + 120, 3,
-        { 255, 255, 255, 255 });
+    PixelFont::drawText(
+        renderer_.get(), lostStr, (config_.windowWidth - lostW) / 2, cardY + 120, 3, { 255, 255, 255, 255 });
 
     const std::string finalScore { "FINAL SCORE: " + formatScore(score_, 6) + " PTS" };
     const std::string bestScore { "HIGH SCORE:  " + formatScore(highScore_, 6) + " PTS" };
     const int fsW { PixelFont::getTextWidth(finalScore, 3) };
     const int bsW { PixelFont::getTextWidth(bestScore, 3) };
-    PixelFont::drawText(renderer_.get(), finalScore, (config_.windowWidth - fsW) / 2, cardY + 180, 3,
-        { 255, 220, 50, 255 });
-    PixelFont::drawText(renderer_.get(), bestScore, (config_.windowWidth - bsW) / 2, cardY + 225, 3,
-        { 240, 190, 40, 255 });
+    PixelFont::drawText(
+        renderer_.get(), finalScore, (config_.windowWidth - fsW) / 2, cardY + 180, 3, { 255, 220, 50, 255 });
+    PixelFont::drawText(
+        renderer_.get(), bestScore, (config_.windowWidth - bsW) / 2, cardY + 225, 3, { 240, 190, 40, 255 });
 
     const std::string returnPrompt { "PRESS SPACE FOR TITLE SCREEN" };
     const int retW { PixelFont::getTextWidth(returnPrompt, 3) };
-    PixelFont::drawText(renderer_.get(), returnPrompt, (config_.windowWidth - retW) / 2, cardY + 310, 3,
-        { 100, 220, 255, 255 });
+    PixelFont::drawText(
+        renderer_.get(), returnPrompt, (config_.windowWidth - retW) / 2, cardY + 310, 3, { 100, 220, 255, 255 });
 }
 
 bool GameApp::isRunning() const noexcept

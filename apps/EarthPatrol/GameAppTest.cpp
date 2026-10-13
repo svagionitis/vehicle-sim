@@ -8,7 +8,7 @@ namespace earth_patrol {
 
 TEST(GameAppTest, DefaultStateIsTitleScreen)
 {
-    GameAppConfig config { };
+    GameAppConfig config {};
     config.headless = true;
     GameApp app { config };
 
@@ -22,7 +22,7 @@ TEST(GameAppTest, DefaultStateIsTitleScreen)
 
 TEST(GameAppTest, StartNewGameTransitionsToPlaying)
 {
-    GameAppConfig config { };
+    GameAppConfig config {};
     config.headless = true;
     GameApp app { config };
     ASSERT_TRUE(app.initialize());
@@ -37,7 +37,7 @@ TEST(GameAppTest, StartNewGameTransitionsToPlaying)
 
 TEST(GameAppTest, AdvanceStageCyclesBiomes)
 {
-    GameAppConfig config { };
+    GameAppConfig config {};
     config.headless = true;
     GameApp app { config };
     ASSERT_TRUE(app.initialize());
@@ -60,7 +60,7 @@ TEST(GameAppTest, AdvanceStageCyclesBiomes)
 
 TEST(GameAppTest, CheckpointCrossingAwardsPoints)
 {
-    GameAppConfig config { };
+    GameAppConfig config {};
     config.headless = true;
     GameApp app { config };
     ASSERT_TRUE(app.initialize());
@@ -77,7 +77,7 @@ TEST(GameAppTest, CheckpointCrossingAwardsPoints)
 
 TEST(GameAppTest, FatalCollisionCausesCrashAndReducesLife)
 {
-    GameAppConfig config { };
+    GameAppConfig config {};
     config.headless = true;
     GameApp app { config };
     ASSERT_TRUE(app.initialize());
@@ -96,7 +96,7 @@ TEST(GameAppTest, FatalCollisionCausesCrashAndReducesLife)
 
 TEST(GameAppTest, CourseClearanceTransitionsToStageClear)
 {
-    GameAppConfig config { };
+    GameAppConfig config {};
     config.headless = true;
     GameApp app { config };
     ASSERT_TRUE(app.initialize());
@@ -111,6 +111,72 @@ TEST(GameAppTest, CourseClearanceTransitionsToStageClear)
     EXPECT_GE(app.getScore(), 5000);
 }
 
+TEST(GameAppTest, CameraMaintainsGroundConformityDuringJump)
+{
+    GameAppConfig config {};
+    config.headless = true;
+    GameApp app { config };
+    ASSERT_TRUE(app.initialize());
+
+    app.startNewGame();
+
+    // Settle rover onto terrain suspension (0.2s)
+    for (int i { 0 }; i < 15; ++i) {
+        app.updatePhysics(0.016);
+    }
+
+    // Trigger jump impulse
+    app.getRover().triggerJump();
+
+    // Step physics forward through ascent phase (0.4s)
+    for (int i { 0 }; i < 25; ++i) {
+        app.updatePhysics(0.016);
+    }
+
+    // Rover chassis should be airborne above ground
+    EXPECT_GT(app.getRoverBody().getPosition().y, 2.5);
+
+    // Camera vertical anchor should conform to ground elevation (<= 1.5m),
+    // not follow the jumping rover into the air and cause background voids.
+    EXPECT_LE(app.getCamera().getPosition().y, 1.5);
+}
+
+TEST(ParallaxRendererTest, BackgroundCoversEntireViewportHeight)
+{
+    SDL_Surface* surface { SDL_CreateRGBSurfaceWithFormat(0, 320, 240, 32, SDL_PIXELFORMAT_RGBA8888) };
+    ASSERT_NE(surface, nullptr);
+    SDL_Renderer* renderer { SDL_CreateSoftwareRenderer(surface) };
+    ASSERT_NE(renderer, nullptr);
+
+    // Clear surface with transparent / empty (alpha = 0)
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+
+    CameraConfig camCfg {};
+    camCfg.viewportWidth = 320;
+    camCfg.viewportHeight = 240;
+    Camera2D camera { camCfg };
+
+    ParallaxRenderer parallax {};
+    parallax.render(renderer, camera, 0);
+
+    // Query bottom pixel at y = 239
+    const auto* pixels { static_cast<const Uint32*>(surface->pixels) };
+    const Uint32 bottomPixel { pixels[(239 * 320) + 160] };
+
+    Uint8 r { 0 };
+    Uint8 g { 0 };
+    Uint8 b { 0 };
+    Uint8 a { 0 };
+    SDL_GetRGBA(bottomPixel, surface->format, &r, &g, &b, &a);
+
+    SDL_DestroyRenderer(renderer);
+    SDL_FreeSurface(surface);
+
+    EXPECT_EQ(a, 255);
+    EXPECT_GT(static_cast<int>(r) + static_cast<int>(g) + static_cast<int>(b), 0);
+}
+
 TEST(PixelFontTest, TextWidthCalculations)
 {
     EXPECT_EQ(PixelFont::getTextWidth("", 2), 0);
@@ -121,7 +187,7 @@ TEST(PixelFontTest, TextWidthCalculations)
 
 TEST(ParticleSystemTest, EmissionAndEulerDecay)
 {
-    ParticleSystem ps { };
+    ParticleSystem ps {};
     EXPECT_EQ(ps.getActiveCount(), 0);
 
     ps.emitTireDust(vehicle_sim::math::Vec2 { 10.0, 1.0 }, 0, 4);
@@ -137,7 +203,7 @@ TEST(ParticleSystemTest, EmissionAndEulerDecay)
 
 TEST(CameraShakeTest, TraumaActivationAndDecay)
 {
-    Camera2D cam { };
+    Camera2D cam {};
     EXPECT_DOUBLE_EQ(cam.getShakeOffset().x, 0.0);
     EXPECT_DOUBLE_EQ(cam.getShakeOffset().y, 0.0);
 
@@ -156,7 +222,7 @@ TEST(CameraShakeTest, TraumaActivationAndDecay)
 
 TEST(AudioSystemTest, HeadlessInitializationAndMuteToggle)
 {
-    AudioSystem audio { };
+    AudioSystem audio {};
     EXPECT_FALSE(audio.isInitialized());
 
     EXPECT_TRUE(audio.initialize(true)); // Headless mode
@@ -176,10 +242,10 @@ TEST(AudioSystemTest, HeadlessInitializationAndMuteToggle)
 
 TEST(DynamicObstacleTest, KinematicUpdateAndTerrainFollowing)
 {
-    CourseManager course { };
+    CourseManager course {};
     course.buildCourse(1); // Desert
 
-    ObstacleManager obs { };
+    ObstacleManager obs {};
     obs.generateObstacles(course, 1);
 
     const auto& dyns { obs.getDynamicObstacles() };
@@ -219,10 +285,10 @@ TEST(DynamicObstacleTest, KinematicUpdateAndTerrainFollowing)
 
 TEST(DynamicObstacleTest, PatrolDroneBoundaryReversal)
 {
-    CourseManager course { };
+    CourseManager course {};
     course.buildCourse(0); // Highway
 
-    ObstacleManager obs { };
+    ObstacleManager obs {};
     obs.generateObstacles(course, 0);
 
     const auto& dyns { obs.getDynamicObstacles() };
@@ -254,17 +320,17 @@ TEST(DynamicObstacleTest, PatrolDroneBoundaryReversal)
 
 TEST(DynamicObstacleTest, CollisionDetectionAndClearCount)
 {
-    CourseManager course { };
+    CourseManager course {};
     course.buildCourse(1);
 
-    ObstacleManager obs { };
+    ObstacleManager obs {};
     obs.generateObstacles(course, 1);
 
     const auto& dyns { obs.getDynamicObstacles() };
     ASSERT_FALSE(dyns.empty());
     const auto targetPos { dyns.front().position };
 
-    vehicle_sim::physics::RigidBodyConfig bodyConfig { };
+    vehicle_sim::physics::RigidBodyConfig bodyConfig {};
     bodyConfig.position = targetPos;
     vehicle_sim::physics::RigidBody2D body { bodyConfig };
 

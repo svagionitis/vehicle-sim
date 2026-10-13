@@ -37,7 +37,7 @@ void ParallaxRenderer::reset() noexcept
 void ParallaxRenderer::renderSky(SDL_Renderer* renderer, int width, int height, int biomeIndex) noexcept
 {
     const int bandCount { 16 };
-    const int bandHeight { (height * 3 / 4) / bandCount };
+    const int bandHeight { (height + bandCount - 1) / bandCount };
 
     for (int i { 0 }; i < bandCount; ++i) {
         const double t { static_cast<double>(i) / static_cast<double>(bandCount - 1) };
@@ -60,7 +60,9 @@ void ParallaxRenderer::renderSky(SDL_Renderer* renderer, int width, int height, 
         }
 
         SDL_SetRenderDrawColor(renderer, r, g, b, 255);
-        SDL_Rect bandRect { 0, i * bandHeight, width, bandHeight + 1 };
+        const int yStart { i * bandHeight };
+        const int actualHeight { (i == (bandCount - 1)) ? (height - yStart) : (bandHeight + 1) };
+        SDL_Rect bandRect { 0, yStart, width, actualHeight };
         SDL_RenderFillRect(renderer, &bandRect);
     }
 }
@@ -136,8 +138,9 @@ void ParallaxRenderer::renderMountains(
         }
 
         const int currentY { baselineY - static_cast<int>(std::max(10.0, ridgeY)) };
+        const int colHeight { std::max(0, height - currentY) };
 
-        SDL_Rect mountainCol { screenX, currentY, stepPx, baselineY - currentY + 40 };
+        SDL_Rect mountainCol { screenX, currentY, stepPx, colHeight };
         SDL_RenderFillRect(renderer, &mountainCol);
 
         // Alpine snow cap highlights
@@ -172,8 +175,9 @@ void ParallaxRenderer::renderHills(
         const double worldDist { (static_cast<double>(screenX) + scrollOffset) * 0.024 };
         const double hillHeight { std::sin(worldDist) * 28.0 + std::cos(worldDist * 1.8) * 14.0 + 35.0 };
         const int currentY { baselineY - static_cast<int>(hillHeight) };
+        const int colHeight { std::max(0, height - currentY) };
 
-        SDL_Rect hillCol { screenX, currentY, stepPx, baselineY - currentY + 30 };
+        SDL_Rect hillCol { screenX, currentY, stepPx, colHeight };
         SDL_RenderFillRect(renderer, &hillCol);
     }
 }
