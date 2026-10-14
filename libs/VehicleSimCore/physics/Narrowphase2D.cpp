@@ -599,7 +599,7 @@ bool Narrowphase2D::detectTerrain(
     }
 
     // Sort descending by penetration to take deepest contact points
-    std::sort(candidates.begin(), candidates.begin() + numCandidates,
+    std::sort(candidates.begin(), candidates.begin() + static_cast<std::ptrdiff_t>(numCandidates),
         [](const Candidate& a, const Candidate& b) { return a.penetration > b.penetration; });
 
     const std::size_t contactsToTake { std::min(numCandidates, std::size_t { 2 }) };

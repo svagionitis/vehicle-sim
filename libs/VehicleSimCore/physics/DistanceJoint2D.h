@@ -39,6 +39,22 @@ public:
     /// @return Separation distance in meters.
     [[nodiscard]] double getCurrentDistance() const noexcept;
 
+    /// @brief Gets minimum distance limit.
+    /// @return Minimum distance limit in meters.
+    [[nodiscard]] double getMinDistance() const noexcept;
+
+    /// @brief Sets minimum distance limit.
+    /// @param[in] distance Minimum distance limit in meters.
+    void setMinDistance(double distance) noexcept;
+
+    /// @brief Gets maximum distance limit.
+    /// @return Maximum distance limit in meters.
+    [[nodiscard]] double getMaxDistance() const noexcept;
+
+    /// @brief Sets maximum distance limit.
+    /// @param[in] distance Maximum distance limit in meters.
+    void setMaxDistance(double distance) noexcept;
+
     /// @brief Gets soft spring oscillation frequency.
     /// @return Frequency in Hz.
     [[nodiscard]] double getFrequencyHz() const noexcept;

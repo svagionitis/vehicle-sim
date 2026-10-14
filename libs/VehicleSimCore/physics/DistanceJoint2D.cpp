@@ -48,6 +48,26 @@ double DistanceJoint2D::getCurrentDistance() const noexcept
     return (pB - pA).length();
 }
 
+double DistanceJoint2D::getMinDistance() const noexcept
+{
+    return mMinDistance;
+}
+
+void DistanceJoint2D::setMinDistance(double distance) noexcept
+{
+    mMinDistance = (distance >= 0.0) ? distance : 0.0;
+}
+
+double DistanceJoint2D::getMaxDistance() const noexcept
+{
+    return mMaxDistance;
+}
+
+void DistanceJoint2D::setMaxDistance(double distance) noexcept
+{
+    mMaxDistance = (distance >= 0.0) ? distance : 0.0;
+}
+
 double DistanceJoint2D::getFrequencyHz() const noexcept
 {
     return mFrequencyHz;

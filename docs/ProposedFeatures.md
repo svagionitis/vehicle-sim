@@ -1125,9 +1125,11 @@ graph TD
 
 ---
 
-### 5.5 Specialized All-Terrain and Single-Track Dynamics
+### 5.5 Specialized All-Terrain and Single-Track Dynamics (Implemented)
 
-#### 5.5.1 Dual-Ski and Track Snowmobile Dynamics (`SnowmobileDynamics`)
+Detailed architectural and engineering specification: [Snowmobile, Bicycle & QuadBike Implementation Plan](SnowmobileBicycleQuadBikeImplementationPlan.md). Implemented via [SnowmobileDynamics.h](../libs/VehicleSimCore/dynamics/SnowmobileDynamics.h), [BicycleDynamics.h](../libs/VehicleSimCore/dynamics/BicycleDynamics.h), and [QuadBikeDynamics.h](../libs/VehicleSimCore/dynamics/QuadBikeDynamics.h).
+
+#### 5.5.1 Dual-Ski and Track Snowmobile Dynamics (`SnowmobileDynamics`) (Implemented)
 
 ##### Objective
 Model winter powersport snowmobiles with dual front steerable skis carving into packed snow/ice, a rear continuous propulsion rubber track, and rider dynamic body weight roll leaning.
@@ -1164,7 +1166,7 @@ graph TD
 
 ---
 
-#### 5.5.2 Single-Track Whipple Bicycle Dynamics (`BicycleDynamics`)
+#### 5.5.2 Single-Track Whipple Bicycle Dynamics (`BicycleDynamics`) (Implemented)
 
 ##### Objective
 Implement the benchmark Whipple single-track bicycle model, featuring roll-steer kinematic coupling, counter-steering initiation, and front wheel gyroscopic self-stability above critical forward speed.
@@ -1207,7 +1209,7 @@ graph TD
 
 ---
 
-#### 5.5.3 All-Terrain Vehicle Quad Bike Dynamics (`QuadBikeDynamics`)
+#### 5.5.3 All-Terrain Vehicle Quad Bike Dynamics (`QuadBikeDynamics`) (Implemented)
 
 ##### Objective
 Simulate 4-wheel all-terrain vehicles (ATVs) featuring low-pressure compliant balloon tires, a solid rear drive axle, independent front double-wishbone suspension, and dynamic rider active mass displacement.
@@ -1424,7 +1426,7 @@ graph TD
 | **QuadcopterDroneDynamics (4-Rotor Aerial) (Implemented)** | Dynamics | Medium | [PIDController](../libs/VehicleSimCore/math/PIDController.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Quadcopter Plan](QuadcopterDroneImplementationPlan.md) - 4-rotor thrust mixer, attitude PID, aerial robotics ([QuadcopterDroneDynamics.h](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h)) |
 | **DriftCarDynamics & GoKartDynamics (Implemented)** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Drift & Go-Kart Plan](DriftCarGoKartImplementationPlan.md) - Oversteer slip-angle balance, solid rear axle spool cornering ([DriftCarDynamics.h](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h), [GoKartDynamics.h](../libs/VehicleSimCore/dynamics/GoKartDynamics.h)) |
 | **TrainRailDynamics & ExcavatorDynamics (Implemented)** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | [TrainRail & Excavator Plan](TrainRailExcavatorImplementationPlan.md) - Guided track railway adhesion, dual-track excavator slew ring & multi-link arm ([TrainRailDynamics.h](../libs/VehicleSimCore/dynamics/TrainRailDynamics.h), [ExcavatorDynamics.h](../libs/VehicleSimCore/dynamics/ExcavatorDynamics.h)) |
-| **Snowmobile, Bicycle & QuadBike Dynamics** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Ski carving, single-track Whipple counter-steering, balloon tire ATV |
+| **Snowmobile, Bicycle & QuadBike Dynamics (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | [Snowmobile, Bicycle & QuadBike Plan](SnowmobileBicycleQuadBikeImplementationPlan.md) - Ski carving, single-track Whipple counter-steering, balloon tire ATV ([SnowmobileDynamics.h](../libs/VehicleSimCore/dynamics/SnowmobileDynamics.h), [BicycleDynamics.h](../libs/VehicleSimCore/dynamics/BicycleDynamics.h), [QuadBikeDynamics.h](../libs/VehicleSimCore/dynamics/QuadBikeDynamics.h)) |
 | **VTOLTiltRotorDynamics** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | Tilt-rotor transition corridor between vertical hover and fixed-wing cruise |
 
 ---

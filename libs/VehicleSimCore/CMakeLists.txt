@@ -111,6 +111,12 @@ add_library(VehicleSimCore STATIC
     dynamics/TrainRailDynamics.cpp
     dynamics/ExcavatorDynamics.h
     dynamics/ExcavatorDynamics.cpp
+    dynamics/SnowmobileDynamics.h
+    dynamics/SnowmobileDynamics.cpp
+    dynamics/BicycleDynamics.h
+    dynamics/BicycleDynamics.cpp
+    dynamics/QuadBikeDynamics.h
+    dynamics/QuadBikeDynamics.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
     terrain/GradientNoise.h
