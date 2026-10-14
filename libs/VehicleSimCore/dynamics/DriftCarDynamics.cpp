@@ -300,7 +300,6 @@ void DriftCarDynamics::step(physics::RigidBody2D& body, double dt) noexcept
         } else if (!isFront && clutchKickAddTorque > 0.0) {
             slipRatio = 0.85; // High spin breaking static adhesion
         } else {
-            const double safeLong { std::max(1.0, std::abs(wheelLongVel)) };
             slipRatio = std::clamp(tractiveForce / (wheel.normalLoad * 1.5 + 1e-4), -1.0, 1.0);
         }
 
