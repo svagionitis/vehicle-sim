@@ -33,6 +33,8 @@ function(apply_compiler_flags TARGET_NAME)
             /external:W0            # Suppress warnings inside external headers (Qt, STL, external third-party libs)
             /w14305                 # C4305: truncation from 'double' to 'float' (-Wdouble-promotion)
             /w14189                 # C4189: local variable is initialized but not referenced (-Wunused-variable)
+            /w14101                 # C4101: unreferenced local variable (-Wunused-variable)
+            /w14505                 # C4505: unreferenced local function has been removed (-Wunused-function)
             /w14702                 # C4702: unreachable code (-Wunreachable-code)
             /w14244                 # C4244: conversion from 'type1' to 'type2', possible loss of data (-Wconversion)
             /w14267                 # C4267: conversion from 'size_t' to smaller integer type, possible loss of data
@@ -49,7 +51,12 @@ function(apply_compiler_flags TARGET_NAME)
         )
 
         if(WARNINGS_AS_ERRORS)
-            target_compile_options(${TARGET_NAME} PRIVATE /WX) # Treat all warnings as fatal errors (-Werror)
+            target_compile_options(${TARGET_NAME} PRIVATE
+                /WX                 # Treat all warnings as fatal errors (-Werror)
+                /we4189             # Treat C4189 (unused initialized variable) as fatal error
+                /we4101             # Treat C4101 (unreferenced local variable) as fatal error
+                /we4505             # Treat C4505 (unreferenced local function) as fatal error
+            )
         endif()
 
         if(ENABLE_ASAN)
