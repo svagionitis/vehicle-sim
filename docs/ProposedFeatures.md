@@ -1046,10 +1046,10 @@ graph TD
 
 ---
 
-#### 5.4.2 Guided Track and Railway Dynamics (`TrainRailDynamics`)
+#### 5.4.2 Guided Track and Railway Dynamics (`TrainRailDynamics`) (Implemented)
 
 ##### Objective
-Provide rail vehicle kinematics and dynamics constrained to 1D curvilinear coordinates along parametric [Spline2D](../libs/VehicleSimCore/math/Spline2D.h) railway tracks, featuring wheel flange hunting oscillations, adhesion limits, and multi-car coupler slack action.
+Provide rail vehicle kinematics and dynamics constrained to 1D curvilinear coordinates along parametric [Spline2D](../libs/VehicleSimCore/math/Spline2D.h) railway tracks, featuring wheel flange hunting oscillations, adhesion limits, and multi-car coupler slack action. Detailed specification and design: [TrainRail & Excavator Dynamics Implementation Plan](TrainRailExcavatorImplementationPlan.md).
 
 ##### Technical Formulation
 - **Curvilinear Track Constraint ($s, \dot{s}, \ddot{s}$)**:
@@ -1083,10 +1083,10 @@ graph TD
 
 ---
 
-#### 5.4.3 Dual-Track Hydraulic Excavator Dynamics (`ExcavatorDynamics`)
+#### 5.4.3 Dual-Track Hydraulic Excavator Dynamics (`ExcavatorDynamics`) (Implemented)
 
 ##### Objective
-Simulate heavy construction equipment featuring a dual-track crawler undercarriage with skid-steer kinematics, a $360^\circ$ continuous rotating upper superstructure (slew ring), and multi-link articulated hydraulic excavator arm kinematics.
+Simulate heavy construction equipment featuring a dual-track crawler undercarriage with skid-steer kinematics, a $360^\circ$ continuous rotating upper superstructure (slew ring), and multi-link articulated hydraulic excavator arm kinematics. Detailed specification and design: [TrainRail & Excavator Dynamics Implementation Plan](TrainRailExcavatorImplementationPlan.md).
 
 ##### Technical Formulation
 - **Dual-Track Skid-Steer Undercarriage**:
@@ -1423,7 +1423,7 @@ graph TD
 | **ForkliftDynamics (Rear-Steer Industrial) (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Forklift Plan](ForkliftImplementationPlan.md) - Rear-wheel pivot steering, mast height CG shift, rollover index ([ForkliftDynamics.h](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h)) |
 | **QuadcopterDroneDynamics (4-Rotor Aerial) (Implemented)** | Dynamics | Medium | [PIDController](../libs/VehicleSimCore/math/PIDController.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Quadcopter Plan](QuadcopterDroneImplementationPlan.md) - 4-rotor thrust mixer, attitude PID, aerial robotics ([QuadcopterDroneDynamics.h](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h)) |
 | **DriftCarDynamics & GoKartDynamics (Implemented)** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Drift & Go-Kart Plan](DriftCarGoKartImplementationPlan.md) - Oversteer slip-angle balance, solid rear axle spool cornering ([DriftCarDynamics.h](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h), [GoKartDynamics.h](../libs/VehicleSimCore/dynamics/GoKartDynamics.h)) |
-| **TrainRailDynamics & ExcavatorDynamics** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | Guided track railway adhesion, dual-track excavator slew ring & multi-link arm |
+| **TrainRailDynamics & ExcavatorDynamics (Implemented)** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | [TrainRail & Excavator Plan](TrainRailExcavatorImplementationPlan.md) - Guided track railway adhesion, dual-track excavator slew ring & multi-link arm ([TrainRailDynamics.h](../libs/VehicleSimCore/dynamics/TrainRailDynamics.h), [ExcavatorDynamics.h](../libs/VehicleSimCore/dynamics/ExcavatorDynamics.h)) |
 | **Snowmobile, Bicycle & QuadBike Dynamics** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Ski carving, single-track Whipple counter-steering, balloon tire ATV |
 | **VTOLTiltRotorDynamics** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | Tilt-rotor transition corridor between vertical hover and fixed-wing cruise |
 
