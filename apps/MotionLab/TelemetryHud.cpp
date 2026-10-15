@@ -143,10 +143,23 @@ void TelemetryHud::render(SDL_Renderer* renderer,
         drawText(renderer, buffer, 24, 146, 2, cyanColor);
     }
 
+    if (snapshot.circuitMode) {
+        std::snprintf(buffer, sizeof(buffer), "CIRCUIT LAP %u (SEC %u)  %.1FS",
+                      snapshot.completedLaps + 1U, snapshot.currentSector, snapshot.currentLapTime);
+        drawText(renderer, buffer, 24, 164, 2, cyanColor);
+
+        if (snapshot.bestLapTime > 0.0) {
+            std::snprintf(buffer, sizeof(buffer), "BEST    %.2FS  LAST %.2FS",
+                          snapshot.bestLapTime, snapshot.lastLapTime);
+            drawText(renderer, buffer, 24, 182, 2, goldColor);
+        }
+    }
+
     // 2. Bottom Caption Bar
     std::string caption { };
     caption += snapshot.barrierOn ? "BARRIER ON / " : "BARRIER OFF / ";
     caption += snapshot.gravityOn ? "GRAVITY ON / " : "GRAVITY OFF / ";
+    caption += snapshot.circuitMode ? "CIRCUIT ON / " : "CIRCUIT OFF / ";
     caption += snapshot.deadZoneOn ? "DEAD ZONE / " : "";
     caption += snapshot.speedZoomOn ? "SPEED ZOOM / " : "";
     caption += "[V] " + snapshot.vehicleName + " / [T] " + snapshot.terrainName;

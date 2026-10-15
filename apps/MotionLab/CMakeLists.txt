@@ -20,6 +20,10 @@ add_executable(MotionLab
     WireframeRenderer.cpp
     TelemetryHud.h
     TelemetryHud.cpp
+    CircuitTrackCoordinator.h
+    CircuitTrackCoordinator.cpp
+    CircuitTrackRenderer.h
+    CircuitTrackRenderer.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -67,6 +71,10 @@ if(BUILD_TESTING)
         WireframeRenderer.cpp
         TelemetryHud.h
         TelemetryHud.cpp
+        CircuitTrackCoordinator.h
+        CircuitTrackCoordinator.cpp
+        CircuitTrackRenderer.h
+        CircuitTrackRenderer.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

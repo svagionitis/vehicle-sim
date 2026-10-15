@@ -267,3 +267,122 @@ TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
     }
 }
 
+TEST(MotionLabAppTest, CircuitTrackInitializationAndGeneration)
+{
+    CircuitTrackCoordinator coordinator { };
+    EXPECT_FALSE(coordinator.isEnabled());
+    coordinator.toggleEnabled();
+    EXPECT_TRUE(coordinator.isEnabled());
+
+    const auto& track = coordinator.getTrack();
+    EXPECT_TRUE(track.isClosed);
+    EXPECT_GT(track.trackLength, 150.0);
+    EXPECT_GT(track.centerline.size(), 16U);
+    EXPECT_EQ(track.centerline.size(), track.leftBoundary.size());
+    EXPECT_EQ(track.centerline.size(), track.rightBoundary.size());
+}
+
+TEST(MotionLabAppTest, CircuitTrackResetPositionsVehicleOnGrid)
+{
+    CircuitTrackCoordinator coordinator { };
+    coordinator.toggleEnabled();
+
+    vehicle_sim::physics::RigidBody2D body {
+        vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 }
+    };
+    coordinator.resetToGrid(body);
+
+    const auto& track = coordinator.getTrack();
+    EXPECT_NEAR(body.getPosition().x, track.startGridPosition.x, 1e-4);
+    EXPECT_NEAR(body.getPosition().y, track.startGridPosition.y, 1e-4);
+    EXPECT_NEAR(body.getOrientation(), track.startHeading, 1e-4);
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().length(), 0.0);
+    EXPECT_DOUBLE_EQ(coordinator.getMetrics().currentLapTime, 0.0);
+}
+
+TEST(MotionLabAppTest, CircuitTrackSurfaceMaterialTransitions)
+{
+    CircuitTrackCoordinator coordinator { };
+    coordinator.toggleEnabled();
+
+    vehicle_sim::physics::RigidBody2D body {
+        vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 }
+    };
+    coordinator.resetToGrid(body);
+
+    // On start grid -> roadway ribbon tarmac (friction = 1.0)
+    coordinator.stepPhysics(body, 1.0 / 120.0);
+    EXPECT_EQ(coordinator.getActiveMaterial().type, vehicle_sim::terrain::MaterialType::Tarmac);
+    EXPECT_DOUBLE_EQ(coordinator.getActiveMaterial().friction, 1.0);
+
+    // 7m perpendicular offset -> runoff gravel shoulder (friction = 0.6)
+    const auto& track = coordinator.getTrack();
+    body.setPosition(track.startGridPosition + vehicle_sim::math::Vec2 { 7.0, 0.0 });
+    coordinator.stepPhysics(body, 1.0 / 120.0);
+    EXPECT_EQ(coordinator.getActiveMaterial().type, vehicle_sim::terrain::MaterialType::Gravel);
+    EXPECT_DOUBLE_EQ(coordinator.getActiveMaterial().friction, 0.60);
+
+    // Teleport vehicle into infield center (0, 0) -> grass (friction = 0.70)
+    body.setPosition(vehicle_sim::math::Vec2::zero());
+    coordinator.stepPhysics(body, 1.0 / 120.0);
+    EXPECT_EQ(coordinator.getActiveMaterial().type, vehicle_sim::terrain::MaterialType::Grass);
+    EXPECT_DOUBLE_EQ(coordinator.getActiveMaterial().friction, 0.70);
+}
+
+TEST(MotionLabAppTest, CircuitTrackAppTogglesAndRegeneration)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    EXPECT_FALSE(app.isCircuitActive());
+    app.toggleCircuit();
+    EXPECT_TRUE(app.isCircuitActive());
+
+    const auto gridPos1 = app.getCircuit().getTrack().startGridPosition;
+    EXPECT_NEAR(app.getBody().getPosition().x, gridPos1.x, 1e-4);
+    EXPECT_NEAR(app.getBody().getPosition().y, gridPos1.y, 1e-4);
+
+    // Regenerate circuit with new procedural seed
+    app.regenerateCircuit();
+    EXPECT_TRUE(app.isCircuitActive());
+    const auto gridPos2 = app.getCircuit().getTrack().startGridPosition;
+    EXPECT_NEAR(app.getBody().getPosition().x, gridPos2.x, 1e-4);
+    EXPECT_NEAR(app.getBody().getPosition().y, gridPos2.y, 1e-4);
+
+    // Step physics with circuit active
+    constexpr double dt { 1.0 / 120.0 };
+    for (int i { 0 }; i < 30; ++i) {
+        app.stepPhysics(dt);
+    }
+}
+
+TEST(MotionLabAppTest, CircuitTrackTimingGatesTraverseLap)
+{
+    CircuitTrackCoordinator coordinator { };
+    coordinator.toggleEnabled();
+
+    vehicle_sim::physics::RigidBody2D body {
+        vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 }
+    };
+    coordinator.resetToGrid(body);
+
+    const auto& track = coordinator.getTrack();
+    const std::size_t numPoints { track.centerline.size() };
+
+    // Traverse all centerline points forward around the track
+    for (std::size_t i { 0U }; i < numPoints; ++i) {
+        body.setPosition(track.centerline[i]);
+        coordinator.stepPhysics(body, 0.05);
+    }
+    // Return to start to trigger completion
+    body.setPosition(track.centerline[0]);
+    coordinator.stepPhysics(body, 0.05);
+
+    EXPECT_GE(coordinator.getMetrics().completedLaps, 1U);
+    EXPECT_TRUE(coordinator.getMetrics().hasValidBest);
+    EXPECT_GT(coordinator.getMetrics().bestLapTime, 0.0);
+}
+

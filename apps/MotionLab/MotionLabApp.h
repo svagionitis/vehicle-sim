@@ -4,6 +4,8 @@
 #include <string_view>
 #include <SDL2/SDL.h>
 
+#include "apps/MotionLab/CircuitTrackCoordinator.h"
+#include "apps/MotionLab/CircuitTrackRenderer.h"
 #include "apps/MotionLab/MotionLabCamera.h"
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
@@ -92,6 +94,21 @@ public:
 
     /// @brief Toggles borderless fullscreen mode.
     void toggleFullscreen() noexcept;
+
+    /// @brief Toggles procedural circuit race track mode.
+    void toggleCircuit() noexcept;
+
+    /// @brief Regenerates circuit track using a new procedural random seed.
+    void regenerateCircuit() noexcept;
+
+    /// @brief Queries whether circuit mode is actively enabled.
+    [[nodiscard]] bool isCircuitActive() const noexcept;
+
+    /// @brief Gets constant reference to circuit track coordinator.
+    [[nodiscard]] const CircuitTrackCoordinator& getCircuit() const noexcept;
+
+    /// @brief Gets mutable reference to circuit track coordinator.
+    [[nodiscard]] CircuitTrackCoordinator& getCircuit() noexcept;
 
     /// @brief Cycles to the next available terrain surface preset.
     void cycleTerrain() noexcept;
@@ -225,6 +242,9 @@ private:
 
     RearTireState mRearLeftState { };
     RearTireState mRearRightState { };
+
+    CircuitTrackCoordinator mCircuitCoordinator { };
+    std::uint32_t mCircuitSeed { 2024U };
 
     // Keyboard inputs
     bool mKeyW { false };

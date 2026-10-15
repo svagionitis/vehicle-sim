@@ -34,6 +34,12 @@ struct TelemetrySnapshot {
     double terrainRollingDrag { 1.0 }; ///< Active surface rolling drag multiplier.
     std::string vehicleName { "CLASSIC CAR" }; ///< Name of active vehicle simulation model.
     std::string vehicleDetails { "" };         ///< Dynamic vehicle telemetry metrics.
+    bool circuitMode { false };                ///< Procedural circuit track active status.
+    double currentLapTime { 0.0 };             ///< Elapsed time in current lap in seconds.
+    double bestLapTime { 0.0 };                ///< Fastest recorded lap duration in seconds.
+    double lastLapTime { 0.0 };                ///< Previous lap duration in seconds.
+    std::uint32_t currentSector { 1U };        ///< Active sector index (1, 2, or 3).
+    std::uint32_t completedLaps { 0U };        ///< Total completed laps.
 };
 
 /// @class TelemetryHud

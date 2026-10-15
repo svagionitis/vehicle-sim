@@ -778,3 +778,702 @@ TEST(BarrierSolver2DTest, FlatFaceContactGeneratesZeroRotationalTorque) {
 | **Rendering Style** | Wireframe lines, 5m grid, skid ribbons, and breadcrumb trails render properly. | Visual inspection in `apps/MotionLab` |
 | **Compiler Hardening**| Zero warnings on GCC/Clang (`-Wall -Wextra -pedantic`) and MSVC (`/W4 /WX`). | Automated CI / CMake build |
 | **Deterministic Run** | Identical input sequence produces byte-identical trajectory on Linux & Windows. | Determinism Test Suite |
+
+---
+
+## 9. Comprehensive Feature Extension Plan: Proving Grounds, Fleet Expansion, Advanced Telemetry & Interactive Tools
+
+### 9.1 Architectural Overview & System Decomposition
+
+The extended Motion Lab architecture scales the interactive 2D simulation environment into an integrated automotive proving ground and physics laboratory. It incorporates pre-existing dynamics, terrain, and telemetry modules from [`libs/VehicleSimCore`](../libs/VehicleSimCore) alongside new presentation, audio, and user manipulation subsystems in [`apps/MotionLab`](../apps/MotionLab).
+
+#### 9.1.1 Extended ASCII System Architecture Diagram
+
+```
++-------------------------------------------------------------------------------------------------------------------------+
+|                                           Extended Motion Lab System Architecture                                       |
++-------------------------------------------------------------------------------------------------------------------------+
+|  [apps/MotionLab] (Desktop Application Layer - SDL2)                                                                    |
+|                                                                                                                         |
+|    +--------------------+       +---------------------+       +-----------------------+       +--------------------+    |
+|    |    MotionLabApp    |------>|  TimeScale (0.25x)  |------>| ProvingGroundCourse   |------>|  MouseTetherTool   |    |
+|    +---------+----------+       +---------------------+       +-----------+-----------+       +--------------------+    |
+|              |                                                            | Slalom / Track / Skidpad                    |
+|              |                  +---------------------+                   | Cones & Checkpoints                         |
+|              +----------------->| ExtendedRenderer    |<------------------+                                             |
+|              |                  | (G-G Circle & Scope)|                                                                 |
+|              |                  +----------+----------+       +-----------------------+                                 |
+|              |                             |                  |     GhostReplayBuffer |                                 |
+|              |                             +----------------->| (Lap Replay & Rewind) |                                 |
+|              v                                                +-----------------------+                                 |
+|    +--------------------+       +---------------------+       +-----------------------+       +--------------------+    |
+|    |    AudioSystem     |       | ExtendedTelemetryHud|       |  DynamicWindSystem    |       | DynamicObstacles   |    |
+|    | (Procedural Waves) |       | (Load Bars & CSV)   |       | (Aero Gust Vectors)   |       | (Pylons & Crates)  |    |
+|    +--------------------+       +---------------------+       +-----------------------+       +--------------------+    |
++--------------------------------------------+----------------------------------------------------------------------------+
+                                             | Links against (Zero external dependencies)
+                                             v
++-------------------------------------------------------------------------------------------------------------------------+
+|  [libs/VehicleSimCore] (Physics, Terrain, Dynamics & Telemetry Layer - Pure C++17)                                      |
+|                                                                                                                         |
+|    +------------------------------------+   +------------------------------------+   +-----------------------------+    |
+|    | Extended Vehicle Fleet Dynamics    |   | Terrain & Circuit Generation       |   | Telemetry Logging & Streams |    |
+|    | - AntiGravityRacerDynamics         |   | - TrackGenerator (Curvature)       |   | - CsvTelemetryExporter      |    |
+|    | - DriftCarDynamics                 |   | - BankedTrack (Banking Angles)     |   | - KlvTelemetryExporter      |    |
+|    | - MonsterCarDynamics (4-Whl Steer) |   | - SurfaceMap2D & DeformableTerrain |   | - TelemetryRingBuffer2D     |    |
+|    | - ArticulatedTruckDynamics (Hitch) |   +------------------------------------+   | - TrajectoryTracker2D       |    |
+|    | - ForkliftDynamics (Rear Steer)    |                                            +-----------------------------+    |
+|    | - QuadcopterDroneDynamics (4-Rotor)|                                                                               |
+|    +------------------------------------+                                                                               |
++-------------------------------------------------------------------------------------------------------------------------+
+```
+
+#### 9.1.2 Extended Mermaid System Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph AppLayer ["MotionLab Application Layer (apps/MotionLab)"]
+        APP["MotionLabApp Coordinator"]
+        TIM["TimeScaleController (0.1x to 4.0x)"]
+        CRS["ProvingGroundManager (Slalom, Moose, Skidpad, Circuit)"]
+        OBS["DynamicObstacleManager (Cones & Crates)"]
+        WND["WindWeatherSystem (Gusts & Aero Crosswinds)"]
+        GHO["GhostReplayBuffer (Best Lap & 10s Rewind)"]
+        AUD["AudioSystem (Procedural Synth & Tire Squeal)"]
+        HUD["ExtendedTelemetryHud (G-G Diagram, Load Bars, Scope)"]
+        RND["ExtendedWireframeRenderer (Vector Lines, Tracks, Cones)"]
+        MOU["MouseTetherTool (Spring Elastic Pull & Dropper)"]
+
+        APP --> TIM
+        APP --> CRS
+        APP --> OBS
+        APP --> WND
+        APP --> GHO
+        APP --> AUD
+        APP --> HUD
+        APP --> RND
+        APP --> MOU
+    end
+
+    subgraph DynamicsLayer ["Vehicle Dynamics (libs/VehicleSimCore/dynamics)"]
+        AGR["AntiGravityRacerDynamics (Hover, Airbrakes, Roll Bobbing)"]
+        DRF["DriftCarDynamics (Slip Angle Scoring, Clutch Kick)"]
+        MON["MonsterCarDynamics (4-Wheel Steer & Suspension)"]
+        TRK["ArticulatedTruckDynamics (Hitch Joint & Jackknife)"]
+        FRK["ForkliftDynamics (Rear Steering & Mast Elevation)"]
+        DRN["QuadcopterDroneDynamics (4 Independent Rotors)"]
+    end
+
+    subgraph TerrainTelemetryLayer ["Terrain & Telemetry (libs/VehicleSimCore)"]
+        TRG["TrackGenerator & BankedTrack"]
+        CSV["CsvTelemetryExporter & KlvTelemetryExporter"]
+        TRJ["TrajectoryTracker2D & TelemetryRingBuffer2D"]
+    end
+
+    CRS --> TRG
+    GHO --> TRJ
+    HUD --> CSV
+    APP --> AGR
+    APP --> DRF
+    APP --> MON
+    APP --> TRK
+    APP --> FRK
+    APP --> DRN
+```
+
+---
+
+### 9.2 Proving Grounds, Slaloms & Procedural Track Arenas
+
+Instead of only offering an infinite empty grid or a plain rectangular perimeter barrier, Motion Lab introduces structured proving grounds conforming to real-world automotive handling standards.
+
+#### 9.2.1 Proving Ground Presets & Mathematical Specifications
+
+1. **Open Proving Ground (Classic Mode)**:
+   - Infinite 5-meter grid with optional $100\,\text{m} \times 100\,\text{m}$ elastic perimeter barriers ([`BarrierSolver2D`](../libs/VehicleSimCore/physics/BarrierSolver2D.h)).
+2. **100-Meter Slalom Course**:
+   - 10 orange wireframe pylon cones spaced longitudinally at $\Delta x = 10.0\,\text{m}$ along the centerline $y = 0$.
+   - Vehicle enters at $(x = -15\,\text{m}, y = 0\,\text{m})$ and must weave alternatively left and right through the gate markers.
+   - Pylon touch detection computes penalty seconds ($\Delta t_{\text{pen}} = +2.0\,\text{s}$).
+3. **ISO 3888-2 Severe Lane-Change Maneuver ("Moose Test")**:
+   - Standardized high-speed collision avoidance corridor:
+     - **Section 1 (Entry)**: Length $L_1 = 12.0\,\text{m}$, Width $W_1 = 1.1 \cdot W_{\text{veh}} + 0.25\,\text{m}$.
+     - **Section 2 (Lane Shift Offset)**: Length $L_2 = 13.5\,\text{m}$, Lateral displacement $\Delta y = 3.5\,\text{m}$.
+     - **Section 3 (Evasion Corridor)**: Length $L_3 = 11.0\,\text{m}$, Width $W_3 = W_{\text{veh}} + 1.0\,\text{m}$.
+     - **Section 4 (Return Shift)**: Length $L_4 = 12.5\,\text{m}$, Return displacement $\Delta y = -3.5\,\text{m}$.
+     - **Section 5 (Exit)**: Length $L_5 = 12.0\,\text{m}$, Width $W_5 = 1.3 \cdot W_{\text{veh}} + 0.25\,\text{m}$.
+4. **Skidpad Circles (Steady-State Lateral Grip)**:
+   - Two concentric circular tracks: $R_1 = 15.0\,\text{m}$ (tight autocross) and $R_2 = 30.0\,\text{m}$ (standard automotive skidpad).
+   - Inner and outer circle wireframe boundaries with radial guidance lines.
+   - Calculates steady-state lateral acceleration $a_y = \frac{v^2}{R}$ and understeer gradient $K_{\text{us}} = \frac{d\delta}{da_y}$.
+5. **Procedural Closed-Circuit Race Track**:
+   - Uses [`TrackGenerator`](../libs/VehicleSimCore/terrain/TrackGenerator.h) and [`BankedTrack`](../libs/VehicleSimCore/terrain/BankedTrack.h) to generate a closed-loop ribbon track with apex kerbs, start/finish line, and sector splits (see dedicated [Procedural Closed-Circuit Race Track Implementation Plan](MotionLabCircuitTrackImplementationPlan.md)).
+
+#### 9.2.2 Proving Ground ASCII Course Layout Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                ISO 3888-2 Moose Test Layout                                       |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|                       +--------------------+ (Evasion Corridor Lane)                              |
+|                       |  Section 3 (11m)   |                                                      |
+|                       |                    |                                                      |
+|                 /----/                      \----\                                                |
+|   Section 2    /                                  \   Section 4                                   |
+|   Shift (13.5m)                                    \  Return (12.5m)                              |
+|               /                                      \                                            |
+|   +----------+                                        +----------+ (Exit Corridor)                |
+|   |Section 1 |                                        |Section 5 |                                |
+|==>|Entry 12m |                                        |Exit 12m  |==> Finished                    |
+|   +----------+                                        +----------+                                |
+|   (Start Line)                                                                                    |
++---------------------------------------------------------------------------------------------------+
+|                                100m Slalom Course Layout                                          |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|  [Entry] -->   ^        v        ^        v        ^        v        ^        v   --> [Finish]     |
+|               (1)      (2)      (3)      (4)      (5)      (6)      (7)      (8)                  |
+|              Cone     Cone     Cone     Cone     Cone     Cone     Cone     Cone                  |
+|              x=10m    x=20m    x=30m    x=40m    x=50m    x=60m    x=70m    x=80m                 |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.2.3 Proving Ground State Flow Mermaid Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> IdleAtStart
+    IdleAtStart --> InProgress: Crossing Start Gate (Speed > 0.5 m/s)
+    InProgress --> PenaltyApplied: Cone Pylon Contact (+2.0s)
+    InProgress --> SectorSplit1: Sector 1 Crossing
+    SectorSplit1 --> SectorSplit2: Sector 2 Crossing
+    SectorSplit2 --> Finished: Crossing Finish Line
+    PenaltyApplied --> InProgress
+    Finished --> SaveGhostIfFastest: New Record Check
+    SaveGhostIfFastest --> IdleAtStart: Reset Hotkey (R)
+```
+
+---
+
+### 9.3 Vehicle Fleet Expansion
+
+The fleet expands from the initial 6 vehicles to 12 distinct mechanical disciplines by integrating the existing models from [`libs/VehicleSimCore/dynamics`](../libs/VehicleSimCore/dynamics).
+
+#### 9.3.1 Extended Fleet Specifications
+
+| Vehicle Model | Physics Class | Dimensions ($L \times W$) | Mass & Inertia | Signature Dynamics Features | Hotkey |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Classic Car** | [`MotionLabCarDynamics`](../libs/VehicleSimCore/dynamics/MotionLabCarDynamics.h) | $4.0\,\text{m} \times 2.0\,\text{m}$ | $1000\,\text{kg}$, $1667\,\text{kg}\cdot\text{m}^2$ | Pat Kerr 1996 decomposed tire slip, handbrake decay | `F1` |
+| **Race Car** | [`RaceCarDynamics`](../libs/VehicleSimCore/dynamics/RaceCarDynamics.h) | $4.5\,\text{m} \times 1.8\,\text{m}$ | $750\,\text{kg}$, $1100\,\text{kg}\cdot\text{m}^2$ | Downforce aero, Drag Reduction System (DRS), slick grip | `F2` |
+| **Space Rocket**| [`RocketDynamics`](../libs/VehicleSimCore/dynamics/RocketDynamics.h) | $6.0\,\text{m} \times 1.6\,\text{m}$ | $1200\,\text{kg}$, $3600\,\text{kg}\cdot\text{m}^2$ | Gimbaled vector thrust, RCS attitude thrusters, fuel mass | `F3` |
+| **Helicopter** | [`HelicopterDynamics`](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | $6.0\,\text{m} \times 2.4\,\text{m}$ | $1500\,\text{kg}$, $4800\,\text{kg}\cdot\text{m}^2$ | Main rotor collective, tail rotor yaw, ground effect | `F4` |
+| **Hovercraft** | [`HovercraftDynamics`](../libs/VehicleSimCore/dynamics/HovercraftDynamics.h) | $4.0\,\text{m} \times 2.2\,\text{m}$ | $850\,\text{kg}$, $2084\,\text{kg}\cdot\text{m}^2$ | Air cushion, zero surface friction, vectored thrust rudder | `F5` |
+| **Tracked Tank**| [`TrackedTankDynamics`](../libs/VehicleSimCore/dynamics/TrackedTankDynamics.h) | $5.0\,\text{m} \times 2.4\,\text{m}$ | $12000\,\text{kg}$, $30000\,\text{kg}\cdot\text{m}^2$ | Dual differential track steering, turret rotation, cannon recoil | `F6` |
+| **Anti-Gravity**| [`AntiGravityRacerDynamics`](../libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h)| $4.2\,\text{m} \times 1.9\,\text{m}$ | $600\,\text{kg}$, $950\,\text{kg}\cdot\text{m}^2$ | Repulsor altitude hover, left/right airbrakes, pitch bobbing | `F7` |
+| **Drift Car** | [`DriftCarDynamics`](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h) | $4.4\,\text{m} \times 1.85\,\text{m}$| $1150\,\text{kg}$, $1800\,\text{kg}\cdot\text{m}^2$ | Clutch-kick initiation, high steering lock ($65^\circ$), drift angle gauge | `F8` |
+| **Monster Truck**| [`MonsterCarDynamics`](../libs/VehicleSimCore/dynamics/MonsterCarDynamics.h) | $5.2\,\text{m} \times 3.0\,\text{m}$ | $4500\,\text{kg}$, $12000\,\text{kg}\cdot\text{m}^2$ | 4-wheel independent steering, huge bouncy tires, long travel | `F9` |
+| **Semi-Truck** | [`ArticulatedTruckDynamics`](../libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h)| $12.0\,\text{m} \times 2.5\,\text{m}$| $16000\,\text{kg}$, $52000\,\text{kg}\cdot\text{m}^2$ | Tractor cab + semi-trailer, 5th-wheel hitch joint, jackknife angle | `F10` |
+| **Forklift** | [`ForkliftDynamics`](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h) | $2.8\,\text{m} \times 1.3\,\text{m}$ | $3200\,\text{kg}$, $4200\,\text{kg}\cdot\text{m}^2$ | Rear-wheel steering pivot, mast raise/lower, high center of mass | `F11` |
+| **Drone (UAV)** | [`QuadcopterDroneDynamics`](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h)| $1.2\,\text{m} \times 1.2\,\text{m}$ | $12\,\text{kg}$, $8.5\,\text{kg}\cdot\text{m}^2$ | 4 quad rotors, differential thrust pitch/roll, acrobatic tilt | `F12` |
+
+#### 9.3.2 Vehicle Controls ASCII Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                   Vehicle Control Dispatch                                         |
++---------------------------------------------------------------------------------------------------+
+|  Standard Cars / Trucks:        Anti-Gravity Racer:               Helicopter / Quadcopter:        |
+|    W / Up    : Throttle           W : Main Thrust                   W : Collective Up / Lift      |
+|    S / Down  : Brake / Reverse    S : Reverse Thruster              S : Collective Down           |
+|    A / Left  : Steer Left         A / D : Yaw Left / Right          A / D : Cyclic Tilt           |
+|    D / Right : Steer Right        Q / E : Left / Right Airbrake     Space : Altitude Hold Toggle  |
+|    Space     : Handbrake          Space : Boost Thruster                                          |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.3.3 Dynamics Step Dispatch Mermaid Diagram
+
+```mermaid
+graph TD
+    INP["MotionLabApp::processEvents()"] --> SWI{"Active Vehicle Model"}
+
+    SWI -->|F1: ClassicCar| D1["MotionLabCarDynamics::step()"]
+    SWI -->|F2: RaceCar| D2["RaceCarDynamics::step()"]
+    SWI -->|F3: Rocket| D3["RocketDynamics::step()"]
+    SWI -->|F4: Helicopter| D4["HelicopterDynamics::step()"]
+    SWI -->|F5: Hovercraft| D5["HovercraftDynamics::step()"]
+    SWI -->|F6: TrackedTank| D6["TrackedTankDynamics::step()"]
+    SWI -->|F7: AntiGravity| D7["AntiGravityRacerDynamics::step()"]
+    SWI -->|F8: DriftCar| D8["DriftCarDynamics::step()"]
+    SWI -->|F9: MonsterTruck| D9["MonsterCarDynamics::step()"]
+    SWI -->|F10: SemiTruck| D10["ArticulatedTruckDynamics::step()"]
+    SWI -->|F11: Forklift| D11["ForkliftDynamics::step()"]
+    SWI -->|F12: QuadDrone| D12["QuadcopterDroneDynamics::step()"]
+
+    D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8 & D9 & D10 & D11 & D12 --> INT["RigidBody2D::integrate()"]
+    INT --> BAR["BarrierSolver2D::solveInside()"]
+```
+
+---
+
+### 9.4 Advanced Telemetry HUD & Engineering Analytics
+
+The telemetry HUD is expanded from basic numeric text into a professional automotive telemetry suite.
+
+#### 9.4.1 Analytical Components
+
+1. **Friction Circle ($G$-$G$ Diagram)**:
+   - Polar coordinate plot in HUD corner showing instantaneous acceleration vector:
+     $$\mathbf{a} = (a_x, a_y) = \left(\frac{F_{\text{long}}}{m}, \frac{F_{\text{lat}}}{m}\right)$$
+   - Displays normalized traction limit circle:
+     $$\left(\frac{a_x}{\mu_x g}\right)^2 + \left(\frac{a_y}{\mu_y g}\right)^2 \le 1.0$$
+   - Color shifts from neon green ($< 70\%$ traction) to bright amber ($70\% - 95\%$) to red ($> 95\%$, skidding/loss of grip).
+2. **4-Corner Weight Transfer Visualizer**:
+   - Computes dynamic load shift during longitudinal and lateral acceleration:
+     $$F_{z,\text{front}} = \frac{m g \cdot b - m a_x \cdot h}{L}, \quad F_{z,\text{rear}} = \frac{m g \cdot a + m a_x \cdot h}{L}$$
+     $$\Delta F_{z,\text{lat}} = \frac{m a_y \cdot h}{t_w}$$
+   - Four vertical bar graphs representing Front-Left, Front-Right, Rear-Left, and Rear-Right wheel loads.
+3. **Live Oscilloscope Strip Charts**:
+   - Rolling 200-sample graphical plots in the HUD for:
+     - Speed ($\text{m/s}$ and $\text{mph}$).
+     - Front vs Rear Tire Slip Angles ($\alpha_f, \alpha_r$).
+     - Yaw rate ($\dot{\psi}$ in $\text{deg/s}$).
+     - Engine RPM / Throttle percentage.
+4. **CSV & KLV Telemetry Exporters**:
+   - Pressing `F9` or `Ctrl+E` starts/stops recording simulation frames directly to disk using [`CsvTelemetryExporter`](../libs/VehicleSimCore/telemetry/CsvTelemetryExporter.h).
+   - Timestamped output files written to `telemetry_run_YYYYMMDD_HHMMSS.csv` for post-run analysis.
+
+#### 9.4.2 Telemetry HUD Visual Layout ASCII Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+| SPEED: 48.2 m/s (107.8 mph)   YAW: +0.12 rad/s   FPS: 60.0   DT: 8.33 ms   SURFACE: TARMAC (1.00) |
+| VEHICLE: DRIFT CAR [F8]       DRIFT ANGLE: 28.5 deg   DRIFT SCORE: 14,280   RECORDING: [REC: 42s] |
++---------------------------------------------------------------------------------------------------+
+|  [G-G FRICTION CIRCLE]            [WEIGHT TRANSFER]            [LIVE OSCILLOSCOPE (SPEED)]        |
+|           +ay (Lateral L)          FL: [||||||||  ] FR: [||||]  60|       /----\                  |
+|               |                    RL: [||||||||||] RR: [||  ]  40|  /---/      \---/             |
+|        .-----.|-----.                                           20| /                             |
+|       /       |      \            [INPUTS]                       0+-----------------              |
+| -ax --+-------*------+-- +ax       [W: THR] [S: BRK]           [LIVE OSCILLOSCOPE (SLIP ANGLE)]   |
+| (Brake\       |      /  (Accel)    [A: LFT] [D: RGT]            30|      /----\                   |
+|        '-----'|-----'              [SPACE: HANDBRAKE]            0+-----/------\-----             |
+|               |                                                -30|                               |
+|           -ay (Lateral R)                                                                         |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.4.3 Telemetry Data Flow Mermaid Diagram
+
+```mermaid
+graph LR
+    SIM["RigidBody2D & Dynamics"] --> SAM["TelemetrySampler2D"]
+    SAM --> BUF["TelemetryRingBuffer2D (Pre-allocated)"]
+    BUF --> HUD["TelemetryHud::render()"]
+    HUD --> GG["G-G Friction Circle"]
+    HUD --> WT["Weight Transfer Bars"]
+    HUD --> SCO["Oscilloscope Strip Charts"]
+    BUF --> CSV["CsvTelemetryExporter (On-Demand F9)"]
+    CSV --> DSK["CSV File on Disk"]
+```
+
+---
+
+### 9.5 Lap Timing, Sector Splits & Ghost Car Playback
+
+#### 9.5.1 System Functionality
+
+1. **Gate Trigger System**:
+   - Thin wireframe oriented lines spanning the track: Start/Finish Gate, Sector 1 Gate, Sector 2 Gate.
+   - When the chassis center crosses a gate line segment, the system triggers the split time calculation.
+2. **Ghost Car Recording & Playback**:
+   - Uses [`TrajectoryTracker2D`](../libs/VehicleSimCore/dynamics/TrajectoryTracker2D.h) to record poses $(x, y, \theta, v)$ at $120\,\text{Hz}$.
+   - Upon completing a lap faster than `mBestLapTime`, the recorded trajectory buffer becomes the active ghost.
+   - The ghost is rendered as a semi-transparent, pulsing cyan wireframe car driving synchronously with the player.
+3. **Instant Replay / 10-Second Rewind**:
+   - Fixed pre-allocated ring buffer holding the most recent 1200 physics frames ($10.0\,\text{s}$ at $120\,\text{Hz}$).
+   - Pressing `Backspace` rewinds simulation time backward; releasing resumes interactive driving seamlessly.
+
+#### 9.5.2 Replay Ring Buffer ASCII Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                 1200-Frame Fixed Replay Ring Buffer                               |
++---------------------------------------------------------------------------------------------------+
+|  [0] | [1] | [2] | ... | [k-2] | [k-1] | [k: Current Frame] | [k+1: Oldest] | ... | [1199]        |
+|                                                  ^                                                |
+|                                       Write Head advances at 120 Hz                               |
+|                                                                                                   |
+|  Normal Mode  : Advance write head, overwrite oldest frame (Zero dynamic allocations)             |
+|  Rewind Mode  : Decrement read head, restore RigidBody2D state, reverse particle/skid clocks      |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.5.3 Ghost Replay State Machine Mermaid Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> RecordingLap: Cross Start Line
+    RecordingLap --> RecordingLap: Step 120Hz (Buffer Pose)
+    RecordingLap --> LapComplete: Cross Finish Line
+    LapComplete --> UpdateGhost: New Time < Best Lap
+    LapComplete --> DiscardRun: New Time >= Best Lap
+    UpdateGhost --> PlaybackGhostAndRecord: Next Lap Start
+    DiscardRun --> PlaybackGhostAndRecord: Next Lap Start
+    PlaybackGhostAndRecord --> RenderGhostOverlay: Sync Frame Time
+```
+
+---
+
+### 9.6 Environmental Physics & Simulation Controls
+
+#### 9.6.1 Features & Physical Formulations
+
+1. **Variable Time Scale**:
+   - Hotkeys `[` (slow down) and `]` (speed up) adjust simulation time scaling factor $\lambda \in \{0.1, 0.25, 0.5, 1.0, 2.0, 4.0\}$.
+   - Maintains fixed physics timestep $\Delta t = 8.333\,\text{ms}$ while altering accumulator advancement, preserving exact determinism.
+2. **Dynamic Wind & Turbulence Vector**:
+   - Ambient wind vector $\mathbf{v}_{\text{wind}} = (w_x, w_y) + \mathbf{w}_{\text{gust}}(t)$ where gusts are modeled using Perlin noise from [`FractalNoise`](../libs/VehicleSimCore/terrain/FractalNoise.h).
+   - Aerodynamic drag and downforce act on relative velocity:
+     $$\mathbf{v}_{\text{rel}} = \mathbf{v}_{\text{body}} - \mathbf{v}_{\text{wind}}$$
+     $$\mathbf{F}_{\text{aero}} = -\frac{1}{2} \rho C_d A \|\mathbf{v}_{\text{rel}}\| \mathbf{v}_{\text{rel}}$$
+   - Light vehicles (Rocket, Helicopter, Hovercraft, Drone) visibly drift with crosswinds.
+3. **Tire Thermal Model**:
+   - Frictional energy dissipation increases tire surface temperature $T_{\text{tire}}$:
+     $$\frac{dT_{\text{tire}}}{dt} = k_{\text{heat}} \cdot \|\mathbf{v}_{\text{slip}}\| \cdot \|\mathbf{F}_{\text{tire}}\| - k_{\text{cool}} (T_{\text{tire}} - T_{\text{ambient}})$$
+   - Optimum grip peaks at $T \approx 85^\circ\text{C}$; overheating ($> 120^\circ\text{C}$) reduces friction by up to $35\%$, producing visual blue smoke particles.
+
+#### 9.6.2 Environmental Physics ASCII Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                  Environmental Vector Interaction                                 |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|                       Wind Vector w = (wx, wy) + Gust(t)                                          |
+|                       =======>   =======>   =======>                                              |
+|                                                                                                   |
+|                     +-----------------------------+                                               |
+|                     |     Vehicle RigidBody2D     |                                               |
+|      v_body ======> |                             | ------> Resultant v_rel = v_body - w          |
+|                     +-----------------------------+                                               |
+|                               |                                                                   |
+|                               v Tire Slip Friction Heat Dissipation                               |
+|                     [T_tire = 92 deg C: Peak Grip] (Heat Up during Power Drift)                   |
+|                                                                                                   |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.6.3 Environmental Pipeline Mermaid Diagram
+
+```mermaid
+graph TD
+    PER["Perlin Noise Generator"] --> WND["DynamicWindSystem (Speed, Heading, Gusts)"]
+    WND --> REL["Compute Relative Air Velocity (v_rel = v_body - v_wind)"]
+    REL --> AER["Aerodynamic Drag & Downforce Force"]
+    AER --> BOD["RigidBody2D::applyForce()"]
+
+    SLP["Tire Slip Velocity"] --> HT["Heat Generation (k_heat * F * v_slip)"]
+    HT --> TMP["Tire Temperature State (T_tire)"]
+    TMP --> GRP["Friction Coefficient Modifier (mu_eff = mu * f(T))"]
+    GRP --> TIR["Tire Dynamics Coordinator"]
+```
+
+---
+
+### 9.7 Procedural Retro Audio Synthesis
+
+Motion Lab adheres to the zero-external-dependency rule by synthesizing retro audio waves via SDL2 audio callbacks (leveraging the audio synthesis architecture established in [`apps/EarthPatrol/AudioSystem.h`](../apps/EarthPatrol/AudioSystem.h)).
+
+#### 9.7.1 Synthesized Sound Channels
+
+1. **Engine Combustion Synthesizer**:
+   - Pitched sawtooth wave with variable frequency $f = f_{\text{idle}} + k_{\text{rpm}} \cdot \text{RPM}$.
+   - Modulated low-pass filter opening under full throttle.
+2. **Tire Squeal & Slip Noise**:
+   - Band-pass filtered white noise generator whose amplitude scales proportionally with total tire scrub velocity:
+     $$A_{\text{squeal}} = \text{clamp}\left(\frac{\|\mathbf{v}_{\text{slip}}\|}{v_{\text{slip,max}}}, 0.0, 1.0\right)$$
+3. **Helicopter / Drone Rotor Chopping**:
+   - Low-frequency square/sine amplitude modulation creating rhythmic rotor blade chop sounds.
+4. **Rocket / Hovercraft Thruster Roar**:
+   - Deep pink noise with exponential resonance filter.
+5. **Impact Clangs**:
+   - Damped metal sine ping triggered on [`BarrierSolver2D`](../libs/VehicleSimCore/physics/BarrierSolver2D.h) contact impulse magnitude.
+
+#### 9.7.2 Audio Synthesis Pipeline ASCII Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                 Procedural Audio Synthesis Graph                                  |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|  [RPM / Throttle]  ------>  Sawtooth Oscillator  ---\                                             |
+|                                                      \                                            |
+|  [Tire Slip Vel]   ------>  Bandpass White Noise  ----+----> Summer Buffer ----> SDL2 Audio Out   |
+|                                                      /       (44.1 kHz, 16-bit)  (Headphones/Spk) |
+|  [Barrier Impulse] ------>  Damped Sine Ping     ---/                                             |
+|                                                                                                   |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.7.3 Audio Pipeline Mermaid Diagram
+
+```mermaid
+graph LR
+    TH["Throttle & RPM"] --> OSC["Sawtooth Engine Oscillator"]
+    SL["Tire Slip Velocity"] --> NOI["Bandpass Noise (Tire Squeal)"]
+    BL["Rotor Speed"] --> MOD["Rotor Chopping AM Modulator"]
+    IM["Barrier Impact Impulse"] --> PNG["Damped Sine Impact Generator"]
+
+    OSC --> MIX["Master Audio Mixer"]
+    NOI --> MIX
+    MOD --> MIX
+    PNG --> MIX
+    MIX --> SDL["SDL2 Audio Callback Buffer"]
+```
+
+---
+
+### 9.8 Interactive Physics Sandbox & Mouse Tools
+
+#### 9.8.1 Sandbox Capabilities
+
+1. **Elastic Spring-Tether Tool**:
+   - Clicking and holding Left Mouse Button creates an elastic tether between mouse world coordinates $\mathbf{x}_{\text{mouse}}$ and the nearest chassis anchor $\mathbf{x}_{\text{anchor}}$.
+   - Renders a spring line whose tension force obeys Hooke's law:
+     $$\mathbf{F}_{\text{tether}} = -k_{\text{spring}} (\mathbf{x}_{\text{anchor}} - \mathbf{x}_{\text{mouse}}) - c_{\text{damp}} \mathbf{v}_{\text{anchor}}$$
+2. **Dynamic Pylon Dropper**:
+   - Right-clicking places interactive wireframe obstacle pylons or traffic cones under the cursor.
+   - Pylons have mass $m_{\text{pylon}} = 5.0\,\text{kg}$ and collide dynamically with vehicles via [`BarrierSolver2D`](../libs/VehicleSimCore/physics/BarrierSolver2D.h).
+3. **Middle Click Impulse Cannon**:
+   - Middle-click launches a high-velocity physical probe ball towards the cursor to test vehicle collision stability.
+
+#### 9.8.2 Mouse Tether ASCII Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                    Elastic Mouse Spring Tether                                    |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|              (x_mouse, y_mouse)                                                                   |
+|                     * [Mouse Cursor]                                                              |
+|                      \                                                                            |
+|                       \  Spring Force Vector F = -k * (x_anchor - x_mouse)                        |
+|                        \ (Rendered as glowing cyan vector line)                                   |
+|                         \                                                                         |
+|                          + [Anchor Point]                                                         |
+|                     +----+------------------------+                                               |
+|                     |      Vehicle Chassis        |                                               |
+|                     +-----------------------------+                                               |
+|                                                                                                   |
++---------------------------------------------------------------------------------------------------+
+```
+
+#### 9.8.3 Mouse Tool Interaction Mermaid Diagram
+
+```mermaid
+graph TD
+    MSE["SDL_MOUSEBUTTONDOWN"] --> TYP{"Button Type"}
+    TYP -->|Left Click| TET["Attach Spring Tether to Vehicle Anchor"]
+    TYP -->|Right Click| PYL["Spawn Dynamic Cone / Pylon at Cursor"]
+    TYP -->|Middle Click| IMP["Fire Physics Probe Ball toward Cursor"]
+
+    TET --> FRC["Compute Hooke Spring Force F = -k * dx"]
+    FRC --> APL["RigidBody2D::applyForceAtPoint()"]
+    PYL --> ADD["DynamicObstacleManager::addCone()"]
+    IMP --> PRO["PhysicsWorld2D::spawnProbe()"]
+```
+
+---
+
+### 9.9 Software Architecture & Class Decomposition
+
+All new classes strictly adhere to MISRA C++:2023, zero heap allocations on ticks, function names strictly less than 30 characters, relative paths, and full Doxygen documentation.
+
+#### 9.9.1 Proving Ground Manager ([`ProvingGroundManager.h`](../apps/MotionLab/ProvingGroundManager.h))
+
+```cpp
+#pragma once
+
+#include <vector>
+#include <string_view>
+#include "libs/VehicleSimCore/math/Vec2.h"
+#include "libs/VehicleSimCore/physics/RigidBody2D.h"
+
+namespace motion_lab {
+
+/// @enum CourseType
+/// @brief Available proving ground test course presets.
+enum class CourseType {
+    OpenField,    ///< Default open grid with optional perimeter walls.
+    Slalom100m,   ///< 10-cone 100-meter handling slalom.
+    MooseTest,    ///< ISO 3888-2 double lane change evasion course.
+    Skidpad15m,   ///< 15m radius steady-state lateral grip circle.
+    Skidpad30m,   ///< 30m radius standard automotive skidpad.
+    CircuitTrack  ///< Procedural closed-loop racing circuit.
+};
+
+/// @struct CoursePylon
+/// @brief Pylon cone obstacle in world coordinates.
+struct CoursePylon {
+    vehicle_sim::math::Vec2 position { 0.0, 0.0 }; ///< World coordinates in meters.
+    double radius { 0.4 };                         ///< Collision radius in meters.
+    bool wasHit { false };                         ///< Collision status flag.
+};
+
+/// @class ProvingGroundManager
+/// @brief Coordinates proving ground course layouts, pylon collision, and timing gates.
+class ProvingGroundManager {
+public:
+    /// @brief Default constructor.
+    ProvingGroundManager() noexcept;
+
+    /// @brief Selects active course preset.
+    /// @param[in] type Target course layout.
+    void setCourse(CourseType type) noexcept;
+
+    /// @brief Gets active course preset.
+    /// @return Active CourseType.
+    [[nodiscard]] CourseType getCourse() const noexcept;
+
+    /// @brief Checks vehicle collision against all course pylons.
+    /// @param[in,out] body Target vehicle rigid body.
+    void checkPylonHits(vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    /// @brief Gets list of active pylons.
+    /// @return Const reference to pylon list.
+    [[nodiscard]] const std::vector<CoursePylon>& getPylons() const noexcept;
+
+    /// @brief Resets all hit flags and timers.
+    void resetCourse() noexcept;
+
+private:
+    CourseType mCourse { CourseType::OpenField };
+    std::vector<CoursePylon> mPylons { };
+};
+
+} // namespace motion_lab
+```
+
+#### 9.9.2 Extended Telemetry Snapshot ([`ExtendedTelemetryTypes.h`](../apps/MotionLab/ExtendedTelemetryTypes.h))
+
+```cpp
+#pragma once
+
+#include <string>
+#include "libs/VehicleSimCore/math/Vec2.h"
+
+namespace motion_lab {
+
+/// @struct ExtendedTelemetryData
+/// @brief Deep automotive engineering telemetry snapshot.
+struct ExtendedTelemetryData {
+    vehicle_sim::math::Vec2 accelG { 0.0, 0.0 }; ///< Accelerometer vector in G units.
+    double maxG { 1.0 };                         ///< Traction limit in G units.
+    double loadFL { 2500.0 };                    ///< Front-Left tire load in Newtons.
+    double loadFR { 2500.0 };                    ///< Front-Right tire load in Newtons.
+    double loadRL { 2500.0 };                    ///< Rear-Left tire load in Newtons.
+    double loadRR { 2500.0 };                    ///< Rear-Right tire load in Newtons.
+    double frontSlipAngle { 0.0 };               ///< Front tire slip angle in degrees.
+    double rearSlipAngle { 0.0 };                ///< Rear tire slip angle in degrees.
+    double driftAngle { 0.0 };                   ///< Vehicle chassis drift angle in degrees.
+    double tireTempC { 20.0 };                   ///< Tire surface temperature in Celsius.
+    double currentLapTime { 0.0 };               ///< Current run elapsed time in seconds.
+    double bestLapTime { 0.0 };                  ///< Best run time in seconds.
+    double timeScale { 1.0 };                    ///< Active simulation time scale.
+    bool isRecordingCsv { false };               ///< Active CSV logging indicator.
+};
+
+} // namespace motion_lab
+```
+
+#### 9.9.3 Ghost Replay Buffer ([`GhostReplayBuffer.h`](../apps/MotionLab/GhostReplayBuffer.h))
+
+```cpp
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include "libs/VehicleSimCore/math/Vec2.h"
+#include "libs/VehicleSimCore/physics/RigidBody2D.h"
+
+namespace motion_lab {
+
+/// @struct GhostPose
+/// @brief Historical vehicle state at a single physics step.
+struct GhostPose {
+    vehicle_sim::math::Vec2 position { 0.0, 0.0 };
+    double orientation { 0.0 };
+    double speed { 0.0 };
+};
+
+/// @class GhostReplayBuffer
+/// @brief Pre-allocated 1200-frame circular rewind buffer and best-lap ghost playback.
+class GhostReplayBuffer {
+public:
+    static constexpr std::size_t kCapacity { 1200U }; ///< 10 seconds at 120 Hz.
+
+    /// @brief Default constructor.
+    GhostReplayBuffer() noexcept = default;
+
+    /// @brief Appends current vehicle state to rewind buffer.
+    /// @param[in] body Active chassis rigid body.
+    void recordFrame(const vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    /// @brief Rewinds vehicle state by one historical frame.
+    /// @param[out] body Chassis rigid body to restore.
+    /// @return True if state was restored, false if at beginning of buffer.
+    [[nodiscard]] bool rewindFrame(vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    /// @brief Commits recorded run as the new fastest ghost trajectory.
+    void saveFastestRun() noexcept;
+
+    /// @brief Samples ghost pose at current elapsed lap time.
+    /// @param[in] lapTime Elapsed lap time in seconds.
+    /// @param[out] outPose Output interpolated ghost pose.
+    /// @return True if ghost data is available.
+    [[nodiscard]] bool sampleGhost(double lapTime, GhostPose& outPose) const noexcept;
+
+    /// @brief Clears rewind and ghost buffers.
+    void clear() noexcept;
+
+private:
+    std::array<GhostPose, kCapacity> mRewindBuffer {{ }};
+    std::size_t mWriteIndex { 0U };
+    std::size_t mCount { 0U };
+};
+
+} // namespace motion_lab
+```
+
+---
+
+### 9.10 Phased Implementation Roadmap & Verification Matrix
+
+#### 9.10.1 Implementation Phases
+
+| Phase | Milestone Name | Key Deliverables | Verification Target |
+| :--- | :--- | :--- | :--- |
+| **Phase 5** | Proving Grounds & Slaloms | [`ProvingGroundManager`](../apps/MotionLab/ProvingGroundManager.h), Slalom, Moose Test, Skidpad rendering | Unit test `ProvingGroundManagerTest`, verify pylon hit detection & course reset |
+| **Phase 6** | Fleet Expansion | Add AntiGravity, Drift, Monster, Semi, Forklift, Drone models to selector & HUD | Unit test `MotionLabExtendedFleetTest`, verify dispatch & mass properties |
+| **Phase 7** | Advanced Telemetry HUD | Friction circle ($G$-$G$), 4-corner load bars, oscilloscope, CSV export hotkey | Unit test `ExtendedTelemetryTest`, verify $G$-$G$ calculation & CSV export |
+| **Phase 8** | Ghost Car & Replay Rewind | [`GhostReplayBuffer`](../apps/MotionLab/GhostReplayBuffer.h), start/finish timing gates, cyan ghost renderer | Unit test `GhostReplayBufferTest`, verify rewind & determinism |
+| **Phase 9** | Environmental Controls | Time scaling (`0.1x`–`4x`), wind gust vectors, tire thermal buildup model | Unit test `EnvironmentalPhysicsTest`, verify aero drift & heat dissipation |
+| **Phase 10**| Procedural Retro Audio | Engine synthesizer, tire slip noise, rotor chop, thruster roar, impact clangs | Audio verification test, zero allocation callback check |
+| **Phase 11**| Mouse Sandbox Tools | Spring-tether cursor drag, right-click pylon dropper, middle-click probe | Interactive test in `apps/MotionLab`, verify spring stability |
+
+#### 9.10.2 Extended Acceptance Criteria Matrix
+
+| Feature | Acceptance Metric | Verification Strategy |
+| :--- | :--- | :--- |
+| **Course Accuracy** | ISO 3888-2 corridor dimensions match ISO specification within $\pm 0.05\,\text{m}$. | Unit Test `MooseTestDimensionsTest` |
+| **G-G Circle Fidelity** | Friction circle acceleration vector matches rigid-body $(\ddot{x}, \ddot{y})$ within $10^{-4}\,\text{G}$. | Unit Test `FrictionCircleMathTest` |
+| **Fleet Integrity** | All 12 vehicle types cycle without memory leaks or uninitialized member states. | Valgrind / AddressSanitizer CI build |
+| **CSV Telemetry Export** | Output CSV rows have valid headers, matching timestamps, and numeric IEEE 754 values. | Integration Test `CsvExporterFidelityTest` |
+| **Ghost Replay Time** | Ghost playback matches recorded run trajectory within $10^{-3}\,\text{m}$ Euclidean error. | Determinism Test `GhostReplayTrajectoryTest` |
+| **Time Scale Determinism**| Trajectory at $0.25\times$ speed matches $1.0\times$ speed byte-for-byte upon tick completion. | Time Scaling Test `TimeScaleDeterminismTest` |
+| **Audio Thread Safety** | Audio callback performs zero dynamic heap allocations and zero lock contention. | Memory & Real-Time Sanity Test |
+| **Code Hardening** | Zero compiler warnings under MSVC `/W4 /WX` and GCC/Clang `-Wall -Wextra -pedantic -Werror`. | Automated CI pipeline build |
+

@@ -145,11 +145,15 @@ void MotionLabApp::applyVehicleProperties() noexcept
 
 void MotionLabApp::resetSimulation() noexcept
 {
-    mBody.setPosition(vehicle_sim::math::Vec2::zero());
-    mBody.setLinearVelocity(vehicle_sim::math::Vec2::zero());
-    mBody.setOrientation(0.0);
-    mBody.setAngularVelocity(0.0);
-    mBody.clearForces();
+    if (mCircuitCoordinator.isEnabled()) {
+        mCircuitCoordinator.resetToGrid(mBody);
+    } else {
+        mBody.setPosition(vehicle_sim::math::Vec2::zero());
+        mBody.setLinearVelocity(vehicle_sim::math::Vec2::zero());
+        mBody.setOrientation(0.0);
+        mBody.setAngularVelocity(0.0);
+        mBody.clearForces();
+    }
 
     mCar.reset();
     mRaceCar.reset();
@@ -160,7 +164,7 @@ void MotionLabApp::resetSimulation() noexcept
 
     applyVehicleProperties();
 
-    mCamera.reset(vehicle_sim::math::Vec2::zero());
+    mCamera.reset(mBody.getPosition());
     mSkids.clear();
     mTrail.clear();
     mAnimTimer = 0.0;
@@ -218,6 +222,40 @@ void MotionLabApp::toggleFullscreen() noexcept
     }
     mIsFullscreen = !mIsFullscreen;
     SDL_SetWindowFullscreen(mWindow, mIsFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+}
+
+void MotionLabApp::toggleCircuit() noexcept
+{
+    mCircuitCoordinator.toggleEnabled();
+    if (mCircuitCoordinator.isEnabled()) {
+        mCircuitCoordinator.resetToGrid(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+void MotionLabApp::regenerateCircuit() noexcept
+{
+    mCircuitSeed += 137U;
+    mCircuitCoordinator.regenerate(mCircuitSeed);
+    if (mCircuitCoordinator.isEnabled()) {
+        mCircuitCoordinator.resetToGrid(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+bool MotionLabApp::isCircuitActive() const noexcept
+{
+    return mCircuitCoordinator.isEnabled();
+}
+
+const CircuitTrackCoordinator& MotionLabApp::getCircuit() const noexcept
+{
+    return mCircuitCoordinator;
+}
+
+CircuitTrackCoordinator& MotionLabApp::getCircuit() noexcept
+{
+    return mCircuitCoordinator;
 }
 
 void MotionLabApp::cycleTerrain() noexcept
@@ -390,6 +428,12 @@ void MotionLabApp::processEvents() noexcept
                     break;
                 case SDLK_f:
                     toggleFullscreen();
+                    break;
+                case SDLK_c:
+                    toggleCircuit();
+                    break;
+                case SDLK_n:
+                    regenerateCircuit();
                     break;
                 case SDLK_t:
                     cycleTerrain();
@@ -630,6 +674,14 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         mBody.applyForce(gravForce);
     }
 
+    if (mCircuitCoordinator.isEnabled()) {
+        mCircuitCoordinator.stepPhysics(mBody, dt);
+        const auto mat = mCircuitCoordinator.getActiveMaterial();
+        mCar.setSurfaceMaterial(mat);
+        mHovercraft.setSurfaceFriction(mat.friction);
+        mTank.setSurfaceFriction(mat.friction);
+    }
+
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
@@ -661,6 +713,10 @@ void MotionLabApp::renderFrame() noexcept
     context.hovercraft = &mHovercraft;
     context.tank = &mTank;
     context.animTimer = mAnimTimer;
+
+    if (mCircuitCoordinator.isEnabled()) {
+        CircuitTrackRenderer::renderTrack(mRenderer, mCamera, mCircuitCoordinator);
+    }
 
     mWireframe.renderScene(
         mRenderer,
@@ -699,6 +755,19 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.terrainRollingDrag = mCar.getSurfaceMaterial().rollingDrag;
     snapshot.vehicleName = std::string(getVehicleName());
 
+    snapshot.circuitMode = mCircuitCoordinator.isEnabled();
+    if (mCircuitCoordinator.isEnabled()) {
+        const auto& metrics = mCircuitCoordinator.getMetrics();
+        snapshot.currentLapTime = metrics.currentLapTime;
+        snapshot.bestLapTime = metrics.bestLapTime;
+        snapshot.lastLapTime = metrics.lastLapTime;
+        snapshot.currentSector = metrics.currentSector;
+        snapshot.completedLaps = metrics.completedLaps;
+        snapshot.terrainName = std::string(vehicle_sim::terrain::SurfaceMaterial::getName(mCircuitCoordinator.getActiveMaterial().type));
+        snapshot.terrainFriction = mCircuitCoordinator.getActiveMaterial().friction;
+        snapshot.terrainRollingDrag = mCircuitCoordinator.getActiveMaterial().rollingDrag;
+    }
+
     switch (mVehicleType) {
     case MotionLabVehicleType::ClassicCar:
         snapshot.vehicleDetails = mCar.isSkidding() ? "TIRES SKIDDING" : "GRIP OK";
@@ -721,6 +790,12 @@ void MotionLabApp::renderFrame() noexcept
     }
 
     TelemetryHud::render(mRenderer, snapshot, mConfig.windowWidth, mConfig.windowHeight);
+
+    if (mCircuitCoordinator.isEnabled()) {
+        CircuitTrackRenderer::renderRadar(
+            mRenderer, mCircuitCoordinator, mBody.getPosition(),
+            mConfig.windowWidth - 170, 30, 140, 140);
+    }
 
     SDL_RenderPresent(mRenderer);
 }
