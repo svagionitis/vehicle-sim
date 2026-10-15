@@ -96,3 +96,62 @@ TEST(MotionLabAppTest, CameraResizeUpdatesBaseZoomAndBounds)
     EXPECT_LT(bounds.left, bounds.right);
     EXPECT_LT(bounds.bottom, bounds.top);
 }
+
+TEST(MotionLabAppTest, TerrainDefaultAndDirectSelection)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    // Default terrain must be Tarmac
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Tarmac);
+    EXPECT_DOUBLE_EQ(app.getSurfaceMaterial().friction, 1.0);
+    EXPECT_DOUBLE_EQ(app.getSurfaceMaterial().rollingDrag, 1.0);
+
+    // Direct selection: Ice
+    app.setTerrain(vehicle_sim::terrain::MaterialType::Ice);
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Ice);
+    EXPECT_DOUBLE_EQ(app.getSurfaceMaterial().friction, 0.10);
+
+    // Direct selection: Sand
+    app.setTerrain(vehicle_sim::terrain::MaterialType::Sand);
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Sand);
+    EXPECT_DOUBLE_EQ(app.getSurfaceMaterial().rollingDrag, 2.40);
+    EXPECT_DOUBLE_EQ(app.getSurfaceMaterial().friction, 0.45);
+}
+
+TEST(MotionLabAppTest, CycleTerrainSequencesAllPresets)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Tarmac);
+
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Ice);
+
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Sand);
+
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Mud);
+
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Grass);
+
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Gravel);
+
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Snow);
+
+    // Wraps around to Tarmac
+    app.cycleTerrain();
+    EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Tarmac);
+}
+

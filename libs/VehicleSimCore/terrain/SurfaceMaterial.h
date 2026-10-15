@@ -17,7 +17,8 @@ enum class MaterialType : std::uint8_t {
     Snow, ///< Packed snow with low friction and moderate drag.
     OilSlick, ///< Hazard surface with near-zero friction.
     Water, ///< Liquid water surface or puddle.
-    Grass ///< Natural turf with moderate grip and higher rolling drag.
+    Grass, ///< Natural turf with moderate grip and higher rolling drag.
+    Sand ///< Loose granular sand with reduced lateral traction and high rolling resistance.
 };
 
 /// @struct SoilMechanicsConfig

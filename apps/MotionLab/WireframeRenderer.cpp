@@ -46,7 +46,37 @@ void WireframeRenderer::drawArrow(SDL_Renderer* renderer,
     drawLine(renderer, x2, y2, hx2, hy2, color);
 }
 
-void WireframeRenderer::drawGrid(SDL_Renderer* renderer, const MotionLabCamera& camera) noexcept
+namespace {
+struct TerrainTheme {
+    SDL_Color background { 8, 9, 10, 255 };
+    SDL_Color grid { 41, 60, 70, 255 };
+    SDL_Color skid { 242, 138, 114, 255 };
+};
+
+[[nodiscard]] TerrainTheme getTerrainTheme(vehicle_sim::terrain::MaterialType type) noexcept
+{
+    using vehicle_sim::terrain::MaterialType;
+    switch (type) {
+    case MaterialType::Ice:
+        return { { 6, 12, 18, 255 }, { 60, 110, 140, 255 }, { 165, 216, 255, 255 } };
+    case MaterialType::Sand:
+        return { { 18, 14, 9, 255 }, { 115, 88, 52, 255 }, { 232, 176, 104, 255 } };
+    case MaterialType::Mud:
+        return { { 14, 10, 7, 255 }, { 95, 68, 45, 255 }, { 140, 92, 52, 255 } };
+    case MaterialType::Grass:
+        return { { 7, 16, 9, 255 }, { 45, 95, 55, 255 }, { 124, 179, 66, 255 } };
+    case MaterialType::Gravel:
+        return { { 12, 13, 14, 255 }, { 80, 85, 90, 255 }, { 176, 190, 197, 255 } };
+    case MaterialType::Snow:
+        return { { 11, 15, 20, 255 }, { 95, 115, 135, 255 }, { 215, 232, 245, 255 } };
+    case MaterialType::Tarmac:
+    default:
+        return { { 8, 9, 10, 255 }, { 41, 60, 70, 255 }, { 242, 138, 114, 255 } };
+    }
+}
+} // namespace
+
+void WireframeRenderer::drawGrid(SDL_Renderer* renderer, const MotionLabCamera& camera, SDL_Color gridColor) noexcept
 {
     const int screenW { camera.getConfig().viewportWidth };
     const int screenH { camera.getConfig().viewportHeight };
@@ -58,7 +88,6 @@ void WireframeRenderer::drawGrid(SDL_Renderer* renderer, const MotionLabCamera& 
     const double bottom { camPos.y - static_cast<double>(screenH) / (2.0 * zoom) };
     const double top { camPos.y + static_cast<double>(screenH) / (2.0 * zoom) };
 
-    const SDL_Color gridColor { 41, 60, 70, 255 }; // #293c46
     SDL_SetRenderDrawColor(renderer, gridColor.r, gridColor.g, gridColor.b, gridColor.a);
 
     // Vertical grid lines every 5 meters
@@ -84,7 +113,8 @@ void WireframeRenderer::drawGrid(SDL_Renderer* renderer, const MotionLabCamera& 
 
 void WireframeRenderer::drawSkids(SDL_Renderer* renderer,
                                  const MotionLabCamera& camera,
-                                 const SkidRibbonBuffer& skids) noexcept
+                                 const SkidRibbonBuffer& skids,
+                                 SDL_Color skidBaseColor) noexcept
 {
     const double lifetime { skids.getLifetime() };
     if (lifetime <= 0.0) {
@@ -99,7 +129,7 @@ void WireframeRenderer::drawSkids(SDL_Renderer* renderer,
         const auto s1 = camera.worldToScreen(seg.from);
         const auto s2 = camera.worldToScreen(seg.to);
 
-        const SDL_Color skidColor { 242, 138, 114, alpha }; // #f28a72
+        const SDL_Color skidColor { skidBaseColor.r, skidBaseColor.g, skidBaseColor.b, alpha };
         drawLine(renderer,
                  static_cast<int>(std::round(s1.x)), static_cast<int>(std::round(s1.y)),
                  static_cast<int>(std::round(s2.x)), static_cast<int>(std::round(s2.y)),
@@ -247,13 +277,13 @@ void WireframeRenderer::renderScene(SDL_Renderer* renderer,
         return;
     }
 
-    // Clear background to deep slate #08090a
-    SDL_SetRenderDrawColor(renderer, 8, 9, 10, 255);
+    const auto theme = getTerrainTheme(car.getSurfaceMaterial().type);
+    SDL_SetRenderDrawColor(renderer, theme.background.r, theme.background.g, theme.background.b, theme.background.a);
     SDL_RenderClear(renderer);
 
-    drawGrid(renderer, camera);
+    drawGrid(renderer, camera, theme.grid);
     drawTrail(renderer, camera, trail);
-    drawSkids(renderer, camera, skids);
+    drawSkids(renderer, camera, skids, theme.skid);
 
     if (barrierActive) {
         drawBarrier(renderer, camera);

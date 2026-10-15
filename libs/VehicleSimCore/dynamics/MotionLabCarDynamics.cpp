@@ -102,6 +102,16 @@ void MotionLabCarDynamics::setHandbrakeStrength(double strength) noexcept
     mConfig.handbrakeStrength = std::clamp(strength, 0.0, 1.0);
 }
 
+void MotionLabCarDynamics::setSurfaceMaterial(const terrain::SurfaceMaterial& material) noexcept
+{
+    mSurfaceMaterial = material;
+}
+
+const terrain::SurfaceMaterial& MotionLabCarDynamics::getSurfaceMaterial() const noexcept
+{
+    return mSurfaceMaterial;
+}
+
 void MotionLabCarDynamics::step(physics::RigidBody2D& body, double dt) noexcept
 {
     if (dt <= 0.0) {
@@ -146,19 +156,19 @@ void MotionLabCarDynamics::step(physics::RigidBody2D& body, double dt) noexcept
 
         const bool isRear { !tire.steered };
 
-        // Dual-threshold hysteresis for rear skidmark generation
-        const double skidThreshold { tire.skidding ? 0.8 : 1.5 };
+        // Dual-threshold hysteresis for rear skidmark generation, scaled by surface friction
+        const double skidThreshold { (tire.skidding ? 0.8 : 1.5) * std::max(0.15, mSurfaceMaterial.friction) };
         tire.skidding = isRear && (tire.lateralSpeed * 0.7 > skidThreshold);
         if (tire.skidding) {
             mIsSkidding = true;
         }
 
-        double rollingRes { mConfig.rollingResistance };
+        double rollingRes { mConfig.rollingResistance * mSurfaceMaterial.rollingDrag };
         if (isRear && mInput.handbrake) {
             rollingRes *= (1.0 + mConfig.handbrakeStrength * (mConfig.handbrakeRollingMult - 1.0));
         }
 
-        double lateralRes { mConfig.lateralResistance };
+        double lateralRes { mConfig.lateralResistance * mSurfaceMaterial.friction };
         if (isRear) {
             lateralRes *= (1.0 - mRearGripLoss * mConfig.handbrakeStrength * (1.0 - mConfig.handbrakeGrip));
         }

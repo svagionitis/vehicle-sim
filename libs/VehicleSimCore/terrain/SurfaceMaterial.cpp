@@ -147,6 +147,25 @@ SurfaceMaterial SurfaceMaterial::getPreset(MaterialType materialType) noexcept
         mat.soil.frictionAngle = 0.45;
         mat.soil.hardeningRate = 2.0;
         break;
+
+    case MaterialType::Sand:
+        mat.friction = 0.45;
+        mat.rollingDrag = 2.40;
+        mat.restitution = 0.03;
+        mat.isLiquid = false;
+        mat.soil.isDeformable = true;
+        mat.soil.cohesionModulus = 1500.0;
+        mat.soil.frictionModulus = 450000.0;
+        mat.soil.sinkageExponent = 1.1;
+        mat.soil.maxPlasticDepth = 0.30;
+        mat.soil.plasticRatio = 0.90;
+        mat.soil.recoveryTime = 0.0;
+        mat.soil.compactionRatio = 0.35;
+        mat.soil.bulkDensity = 1600.0;
+        mat.soil.cohesion = 1000.0;
+        mat.soil.frictionAngle = 0.60;
+        mat.soil.hardeningRate = 2.0;
+        break;
     }
 
     return mat;
@@ -175,6 +194,8 @@ std::string_view SurfaceMaterial::getName(MaterialType materialType) noexcept
         return "Water";
     case MaterialType::Grass:
         return "Grass";
+    case MaterialType::Sand:
+        return "Sand";
     }
 
     return "Unknown";

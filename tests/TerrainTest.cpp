@@ -57,14 +57,21 @@ TEST(SurfaceMaterialTest, PresetRetrievalAndValidation)
     EXPECT_TRUE(water.isLiquid);
     EXPECT_GT(water.rollingDrag, 3.0);
     EXPECT_EQ(terrain::SurfaceMaterial::getName(terrain::MaterialType::Water), "Water");
+
+    const auto sand = terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Sand);
+    EXPECT_FALSE(sand.isLiquid);
+    EXPECT_DOUBLE_EQ(sand.friction, 0.45);
+    EXPECT_DOUBLE_EQ(sand.rollingDrag, 2.40);
+    EXPECT_TRUE(sand.soil.isDeformable);
+    EXPECT_EQ(terrain::SurfaceMaterial::getName(terrain::MaterialType::Sand), "Sand");
 }
 
 TEST(SurfaceMaterialTest, AllPresetsCovered)
 {
-    const std::array<terrain::MaterialType, 10> types { terrain::MaterialType::Tarmac, terrain::MaterialType::Concrete,
+    const std::array<terrain::MaterialType, 11> types { terrain::MaterialType::Tarmac, terrain::MaterialType::Concrete,
         terrain::MaterialType::Dirt, terrain::MaterialType::Gravel, terrain::MaterialType::Mud,
         terrain::MaterialType::Ice, terrain::MaterialType::Snow, terrain::MaterialType::OilSlick,
-        terrain::MaterialType::Water, terrain::MaterialType::Grass };
+        terrain::MaterialType::Water, terrain::MaterialType::Grass, terrain::MaterialType::Sand };
 
     for (const auto type : types) {
         const auto mat = terrain::SurfaceMaterial::getPreset(type);

@@ -5,6 +5,7 @@
 
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
+#include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
 
 namespace vehicle_sim::physics {
 class RigidBody2D;
@@ -120,6 +121,14 @@ public:
     /// @param[in] strength Handbrake effectiveness in [0.0, 1.0].
     void setHandbrakeStrength(double strength) noexcept;
 
+    /// @brief Sets surface material properties affecting tire traction and rolling drag.
+    /// @param[in] material Surface material parameters.
+    void setSurfaceMaterial(const terrain::SurfaceMaterial& material) noexcept;
+
+    /// @brief Gets active surface material parameters.
+    /// @return Current SurfaceMaterial struct.
+    [[nodiscard]] const terrain::SurfaceMaterial& getSurfaceMaterial() const noexcept;
+
     /// @brief Computes the 4 vehicle boundary points in world space.
     /// @param[in] body Vehicle rigid body chassis.
     /// @return Array of 4 world-space corner points.
@@ -138,6 +147,7 @@ private:
     MotionLabCarConfig mConfig { };
     MotionLabCarInput mInput { };
     std::array<MotionLabTireTelemetry, kWheelCount> mTires { };
+    terrain::SurfaceMaterial mSurfaceMaterial { terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Tarmac) };
     double mRearGripLoss { 0.0 };
     bool mIsSkidding { false };
 };

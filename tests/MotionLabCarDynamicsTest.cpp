@@ -203,3 +203,86 @@ TEST(MotionLabCarDynamicsTest, WorldPointsAndMidpointSupport)
     EXPECT_NEAR(rightSupport.x, 12.0, 1e-4);
     EXPECT_NEAR(rightSupport.y, 20.0, 1e-4);
 }
+
+TEST(MotionLabCarDynamicsTest, SurfaceMaterialDefaultAndSetGet)
+{
+    MotionLabCarDynamics car { };
+    EXPECT_EQ(car.getSurfaceMaterial().type, terrain::MaterialType::Tarmac);
+    EXPECT_DOUBLE_EQ(car.getSurfaceMaterial().friction, 1.0);
+    EXPECT_DOUBLE_EQ(car.getSurfaceMaterial().rollingDrag, 1.0);
+
+    const auto ice = terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Ice);
+    car.setSurfaceMaterial(ice);
+    EXPECT_EQ(car.getSurfaceMaterial().type, terrain::MaterialType::Ice);
+    EXPECT_DOUBLE_EQ(car.getSurfaceMaterial().friction, 0.10);
+
+    const auto sand = terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Sand);
+    car.setSurfaceMaterial(sand);
+    EXPECT_EQ(car.getSurfaceMaterial().type, terrain::MaterialType::Sand);
+    EXPECT_DOUBLE_EQ(car.getSurfaceMaterial().rollingDrag, 2.40);
+}
+
+TEST(MotionLabCarDynamicsTest, IceSurfaceIncreasesDriftAndSkidding)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1666.667;
+    RigidBody2D bodyTarmac { bodyConfig };
+    RigidBody2D bodyIce { bodyConfig };
+
+    bodyTarmac.setLinearVelocity({ 15.0, 0.0 });
+    bodyIce.setLinearVelocity({ 15.0, 0.0 });
+
+    MotionLabCarDynamics carTarmac { };
+    MotionLabCarDynamics carIce { };
+    carIce.setSurfaceMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Ice));
+
+    carTarmac.setInput({ 1.0, 1.0, false });
+    carIce.setInput({ 1.0, 1.0, false });
+
+    constexpr double dt { 1.0 / 120.0 };
+    for (int i { 0 }; i < 30; ++i) {
+        carTarmac.step(bodyTarmac, dt);
+        Integrator2D::integrate(bodyTarmac, dt);
+
+        carIce.step(bodyIce, dt);
+        Integrator2D::integrate(bodyIce, dt);
+    }
+
+    // On tarmac, high lateral grip induces rapid yaw rotation
+    // On ice, low lateral grip limits the turning torque and lateral acceleration
+    EXPECT_GT(bodyTarmac.getAngularVelocity(), bodyIce.getAngularVelocity());
+}
+
+TEST(MotionLabCarDynamicsTest, SandSurfaceIncreasesDecelerationDrag)
+{
+    RigidBodyConfig bodyConfig { };
+    bodyConfig.mass = 1000.0;
+    bodyConfig.inertia = 1666.667;
+    RigidBody2D bodyTarmac { bodyConfig };
+    RigidBody2D bodySand { bodyConfig };
+
+    // Coasting from 20 m/s with zero throttle
+    bodyTarmac.setLinearVelocity({ 20.0, 0.0 });
+    bodySand.setLinearVelocity({ 20.0, 0.0 });
+
+    MotionLabCarDynamics carTarmac { };
+    MotionLabCarDynamics carSand { };
+    carSand.setSurfaceMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Sand));
+
+    carTarmac.setInput({ 0.0, 0.0, false });
+    carSand.setInput({ 0.0, 0.0, false });
+
+    constexpr double dt { 1.0 / 120.0 };
+    for (int i { 0 }; i < 120; ++i) { // 1.0s of coasting
+        carTarmac.step(bodyTarmac, dt);
+        Integrator2D::integrate(bodyTarmac, dt);
+
+        carSand.step(bodySand, dt);
+        Integrator2D::integrate(bodySand, dt);
+    }
+
+    // Sand rolling drag (2.4x) causes significantly faster speed loss
+    EXPECT_LT(bodySand.getLinearVelocity().x, bodyTarmac.getLinearVelocity().x);
+}
+

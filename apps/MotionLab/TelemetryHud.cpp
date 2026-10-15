@@ -51,8 +51,11 @@ std::uint16_t TelemetryHud::getGlyph(char c) noexcept
     case ':': return 0u | (2u << 3) | (0u << 6) | (2u << 9) | (0u << 12);
     case '-': return 0u | (0u << 3) | (7u << 6) | (0u << 9) | (0u << 12);
     case '.': return 0u | (0u << 3) | (0u << 6) | (0u << 9) | (2u << 12);
+    case ',': return 0u | (0u << 3) | (0u << 6) | (2u << 9) | (1u << 12);
     case '(': return 2u | (1u << 3) | (1u << 6) | (1u << 9) | (2u << 12);
     case ')': return 2u | (4u << 3) | (4u << 6) | (4u << 9) | (2u << 12);
+    case '[': return 3u | (1u << 3) | (1u << 6) | (1u << 9) | (3u << 12);
+    case ']': return 6u | (4u << 3) | (4u << 6) | (4u << 9) | (6u << 12);
     case '/': return 4u | (4u << 3) | (2u << 6) | (1u << 9) | (1u << 12);
     case '%': return 5u | (4u << 3) | (2u << 6) | (1u << 9) | (5u << 12);
     default:  return 0u;
@@ -129,12 +132,16 @@ void TelemetryHud::render(SDL_Renderer* renderer,
     std::snprintf(buffer, sizeof(buffer), "FPS     %.1F", snapshot.fps);
     drawText(renderer, buffer, 24, 92, 2, whiteColor);
 
+    std::snprintf(buffer, sizeof(buffer), "TERRAIN %s (MU %.2F DRAG %.2F)", snapshot.terrainName.c_str(), snapshot.terrainFriction, snapshot.terrainRollingDrag);
+    drawText(renderer, buffer, 24, 110, 2, cyanColor);
+
     // 2. Bottom Caption Bar
     std::string caption { };
     caption += snapshot.barrierOn ? "BARRIER ON / " : "BARRIER OFF / ";
     caption += snapshot.gravityOn ? "GRAVITY ON / " : "GRAVITY OFF / ";
     caption += snapshot.deadZoneOn ? "DEAD ZONE ON / " : "DEAD ZONE OFF / ";
-    caption += snapshot.speedZoomOn ? "SPEED ZOOM ON" : "SPEED ZOOM OFF";
+    caption += snapshot.speedZoomOn ? "SPEED ZOOM ON / " : "SPEED ZOOM OFF / ";
+    caption += "TERRAIN: " + snapshot.terrainName + " [T]";
     drawText(renderer, caption, 24, screenHeight - 34, 2, goldColor);
 
     // 3. Bottom Version Tag

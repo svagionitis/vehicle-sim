@@ -11,6 +11,7 @@
 #include "libs/VehicleSimCore/dynamics/MotionLabCarDynamics.h"
 #include "libs/VehicleSimCore/physics/BarrierSolver2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
+#include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
 
 namespace motion_lab {
 
@@ -85,6 +86,21 @@ public:
     /// @brief Toggles borderless fullscreen mode.
     void toggleFullscreen() noexcept;
 
+    /// @brief Cycles to the next available terrain surface preset.
+    void cycleTerrain() noexcept;
+
+    /// @brief Sets active terrain surface material preset.
+    /// @param[in] type Target terrain material type.
+    void setTerrain(vehicle_sim::terrain::MaterialType type) noexcept;
+
+    /// @brief Gets active terrain material type.
+    /// @return Active MaterialType enum.
+    [[nodiscard]] vehicle_sim::terrain::MaterialType getTerrain() const noexcept;
+
+    /// @brief Gets active surface material configuration.
+    /// @return Reference to active SurfaceMaterial.
+    [[nodiscard]] const vehicle_sim::terrain::SurfaceMaterial& getSurfaceMaterial() const noexcept;
+
     /// @brief Queries whether application is running.
     [[nodiscard]] bool isRunning() const noexcept;
 
@@ -135,6 +151,7 @@ private:
     bool mGravity { false };
     bool mInputHudVisible { true };
     bool mIsFullscreen { false };
+    std::size_t mTerrainIndex { 0U };
 
     vehicle_sim::physics::RigidBody2D mBody { };
     vehicle_sim::dynamics::MotionLabCarDynamics mCar { };

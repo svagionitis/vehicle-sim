@@ -29,6 +29,9 @@ struct TelemetrySnapshot {
     bool throttleReverse { false };  ///< Active brake/reverse input.
     bool handbrake { false };        ///< Active handbrake input.
     bool isPaused { false };         ///< Active paused status.
+    std::string terrainName { "TARMAC" }; ///< Name of active surface terrain.
+    double terrainFriction { 1.0 };  ///< Active surface friction coefficient.
+    double terrainRollingDrag { 1.0 }; ///< Active surface rolling drag multiplier.
 };
 
 /// @class TelemetryHud

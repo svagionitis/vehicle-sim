@@ -8,6 +8,18 @@
 
 namespace motion_lab {
 
+namespace {
+constexpr std::array<vehicle_sim::terrain::MaterialType, 7> kAvailableTerrains {{
+    vehicle_sim::terrain::MaterialType::Tarmac,
+    vehicle_sim::terrain::MaterialType::Ice,
+    vehicle_sim::terrain::MaterialType::Sand,
+    vehicle_sim::terrain::MaterialType::Mud,
+    vehicle_sim::terrain::MaterialType::Grass,
+    vehicle_sim::terrain::MaterialType::Gravel,
+    vehicle_sim::terrain::MaterialType::Snow
+}};
+} // namespace
+
 MotionLabApp::MotionLabApp()
     : MotionLabApp(MotionLabAppConfig { })
 {
@@ -154,6 +166,33 @@ void MotionLabApp::toggleFullscreen() noexcept
     SDL_SetWindowFullscreen(mWindow, mIsFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 }
 
+void MotionLabApp::cycleTerrain() noexcept
+{
+    mTerrainIndex = (mTerrainIndex + 1U) % kAvailableTerrains.size();
+    setTerrain(kAvailableTerrains[mTerrainIndex]);
+}
+
+void MotionLabApp::setTerrain(vehicle_sim::terrain::MaterialType type) noexcept
+{
+    for (std::size_t i { 0U }; i < kAvailableTerrains.size(); ++i) {
+        if (kAvailableTerrains[i] == type) {
+            mTerrainIndex = i;
+            break;
+        }
+    }
+    mCar.setSurfaceMaterial(vehicle_sim::terrain::SurfaceMaterial::getPreset(type));
+}
+
+vehicle_sim::terrain::MaterialType MotionLabApp::getTerrain() const noexcept
+{
+    return mCar.getSurfaceMaterial().type;
+}
+
+const vehicle_sim::terrain::SurfaceMaterial& MotionLabApp::getSurfaceMaterial() const noexcept
+{
+    return mCar.getSurfaceMaterial();
+}
+
 void MotionLabApp::processEvents() noexcept
 {
     SDL_Event event { };
@@ -213,6 +252,37 @@ void MotionLabApp::processEvents() noexcept
                     break;
                 case SDLK_f:
                     toggleFullscreen();
+                    break;
+                case SDLK_t:
+                    cycleTerrain();
+                    break;
+                case SDLK_1:
+                case SDLK_KP_1:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Tarmac);
+                    break;
+                case SDLK_2:
+                case SDLK_KP_2:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Ice);
+                    break;
+                case SDLK_3:
+                case SDLK_KP_3:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Sand);
+                    break;
+                case SDLK_4:
+                case SDLK_KP_4:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Mud);
+                    break;
+                case SDLK_5:
+                case SDLK_KP_5:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Grass);
+                    break;
+                case SDLK_6:
+                case SDLK_KP_6:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Gravel);
+                    break;
+                case SDLK_7:
+                case SDLK_KP_7:
+                    setTerrain(vehicle_sim::terrain::MaterialType::Snow);
                     break;
                 case SDLK_ESCAPE:
                     mRunning = false;
@@ -353,6 +423,9 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.throttleReverse = mKeyS;
     snapshot.handbrake = mKeySpace;
     snapshot.isPaused = mPaused;
+    snapshot.terrainName = std::string(vehicle_sim::terrain::SurfaceMaterial::getName(getTerrain()));
+    snapshot.terrainFriction = mCar.getSurfaceMaterial().friction;
+    snapshot.terrainRollingDrag = mCar.getSurfaceMaterial().rollingDrag;
 
     TelemetryHud::render(mRenderer, snapshot, mConfig.windowWidth, mConfig.windowHeight);
 

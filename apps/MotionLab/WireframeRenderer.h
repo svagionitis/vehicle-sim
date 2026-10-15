@@ -48,8 +48,8 @@ public:
                           SDL_Color color) noexcept;
 
 private:
-    void drawGrid(SDL_Renderer* renderer, const MotionLabCamera& camera) noexcept;
-    void drawSkids(SDL_Renderer* renderer, const MotionLabCamera& camera, const SkidRibbonBuffer& skids) noexcept;
+    void drawGrid(SDL_Renderer* renderer, const MotionLabCamera& camera, SDL_Color gridColor) noexcept;
+    void drawSkids(SDL_Renderer* renderer, const MotionLabCamera& camera, const SkidRibbonBuffer& skids, SDL_Color skidColor) noexcept;
     void drawTrail(SDL_Renderer* renderer, const MotionLabCamera& camera, const TrailParticleBuffer& trail) noexcept;
     void drawBarrier(SDL_Renderer* renderer, const MotionLabCamera& camera) noexcept;
     void drawCar(SDL_Renderer* renderer,
