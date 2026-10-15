@@ -135,17 +135,29 @@ void TelemetryHud::render(SDL_Renderer* renderer,
     std::snprintf(buffer, sizeof(buffer), "TERRAIN %s (MU %.2F DRAG %.2F)", snapshot.terrainName.c_str(), snapshot.terrainFriction, snapshot.terrainRollingDrag);
     drawText(renderer, buffer, 24, 110, 2, cyanColor);
 
+    std::snprintf(buffer, sizeof(buffer), "VEHICLE %s", snapshot.vehicleName.c_str());
+    drawText(renderer, buffer, 24, 128, 2, goldColor);
+
+    if (!snapshot.vehicleDetails.empty()) {
+        std::snprintf(buffer, sizeof(buffer), "STATUS  %s", snapshot.vehicleDetails.c_str());
+        drawText(renderer, buffer, 24, 146, 2, cyanColor);
+    }
+
     // 2. Bottom Caption Bar
     std::string caption { };
     caption += snapshot.barrierOn ? "BARRIER ON / " : "BARRIER OFF / ";
     caption += snapshot.gravityOn ? "GRAVITY ON / " : "GRAVITY OFF / ";
-    caption += snapshot.deadZoneOn ? "DEAD ZONE ON / " : "DEAD ZONE OFF / ";
-    caption += snapshot.speedZoomOn ? "SPEED ZOOM ON / " : "SPEED ZOOM OFF / ";
-    caption += "TERRAIN: " + snapshot.terrainName + " [T]";
+    caption += snapshot.deadZoneOn ? "DEAD ZONE / " : "";
+    caption += snapshot.speedZoomOn ? "SPEED ZOOM / " : "";
+    caption += "[V] " + snapshot.vehicleName + " / [T] " + snapshot.terrainName;
     drawText(renderer, caption, 24, screenHeight - 34, 2, goldColor);
 
-    // 3. Bottom Version Tag
-    drawText(renderer, "MOTION LAB 1996 REMASTER (CAR)", screenWidth - 420, screenHeight - 34, 2, dimmedColor);
+    // 3. Bottom Version Tag (aligned to the far right)
+    const std::string versionTag { "MOTION LAB 1996 (" + snapshot.vehicleName + ")" };
+    constexpr int kCharWidth { 8 }; // 4 cols * scale 2
+    const int tagWidth { static_cast<int>(versionTag.length()) * kCharWidth };
+    const int tagX { screenWidth - tagWidth - 24 };
+    drawText(renderer, versionTag, tagX, screenHeight - 34, 2, dimmedColor);
 
     // 4. Input Indicator HUD (if toggled on via 'H')
     if (snapshot.inputHudVisible) {

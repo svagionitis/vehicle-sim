@@ -1,14 +1,21 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <SDL2/SDL.h>
 
 #include "apps/MotionLab/MotionLabCamera.h"
+#include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
 #include "apps/MotionLab/TelemetryHud.h"
 #include "apps/MotionLab/TrailParticleBuffer.h"
 #include "apps/MotionLab/WireframeRenderer.h"
+#include "libs/VehicleSimCore/dynamics/HelicopterDynamics.h"
+#include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MotionLabCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/RaceCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
+#include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
 #include "libs/VehicleSimCore/physics/BarrierSolver2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
@@ -29,7 +36,7 @@ struct MotionLabAppConfig {
 /// @class MotionLabApp
 /// @brief Main interactive application coordinator running the 120 Hz Motion Lab simulation.
 /// @details Coordinates SDL2 hardware rendering, fixed-clock accumulator stepping,
-/// keyboard driving controls, camera dead zone and zoom tracking, and HUD metrics.
+/// vehicle switching (race car, rocket, helicopter, etc.), camera dead zone tracking, and HUD metrics.
 class MotionLabApp {
 public:
     /// @brief Default constructor.
@@ -101,6 +108,21 @@ public:
     /// @return Reference to active SurfaceMaterial.
     [[nodiscard]] const vehicle_sim::terrain::SurfaceMaterial& getSurfaceMaterial() const noexcept;
 
+    /// @brief Cycles to the next available vehicle model preset.
+    void cycleVehicle() noexcept;
+
+    /// @brief Sets active vehicle simulation model.
+    /// @param[in] type Target vehicle simulation model.
+    void setVehicleType(MotionLabVehicleType type) noexcept;
+
+    /// @brief Gets active vehicle simulation model.
+    /// @return Active MotionLabVehicleType enum.
+    [[nodiscard]] MotionLabVehicleType getVehicleType() const noexcept;
+
+    /// @brief Gets active vehicle human-readable name.
+    /// @return String view of active vehicle name.
+    [[nodiscard]] std::string_view getVehicleName() const noexcept;
+
     /// @brief Queries whether application is running.
     [[nodiscard]] bool isRunning() const noexcept;
 
@@ -113,11 +135,41 @@ public:
     /// @brief Queries whether gravity is active.
     [[nodiscard]] bool isGravityActive() const noexcept;
 
-    /// @brief Gets constant reference to active car coordinator.
+    /// @brief Gets constant reference to active classic car coordinator.
     [[nodiscard]] const vehicle_sim::dynamics::MotionLabCarDynamics& getCar() const noexcept;
 
-    /// @brief Gets mutable reference to active car coordinator.
+    /// @brief Gets mutable reference to active classic car coordinator.
     [[nodiscard]] vehicle_sim::dynamics::MotionLabCarDynamics& getCar() noexcept;
+
+    /// @brief Gets constant reference to active race car coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::RaceCarDynamics& getRaceCar() const noexcept;
+
+    /// @brief Gets mutable reference to active race car coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::RaceCarDynamics& getRaceCar() noexcept;
+
+    /// @brief Gets constant reference to active rocket coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::RocketDynamics& getRocket() const noexcept;
+
+    /// @brief Gets mutable reference to active rocket coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::RocketDynamics& getRocket() noexcept;
+
+    /// @brief Gets constant reference to active helicopter coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::HelicopterDynamics& getHelicopter() const noexcept;
+
+    /// @brief Gets mutable reference to active helicopter coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::HelicopterDynamics& getHelicopter() noexcept;
+
+    /// @brief Gets constant reference to active hovercraft coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::HovercraftDynamics& getHovercraft() const noexcept;
+
+    /// @brief Gets mutable reference to active hovercraft coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::HovercraftDynamics& getHovercraft() noexcept;
+
+    /// @brief Gets constant reference to active tracked tank coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::TrackedTankDynamics& getTank() const noexcept;
+
+    /// @brief Gets mutable reference to active tracked tank coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::TrackedTankDynamics& getTank() noexcept;
 
     /// @brief Gets constant reference to vehicle chassis rigid body.
     [[nodiscard]] const vehicle_sim::physics::RigidBody2D& getBody() const noexcept;
@@ -141,6 +193,8 @@ private:
     };
 
     void updateTireSkidmarks(double dt) noexcept;
+    void applyVehicleProperties() noexcept;
+    [[nodiscard]] vehicle_sim::math::Vec2 computeSupportPoint(const vehicle_sim::math::Vec2& normal) const noexcept;
 
     MotionLabAppConfig mConfig { };
     SDL_Window* mWindow { nullptr };
@@ -152,9 +206,18 @@ private:
     bool mInputHudVisible { true };
     bool mIsFullscreen { false };
     std::size_t mTerrainIndex { 0U };
+    std::size_t mVehicleIndex { 0U };
+
+    MotionLabVehicleType mVehicleType { MotionLabVehicleType::ClassicCar };
 
     vehicle_sim::physics::RigidBody2D mBody { };
     vehicle_sim::dynamics::MotionLabCarDynamics mCar { };
+    vehicle_sim::dynamics::RaceCarDynamics mRaceCar { };
+    vehicle_sim::dynamics::RocketDynamics mRocket { };
+    vehicle_sim::dynamics::HelicopterDynamics mHelicopter { };
+    vehicle_sim::dynamics::HovercraftDynamics mHovercraft { };
+    vehicle_sim::dynamics::TrackedTankDynamics mTank { };
+
     MotionLabCamera mCamera { };
     SkidRibbonBuffer mSkids { 10.0 };
     TrailParticleBuffer mTrail { 12.0 };
@@ -176,6 +239,7 @@ private:
     double mCurrentFps { 60.0 };
     int mFrameCounter { 0 };
     double mFpsTimer { 0.0 };
+    double mAnimTimer { 0.0 };
 };
 
 } // namespace motion_lab

@@ -32,6 +32,8 @@ struct TelemetrySnapshot {
     std::string terrainName { "TARMAC" }; ///< Name of active surface terrain.
     double terrainFriction { 1.0 };  ///< Active surface friction coefficient.
     double terrainRollingDrag { 1.0 }; ///< Active surface rolling drag multiplier.
+    std::string vehicleName { "CLASSIC CAR" }; ///< Name of active vehicle simulation model.
+    std::string vehicleDetails { "" };         ///< Dynamic vehicle telemetry metrics.
 };
 
 /// @class TelemetryHud

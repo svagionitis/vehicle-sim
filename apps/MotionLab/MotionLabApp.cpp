@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <thread>
 
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
@@ -17,6 +18,15 @@ constexpr std::array<vehicle_sim::terrain::MaterialType, 7> kAvailableTerrains {
     vehicle_sim::terrain::MaterialType::Grass,
     vehicle_sim::terrain::MaterialType::Gravel,
     vehicle_sim::terrain::MaterialType::Snow
+}};
+
+constexpr std::array<MotionLabVehicleType, 6> kAvailableVehicles {{
+    MotionLabVehicleType::ClassicCar,
+    MotionLabVehicleType::RaceCar,
+    MotionLabVehicleType::Rocket,
+    MotionLabVehicleType::Helicopter,
+    MotionLabVehicleType::Hovercraft,
+    MotionLabVehicleType::TrackedTank
 }};
 } // namespace
 
@@ -41,6 +51,8 @@ MotionLabApp::MotionLabApp(const MotionLabAppConfig& config)
     camConfig.viewportHeight = config.windowHeight;
     camConfig.baseZoom = 28.0;
     mCamera = MotionLabCamera { camConfig };
+
+    applyVehicleProperties();
 }
 
 MotionLabApp::~MotionLabApp() noexcept
@@ -98,6 +110,39 @@ bool MotionLabApp::initialize()
     return true;
 }
 
+void MotionLabApp::applyVehicleProperties() noexcept
+{
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar:
+        mBody.setMass(1000.0);
+        mBody.setInertia(1666.667);
+        mCar.setSurfaceMaterial(getSurfaceMaterial());
+        break;
+    case MotionLabVehicleType::RaceCar:
+        mBody.setMass(mRaceCar.getConfig().mass);
+        mBody.setInertia(mRaceCar.getConfig().inertia);
+        break;
+    case MotionLabVehicleType::Rocket:
+        mBody.setMass(mRocket.getTotalMass());
+        mBody.setInertia(mRocket.getInertia());
+        break;
+    case MotionLabVehicleType::Helicopter:
+        mBody.setMass(mHelicopter.getConfig().mass);
+        mBody.setInertia(4800.0);
+        break;
+    case MotionLabVehicleType::Hovercraft:
+        mBody.setMass(mHovercraft.getConfig().mass);
+        mBody.setInertia(2084.0);
+        mHovercraft.setSurfaceFriction(getSurfaceMaterial().friction);
+        break;
+    case MotionLabVehicleType::TrackedTank:
+        mBody.setMass(mTank.getConfig().mass);
+        mBody.setInertia(30000.0);
+        mTank.setSurfaceFriction(getSurfaceMaterial().friction);
+        break;
+    }
+}
+
 void MotionLabApp::resetSimulation() noexcept
 {
     mBody.setPosition(vehicle_sim::math::Vec2::zero());
@@ -107,9 +152,18 @@ void MotionLabApp::resetSimulation() noexcept
     mBody.clearForces();
 
     mCar.reset();
+    mRaceCar.reset();
+    mRocket.reset();
+    mHelicopter.reset();
+    mHovercraft.reset();
+    mTank.reset();
+
+    applyVehicleProperties();
+
     mCamera.reset(vehicle_sim::math::Vec2::zero());
     mSkids.clear();
     mTrail.clear();
+    mAnimTimer = 0.0;
 
     mRearLeftState = RearTireState { };
     mRearRightState = RearTireState { };
@@ -180,7 +234,10 @@ void MotionLabApp::setTerrain(vehicle_sim::terrain::MaterialType type) noexcept
             break;
         }
     }
-    mCar.setSurfaceMaterial(vehicle_sim::terrain::SurfaceMaterial::getPreset(type));
+    const auto mat = vehicle_sim::terrain::SurfaceMaterial::getPreset(type);
+    mCar.setSurfaceMaterial(mat);
+    mHovercraft.setSurfaceFriction(mat.friction);
+    mTank.setSurfaceFriction(mat.friction);
 }
 
 vehicle_sim::terrain::MaterialType MotionLabApp::getTerrain() const noexcept
@@ -191,6 +248,87 @@ vehicle_sim::terrain::MaterialType MotionLabApp::getTerrain() const noexcept
 const vehicle_sim::terrain::SurfaceMaterial& MotionLabApp::getSurfaceMaterial() const noexcept
 {
     return mCar.getSurfaceMaterial();
+}
+
+void MotionLabApp::cycleVehicle() noexcept
+{
+    mVehicleIndex = (mVehicleIndex + 1U) % kAvailableVehicles.size();
+    setVehicleType(kAvailableVehicles[mVehicleIndex]);
+}
+
+void MotionLabApp::setVehicleType(MotionLabVehicleType type) noexcept
+{
+    mVehicleType = type;
+    for (std::size_t i { 0U }; i < kAvailableVehicles.size(); ++i) {
+        if (kAvailableVehicles[i] == type) {
+            mVehicleIndex = i;
+            break;
+        }
+    }
+    applyVehicleProperties();
+}
+
+MotionLabVehicleType MotionLabApp::getVehicleType() const noexcept
+{
+    return mVehicleType;
+}
+
+std::string_view MotionLabApp::getVehicleName() const noexcept
+{
+    return getVehicleTypeName(mVehicleType);
+}
+
+vehicle_sim::math::Vec2 MotionLabApp::computeSupportPoint(const vehicle_sim::math::Vec2& normal) const noexcept
+{
+    double halfLen { 2.0 };
+    double halfWid { 1.0 };
+
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar:
+        return mCar.computeSupportPoint(mBody, normal);
+    case MotionLabVehicleType::RaceCar:
+        halfLen = 2.25;
+        halfWid = 0.90;
+        break;
+    case MotionLabVehicleType::Rocket:
+        halfLen = 3.00;
+        halfWid = 0.80;
+        break;
+    case MotionLabVehicleType::Helicopter:
+        halfLen = 3.00;
+        halfWid = 1.20;
+        break;
+    case MotionLabVehicleType::Hovercraft:
+        halfLen = 2.00;
+        halfWid = 1.10;
+        break;
+    case MotionLabVehicleType::TrackedTank:
+        halfLen = 2.50;
+        halfWid = 1.20;
+        break;
+    }
+
+    const std::array<vehicle_sim::math::Vec2, 4> points {{
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 { -halfLen, -halfWid }),
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 {  halfLen, -halfWid }),
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 {  halfLen,  halfWid }),
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 { -halfLen,  halfWid })
+    }};
+
+    double minProj { points[0].dot(normal) };
+    for (std::size_t i { 1 }; i < points.size(); ++i) {
+        minProj = std::min(minProj, points[i].dot(normal));
+    }
+
+    vehicle_sim::math::Vec2 sum { 0.0, 0.0 };
+    double count { 0.0 };
+    for (const auto& pt : points) {
+        if (std::abs(pt.dot(normal) - minProj) < 1e-8) {
+            sum += pt;
+            count += 1.0;
+        }
+    }
+    return (count > 0.0) ? (sum / count) : points[0];
 }
 
 void MotionLabApp::processEvents() noexcept
@@ -255,6 +393,27 @@ void MotionLabApp::processEvents() noexcept
                     break;
                 case SDLK_t:
                     cycleTerrain();
+                    break;
+                case SDLK_v:
+                    cycleVehicle();
+                    break;
+                case SDLK_F1:
+                    setVehicleType(MotionLabVehicleType::ClassicCar);
+                    break;
+                case SDLK_F2:
+                    setVehicleType(MotionLabVehicleType::RaceCar);
+                    break;
+                case SDLK_F3:
+                    setVehicleType(MotionLabVehicleType::Rocket);
+                    break;
+                case SDLK_F4:
+                    setVehicleType(MotionLabVehicleType::Helicopter);
+                    break;
+                case SDLK_F5:
+                    setVehicleType(MotionLabVehicleType::Hovercraft);
+                    break;
+                case SDLK_F6:
+                    setVehicleType(MotionLabVehicleType::TrackedTank);
                     break;
                 case SDLK_1:
                 case SDLK_KP_1:
@@ -324,23 +483,57 @@ void MotionLabApp::updateTireSkidmarks(double dt) noexcept
 {
     mSkids.update(dt);
 
-    const auto& tires = mCar.getTires();
-    const auto& rearLeft = tires[vehicle_sim::dynamics::MotionLabCarDynamics::kRearLeft];
-    const auto& rearRight = tires[vehicle_sim::dynamics::MotionLabCarDynamics::kRearRight];
+    if (mVehicleType == MotionLabVehicleType::ClassicCar) {
+        const auto& tires = mCar.getTires();
+        const auto& rearLeft = tires[vehicle_sim::dynamics::MotionLabCarDynamics::kRearLeft];
+        const auto& rearRight = tires[vehicle_sim::dynamics::MotionLabCarDynamics::kRearRight];
 
-    // Rear-Left tire skids
-    if (rearLeft.skidding && mRearLeftState.skidding) {
-        mSkids.addSegment(mRearLeftState.position, rearLeft.worldPosition);
-    }
-    mRearLeftState.position = rearLeft.worldPosition;
-    mRearLeftState.skidding = rearLeft.skidding;
+        if (rearLeft.skidding && mRearLeftState.skidding) {
+            mSkids.addSegment(mRearLeftState.position, rearLeft.worldPosition);
+        }
+        mRearLeftState.position = rearLeft.worldPosition;
+        mRearLeftState.skidding = rearLeft.skidding;
 
-    // Rear-Right tire skids
-    if (rearRight.skidding && mRearRightState.skidding) {
-        mSkids.addSegment(mRearRightState.position, rearRight.worldPosition);
+        if (rearRight.skidding && mRearRightState.skidding) {
+            mSkids.addSegment(mRearRightState.position, rearRight.worldPosition);
+        }
+        mRearRightState.position = rearRight.worldPosition;
+        mRearRightState.skidding = rearRight.skidding;
+    } else if (mVehicleType == MotionLabVehicleType::RaceCar) {
+        const auto& wheels = mRaceCar.getWheelStates();
+        const auto worldRL = mBody.toWorldPoint(wheels[2].localOffset);
+        const auto worldRR = mBody.toWorldPoint(wheels[3].localOffset);
+        const bool skiddingRL { std::abs(wheels[2].slipAngle) > 0.15 || std::abs(wheels[2].slipRatio) > 0.15 };
+        const bool skiddingRR { std::abs(wheels[3].slipAngle) > 0.15 || std::abs(wheels[3].slipRatio) > 0.15 };
+
+        if (skiddingRL && mRearLeftState.skidding) {
+            mSkids.addSegment(mRearLeftState.position, worldRL);
+        }
+        mRearLeftState.position = worldRL;
+        mRearLeftState.skidding = skiddingRL;
+
+        if (skiddingRR && mRearRightState.skidding) {
+            mSkids.addSegment(mRearRightState.position, worldRR);
+        }
+        mRearRightState.position = worldRR;
+        mRearRightState.skidding = skiddingRR;
+    } else if (mVehicleType == MotionLabVehicleType::TrackedTank) {
+        const auto worldL = mBody.toWorldPoint({ -1.8, 1.05 });
+        const auto worldR = mBody.toWorldPoint({ -1.8, -1.05 });
+        const bool skidding { std::abs(mBody.getAngularVelocity()) > 0.25 };
+
+        if (skidding && mRearLeftState.skidding) {
+            mSkids.addSegment(mRearLeftState.position, worldL);
+        }
+        mRearLeftState.position = worldL;
+        mRearLeftState.skidding = skidding;
+
+        if (skidding && mRearRightState.skidding) {
+            mSkids.addSegment(mRearRightState.position, worldR);
+        }
+        mRearRightState.position = worldR;
+        mRearRightState.skidding = skidding;
     }
-    mRearRightState.position = rearRight.worldPosition;
-    mRearRightState.skidding = rearRight.skidding;
 }
 
 void MotionLabApp::stepPhysics(double dt) noexcept
@@ -349,11 +542,79 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         return;
     }
 
-    const double throttle { (mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0) };
-    const double steer { (mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0) };
-    const bool handbrake { mKeySpace };
+    mAnimTimer += dt;
 
-    mCar.setInput({ throttle, steer, handbrake });
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar: {
+        const double throttle { (mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0) };
+        const double steer { (mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0) };
+        const bool handbrake { mKeySpace };
+        mCar.setInput({ throttle, steer, handbrake });
+        mCar.step(mBody, dt);
+        break;
+    }
+    case MotionLabVehicleType::RaceCar: {
+        const double throttle { mKeyW ? 1.0 : 0.0 };
+        const double brake { mKeyS ? 1.0 : 0.0 };
+        const double steer { (mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0) };
+        const bool drs { mKeySpace };
+        mRaceCar.setThrottle(throttle);
+        mRaceCar.setBrake(brake);
+        mRaceCar.setSteer(steer);
+        mRaceCar.setDrsActive(drs);
+        mRaceCar.step(mBody, dt);
+        break;
+    }
+    case MotionLabVehicleType::Rocket: {
+        const double throttle { mKeyW ? 1.0 : 0.0 };
+        const double gimbal { (mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0) };
+        const double rcsRot { (mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0) };
+        const double rcsTransX { (mKeySpace ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0) };
+        mRocket.setInput({ throttle, gimbal, rcsRot, { rcsTransX, 0.0 }, true });
+        mRocket.step(mBody, dt);
+        break;
+    }
+    case MotionLabVehicleType::Helicopter: {
+        const double cyclic { (mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0) };
+        const double rudder { (mKeyD ? 1.0 : 0.0) - (mKeyA ? 1.0 : 0.0) };
+        const double collective { mKeySpace ? 1.0 : (mKeyW || mKeyS ? 0.8 : 0.68) };
+        mHelicopter.setInput({ collective, cyclic, rudder, true, 10.0 });
+        mHelicopter.step(mBody, dt);
+        break;
+    }
+    case MotionLabVehicleType::Hovercraft: {
+        const double throttle { (mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0) };
+        const double steer { (mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0) };
+        const bool liftFan { !mKeySpace };
+        mHovercraft.setInput({ throttle, steer, liftFan, 0.35 });
+        mHovercraft.step(mBody, dt);
+        break;
+    }
+    case MotionLabVehicleType::TrackedTank: {
+        double leftTrack { 0.0 };
+        double rightTrack { 0.0 };
+        const double fwd { (mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0) };
+        const double turn { (mKeyD ? 1.0 : 0.0) - (mKeyA ? 1.0 : 0.0) };
+
+        if (std::abs(fwd) > 0.01) {
+            leftTrack = fwd + turn * 0.4;
+            rightTrack = fwd - turn * 0.4;
+        } else {
+            leftTrack = turn;
+            rightTrack = -turn;
+        }
+
+        leftTrack = std::clamp(leftTrack, -1.0, 1.0);
+        rightTrack = std::clamp(rightTrack, -1.0, 1.0);
+
+        if (mKeySpace) {
+            mTank.fireRecoil();
+        }
+        mTank.setInput({ leftTrack, rightTrack, mKeySpace, 0.0 });
+        mTank.step(mBody, dt);
+        break;
+    }
+    }
 
     // Optional downward vertical gravity and linear atmospheric terminal drag
     if (mGravity) {
@@ -369,7 +630,6 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         mBody.applyForce(gravForce);
     }
 
-    mCar.step(mBody, dt);
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
@@ -377,7 +637,7 @@ void MotionLabApp::stepPhysics(double dt) noexcept
             mBody,
             mCamera.getBounds(),
             [this](const vehicle_sim::math::Vec2& normal) noexcept {
-                return mCar.computeSupportPoint(mBody, normal);
+                return computeSupportPoint(normal);
             });
     }
 
@@ -391,10 +651,21 @@ void MotionLabApp::renderFrame() noexcept
         return;
     }
 
+    VehicleRenderContext context { };
+    context.type = mVehicleType;
+    context.terrain = getTerrain();
+    context.car = &mCar;
+    context.raceCar = &mRaceCar;
+    context.rocket = &mRocket;
+    context.helicopter = &mHelicopter;
+    context.hovercraft = &mHovercraft;
+    context.tank = &mTank;
+    context.animTimer = mAnimTimer;
+
     mWireframe.renderScene(
         mRenderer,
         mCamera,
-        mCar,
+        context,
         mBody,
         mSkids,
         mTrail,
@@ -426,6 +697,28 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.terrainName = std::string(vehicle_sim::terrain::SurfaceMaterial::getName(getTerrain()));
     snapshot.terrainFriction = mCar.getSurfaceMaterial().friction;
     snapshot.terrainRollingDrag = mCar.getSurfaceMaterial().rollingDrag;
+    snapshot.vehicleName = std::string(getVehicleName());
+
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar:
+        snapshot.vehicleDetails = mCar.isSkidding() ? "TIRES SKIDDING" : "GRIP OK";
+        break;
+    case MotionLabVehicleType::RaceCar:
+        snapshot.vehicleDetails = mRaceCar.getDrsAngleDeg() > 1.0 ? "DRS ACTIVE (LOW DRAG)" : "AERO DOWNFORCE ENGAGED";
+        break;
+    case MotionLabVehicleType::Rocket:
+        snapshot.vehicleDetails = std::string("FUEL ") + std::to_string(static_cast<int>(mRocket.getFuelRatio() * 100.0)) + "% / THRUST " + std::to_string(static_cast<int>(mRocket.getThrustForce() / 1000.0)) + " KN";
+        break;
+    case MotionLabVehicleType::Helicopter:
+        snapshot.vehicleDetails = std::string("ROTOR ") + std::to_string(static_cast<int>(mHelicopter.getRotorSpeed())) + " RPM / " + (mHelicopter.isAirborne() ? "AIRBORNE" : "SURFACE");
+        break;
+    case MotionLabVehicleType::Hovercraft:
+        snapshot.vehicleDetails = mHovercraft.isHovering() ? "AIR CUSHION ACTIVE" : "SKIRT BRAKING";
+        break;
+    case MotionLabVehicleType::TrackedTank:
+        snapshot.vehicleDetails = mTank.getTelemetry().isRecoiling ? "CANNON FIRING RECOIL" : "DUAL TRACK READY";
+        break;
+    }
 
     TelemetryHud::render(mRenderer, snapshot, mConfig.windowWidth, mConfig.windowHeight);
 
@@ -506,6 +799,56 @@ const vehicle_sim::dynamics::MotionLabCarDynamics& MotionLabApp::getCar() const 
 vehicle_sim::dynamics::MotionLabCarDynamics& MotionLabApp::getCar() noexcept
 {
     return mCar;
+}
+
+const vehicle_sim::dynamics::RaceCarDynamics& MotionLabApp::getRaceCar() const noexcept
+{
+    return mRaceCar;
+}
+
+vehicle_sim::dynamics::RaceCarDynamics& MotionLabApp::getRaceCar() noexcept
+{
+    return mRaceCar;
+}
+
+const vehicle_sim::dynamics::RocketDynamics& MotionLabApp::getRocket() const noexcept
+{
+    return mRocket;
+}
+
+vehicle_sim::dynamics::RocketDynamics& MotionLabApp::getRocket() noexcept
+{
+    return mRocket;
+}
+
+const vehicle_sim::dynamics::HelicopterDynamics& MotionLabApp::getHelicopter() const noexcept
+{
+    return mHelicopter;
+}
+
+vehicle_sim::dynamics::HelicopterDynamics& MotionLabApp::getHelicopter() noexcept
+{
+    return mHelicopter;
+}
+
+const vehicle_sim::dynamics::HovercraftDynamics& MotionLabApp::getHovercraft() const noexcept
+{
+    return mHovercraft;
+}
+
+vehicle_sim::dynamics::HovercraftDynamics& MotionLabApp::getHovercraft() noexcept
+{
+    return mHovercraft;
+}
+
+const vehicle_sim::dynamics::TrackedTankDynamics& MotionLabApp::getTank() const noexcept
+{
+    return mTank;
+}
+
+vehicle_sim::dynamics::TrackedTankDynamics& MotionLabApp::getTank() noexcept
+{
+    return mTank;
 }
 
 const vehicle_sim::physics::RigidBody2D& MotionLabApp::getBody() const noexcept

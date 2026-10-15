@@ -155,3 +155,115 @@ TEST(MotionLabAppTest, CycleTerrainSequencesAllPresets)
     EXPECT_EQ(app.getTerrain(), vehicle_sim::terrain::MaterialType::Tarmac);
 }
 
+TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    // Default vehicle: ClassicCar
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::ClassicCar);
+    EXPECT_EQ(app.getVehicleName(), "CLASSIC CAR");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1000.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 1666.667);
+
+    // Direct selection: RaceCar
+    app.setVehicleType(MotionLabVehicleType::RaceCar);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::RaceCar);
+    EXPECT_EQ(app.getVehicleName(), "RACE CAR");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 750.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 900.0);
+
+    // Direct selection: Rocket
+    app.setVehicleType(MotionLabVehicleType::Rocket);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Rocket);
+    EXPECT_EQ(app.getVehicleName(), "ROCKET");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 5000.0);
+    EXPECT_GT(app.getBody().getInertia(), 10000.0);
+
+    // Direct selection: Helicopter
+    app.setVehicleType(MotionLabVehicleType::Helicopter);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Helicopter);
+    EXPECT_EQ(app.getVehicleName(), "HELICOPTER");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 2200.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 4800.0);
+
+    // Direct selection: Hovercraft
+    app.setVehicleType(MotionLabVehicleType::Hovercraft);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Hovercraft);
+    EXPECT_EQ(app.getVehicleName(), "HOVERCRAFT");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1200.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 2084.0);
+
+    // Direct selection: TrackedTank
+    app.setVehicleType(MotionLabVehicleType::TrackedTank);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::TrackedTank);
+    EXPECT_EQ(app.getVehicleName(), "TRACKED TANK");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 12000.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 30000.0);
+}
+
+TEST(MotionLabAppTest, CycleVehicleSequencesAllPresets)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::ClassicCar);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::RaceCar);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Rocket);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Helicopter);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Hovercraft);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::TrackedTank);
+
+    // Wraps around to ClassicCar
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::ClassicCar);
+}
+
+TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    constexpr double dt { 1.0 / 120.0 };
+    const std::array<MotionLabVehicleType, 6> vehicles {{
+        MotionLabVehicleType::ClassicCar,
+        MotionLabVehicleType::RaceCar,
+        MotionLabVehicleType::Rocket,
+        MotionLabVehicleType::Helicopter,
+        MotionLabVehicleType::Hovercraft,
+        MotionLabVehicleType::TrackedTank
+    }};
+
+    for (const auto vType : vehicles) {
+        app.setVehicleType(vType);
+        EXPECT_EQ(app.getVehicleType(), vType);
+
+        // Advance 30 physics steps without crashing
+        for (int i { 0 }; i < 30; ++i) {
+            app.stepPhysics(dt);
+        }
+
+        EXPECT_GT(app.getBody().getMass(), 0.0);
+        EXPECT_GT(app.getBody().getInertia(), 0.0);
+    }
+}
+

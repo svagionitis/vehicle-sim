@@ -10,6 +10,8 @@ add_executable(MotionLab
     MotionLabApp.cpp
     MotionLabCamera.h
     MotionLabCamera.cpp
+    MotionLabVehicleType.h
+    MotionLabVehicleType.cpp
     SkidRibbonBuffer.h
     SkidRibbonBuffer.cpp
     TrailParticleBuffer.h
@@ -55,6 +57,8 @@ if(BUILD_TESTING)
         MotionLabApp.cpp
         MotionLabCamera.h
         MotionLabCamera.cpp
+        MotionLabVehicleType.h
+        MotionLabVehicleType.cpp
         SkidRibbonBuffer.h
         SkidRibbonBuffer.cpp
         TrailParticleBuffer.h
