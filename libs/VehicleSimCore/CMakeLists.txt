@@ -62,6 +62,8 @@ add_library(VehicleSimCore STATIC
     physics/FluidField2D.cpp
     physics/FluidDrag2D.h
     physics/FluidDrag2D.cpp
+    physics/BarrierSolver2D.h
+    physics/BarrierSolver2D.cpp
     dynamics/IVehicleDynamics.h
     dynamics/ArcadeCarDynamics.h
     dynamics/ArcadeCarDynamics.cpp
@@ -117,6 +119,8 @@ add_library(VehicleSimCore STATIC
     dynamics/BicycleDynamics.cpp
     dynamics/QuadBikeDynamics.h
     dynamics/QuadBikeDynamics.cpp
+    dynamics/MotionLabCarDynamics.h
+    dynamics/MotionLabCarDynamics.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
     terrain/GradientNoise.h

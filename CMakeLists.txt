@@ -16,6 +16,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Library options
 option(BUILD_TESTING "Build the automated test suite" ON)
 option(BUILD_EARTH_PATROL "Build Earth Patrol SDL2 game application" ON)
+option(BUILD_MOTION_LAB "Build Motion Lab 2D vehicle simulator application" ON)
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(ENABLE_HARDENING "Enable security hardening flags" ON)
 option(ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
@@ -39,4 +40,8 @@ endif()
 # Applications
 if(BUILD_EARTH_PATROL)
     add_subdirectory(apps/EarthPatrol)
+endif()
+
+if(BUILD_MOTION_LAB)
+    add_subdirectory(apps/MotionLab)
 endif()

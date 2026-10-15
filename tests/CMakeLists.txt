@@ -26,6 +26,8 @@ add_executable(VehicleSimCoreTests
     SnowmobileDynamicsTest.cpp
     BicycleDynamicsTest.cpp
     QuadBikeDynamicsTest.cpp
+    MotionLabCarDynamicsTest.cpp
+    BarrierSolver2DTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE
