@@ -24,6 +24,10 @@ add_executable(MotionLab
     CircuitTrackCoordinator.cpp
     CircuitTrackRenderer.h
     CircuitTrackRenderer.cpp
+    SlalomCourseCoordinator.h
+    SlalomCourseCoordinator.cpp
+    SlalomCourseRenderer.h
+    SlalomCourseRenderer.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -75,6 +79,10 @@ if(BUILD_TESTING)
         CircuitTrackCoordinator.cpp
         CircuitTrackRenderer.h
         CircuitTrackRenderer.cpp
+        SlalomCourseCoordinator.h
+        SlalomCourseCoordinator.cpp
+        SlalomCourseRenderer.h
+        SlalomCourseRenderer.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

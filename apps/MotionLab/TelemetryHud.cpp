@@ -153,13 +153,16 @@ void TelemetryHud::render(SDL_Renderer* renderer,
                           snapshot.bestLapTime, snapshot.lastLapTime);
             drawText(renderer, buffer, 24, 182, 2, goldColor);
         }
+    } else if (snapshot.slalomMode) {
+        drawText(renderer, "COURSE  100M SLALOM ACTIVE [L]", 24, 164, 2, SDL_Color { 255, 140, 0, 255 });
     }
 
     // 2. Bottom Caption Bar
     std::string caption { };
     caption += snapshot.barrierOn ? "BARRIER ON / " : "BARRIER OFF / ";
     caption += snapshot.gravityOn ? "GRAVITY ON / " : "GRAVITY OFF / ";
-    caption += snapshot.circuitMode ? "CIRCUIT ON / " : "CIRCUIT OFF / ";
+    caption += snapshot.circuitMode ? "[C] CIRCUIT ON / " : "[C] CIRCUIT OFF / ";
+    caption += snapshot.slalomMode ? "[L] SLALOM ON / " : "[L] SLALOM OFF / ";
     caption += snapshot.deadZoneOn ? "DEAD ZONE / " : "";
     caption += snapshot.speedZoomOn ? "SPEED ZOOM / " : "";
     caption += "[V] " + snapshot.vehicleName + " / [T] " + snapshot.terrainName;

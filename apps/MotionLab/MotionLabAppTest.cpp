@@ -386,3 +386,198 @@ TEST(MotionLabAppTest, CircuitTrackTimingGatesTraverseLap)
     EXPECT_GT(coordinator.getMetrics().bestLapTime, 0.0);
 }
 
+TEST(MotionLabAppTest, SlalomCourseGeometryLayout)
+{
+    SlalomCourseCoordinator coordinator { };
+    const auto& pylons = coordinator.getPylons();
+
+    EXPECT_EQ(pylons.size(), 10U);
+    for (std::size_t i { 0U }; i < pylons.size(); ++i) {
+        EXPECT_NEAR(pylons[i].position.x, static_cast<double>(i + 1U) * 10.0, 1e-6);
+        EXPECT_NEAR(pylons[i].position.y, 0.0, 1e-6);
+        EXPECT_NEAR(pylons[i].radius, 0.4, 1e-6);
+        EXPECT_FALSE(pylons[i].wasHit);
+        EXPECT_FALSE(pylons[i].passed);
+        EXPECT_TRUE(pylons[i].correctSide);
+        EXPECT_EQ(pylons[i].coneIndex, static_cast<std::uint32_t>(i + 1U));
+    }
+}
+
+TEST(MotionLabAppTest, SlalomStartGateTriggerSpeedSensitivity)
+{
+    SlalomCourseCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Staged behind start line
+    body.setPosition(vehicle_sim::math::Vec2 { -1.0, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 0.2, 0.0 }); // Below 0.5 m/s threshold
+    coordinator.stepPhysics(body, 0.1);
+    EXPECT_EQ(coordinator.getState(), SlalomState::IdleAtStart);
+
+    // Cross start line but too slow
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.1);
+    EXPECT_EQ(coordinator.getState(), SlalomState::IdleAtStart);
+
+    // Re-stage and cross with sufficient speed
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 1.2, 0.0 });
+    coordinator.stepPhysics(body, 0.1);
+
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.1);
+    EXPECT_EQ(coordinator.getState(), SlalomState::InProgress);
+}
+
+TEST(MotionLabAppTest, SlalomPylonHitLatchingAndPenalties)
+{
+    SlalomCourseCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Trigger start
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 2.0, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+    ASSERT_EQ(coordinator.getState(), SlalomState::InProgress);
+
+    // Drive directly into Cone 1 at x = 10.0, y = 0.0
+    body.setPosition(vehicle_sim::math::Vec2 { 10.0, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+
+    const auto& pylons = coordinator.getPylons();
+    EXPECT_TRUE(pylons[0].wasHit);
+    EXPECT_GT(pylons[0].toppleAngle, 1.0);
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 1U);
+    EXPECT_NEAR(coordinator.getMetrics().penaltyTime, 2.0, 1e-6);
+
+    // Stay in contact for several steps; verify single-penalty latching
+    for (int step { 0 }; step < 20; ++step) {
+        coordinator.stepPhysics(body, 0.05);
+    }
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 1U);
+    EXPECT_NEAR(coordinator.getMetrics().penaltyTime, 2.0, 1e-6);
+}
+
+TEST(MotionLabAppTest, SlalomWeaveComplianceValidation)
+{
+    SlalomCourseCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Start run
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 5.0, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+
+    // Pass Cone 1 (x = 10m) on Left side (y = +2.0m)
+    body.setPosition(vehicle_sim::math::Vec2 { 9.0, 2.0 });
+    coordinator.stepPhysics(body, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 11.0, 2.0 });
+    coordinator.stepPhysics(body, 0.05);
+
+    EXPECT_TRUE(coordinator.getPylons()[0].passed);
+    EXPECT_TRUE(coordinator.getPylons()[0].correctSide);
+    EXPECT_EQ(coordinator.getMetrics().missedGates, 0U);
+
+    // Pass Cone 2 (x = 20m) on Left side again (y = +2.0m instead of expected Right y < 0)
+    body.setPosition(vehicle_sim::math::Vec2 { 19.0, 2.0 });
+    coordinator.stepPhysics(body, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 21.0, 2.0 });
+    coordinator.stepPhysics(body, 0.05);
+
+    EXPECT_TRUE(coordinator.getPylons()[1].passed);
+    EXPECT_FALSE(coordinator.getPylons()[1].correctSide);
+    EXPECT_EQ(coordinator.getMetrics().missedGates, 1U);
+}
+
+TEST(MotionLabAppTest, SlalomSectorSplitsAndFinishTiming)
+{
+    SlalomCourseCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Start run
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 10.0, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+
+    // Advance through Sector 1 (x = 35m)
+    body.setPosition(vehicle_sim::math::Vec2 { 36.0, 0.0 });
+    coordinator.stepPhysics(body, 0.5);
+    EXPECT_GT(coordinator.getMetrics().sector1Time, 0.0);
+
+    // Advance through Sector 2 (x = 75m)
+    body.setPosition(vehicle_sim::math::Vec2 { 76.0, 0.0 });
+    coordinator.stepPhysics(body, 0.5);
+    EXPECT_GT(coordinator.getMetrics().sector2Time, 0.0);
+
+    // Cross Finish line (x = 110m)
+    body.setPosition(vehicle_sim::math::Vec2 { 111.0, 0.0 });
+    coordinator.stepPhysics(body, 0.5);
+    EXPECT_EQ(coordinator.getState(), SlalomState::Finished);
+    EXPECT_GT(coordinator.getMetrics().sector3Time, 0.0);
+    EXPECT_TRUE(coordinator.getMetrics().hasValidBest);
+    EXPECT_NEAR(coordinator.getMetrics().finalTime, coordinator.getMetrics().bestTime, 1e-6);
+}
+
+TEST(MotionLabAppTest, SlalomResetRestoresCleanState)
+{
+    SlalomCourseCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Start and hit a cone
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 3.0, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 10.0, 0.0 });
+    coordinator.stepPhysics(body, 0.05);
+    ASSERT_EQ(coordinator.getMetrics().hitCount, 1U);
+
+    // Reset course
+    coordinator.resetCourse(body);
+    EXPECT_EQ(coordinator.getState(), SlalomState::IdleAtStart);
+    EXPECT_NEAR(coordinator.getMetrics().elapsedTime, 0.0, 1e-6);
+    EXPECT_NEAR(coordinator.getMetrics().penaltyTime, 0.0, 1e-6);
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 0U);
+    EXPECT_NEAR(body.getPosition().x, -15.0, 1e-6);
+    EXPECT_NEAR(body.getPosition().y, 0.0, 1e-6);
+
+    for (const auto& pylon : coordinator.getPylons()) {
+        EXPECT_FALSE(pylon.wasHit);
+        EXPECT_FALSE(pylon.passed);
+        EXPECT_NEAR(pylon.toppleAngle, 0.0, 1e-6);
+    }
+}
+
+TEST(MotionLabAppTest, SlalomAppTogglesAndExclusivity)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+
+    EXPECT_FALSE(app.isSlalomActive());
+    app.toggleSlalom();
+    EXPECT_TRUE(app.isSlalomActive());
+    EXPECT_FALSE(app.isCircuitActive());
+
+    // Activating circuit should deactivate slalom
+    app.toggleCircuit();
+    EXPECT_TRUE(app.isCircuitActive());
+    EXPECT_FALSE(app.isSlalomActive());
+
+    // Activating slalom should deactivate circuit
+    app.toggleSlalom();
+    EXPECT_TRUE(app.isSlalomActive());
+    EXPECT_FALSE(app.isCircuitActive());
+}
+
+

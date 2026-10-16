@@ -6,6 +6,8 @@
 
 #include "apps/MotionLab/CircuitTrackCoordinator.h"
 #include "apps/MotionLab/CircuitTrackRenderer.h"
+#include "apps/MotionLab/SlalomCourseCoordinator.h"
+#include "apps/MotionLab/SlalomCourseRenderer.h"
 #include "apps/MotionLab/MotionLabCamera.h"
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
@@ -109,6 +111,22 @@ public:
 
     /// @brief Gets mutable reference to circuit track coordinator.
     [[nodiscard]] CircuitTrackCoordinator& getCircuit() noexcept;
+
+    /// @brief Toggles 100-meter slalom course mode.
+    void toggleSlalom() noexcept;
+
+    /// @brief Sets 100-meter slalom course mode state.
+    /// @param[in] enabled Desired enabled state.
+    void setSlalom(bool enabled) noexcept;
+
+    /// @brief Queries whether 100-meter slalom course is actively enabled.
+    [[nodiscard]] bool isSlalomActive() const noexcept;
+
+    /// @brief Gets constant reference to slalom course coordinator.
+    [[nodiscard]] const SlalomCourseCoordinator& getSlalom() const noexcept;
+
+    /// @brief Gets mutable reference to slalom course coordinator.
+    [[nodiscard]] SlalomCourseCoordinator& getSlalom() noexcept;
 
     /// @brief Cycles to the next available terrain surface preset.
     void cycleTerrain() noexcept;
@@ -245,6 +263,7 @@ private:
 
     CircuitTrackCoordinator mCircuitCoordinator { };
     std::uint32_t mCircuitSeed { 2024U };
+    SlalomCourseCoordinator mSlalomCoordinator { };
 
     // Keyboard inputs
     bool mKeyW { false };

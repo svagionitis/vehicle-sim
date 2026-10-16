@@ -894,7 +894,7 @@ Instead of only offering an infinite empty grid or a plain rectangular perimeter
 2. **100-Meter Slalom Course**:
    - 10 orange wireframe pylon cones spaced longitudinally at $\Delta x = 10.0\,\text{m}$ along the centerline $y = 0$.
    - Vehicle enters at $(x = -15\,\text{m}, y = 0\,\text{m})$ and must weave alternatively left and right through the gate markers.
-   - Pylon touch detection computes penalty seconds ($\Delta t_{\text{pen}} = +2.0\,\text{s}$).
+   - Pylon touch detection computes penalty seconds ($\Delta t_{\text{pen}} = +2.0\,\text{s}$) (see dedicated [100-Meter Slalom Course Implementation Plan](MotionLabSlalomImplementationPlan.md)).
 3. **ISO 3888-2 Severe Lane-Change Maneuver ("Moose Test")**:
    - Standardized high-speed collision avoidance corridor:
      - **Section 1 (Entry)**: Length $L_1 = 12.0\,\text{m}$, Width $W_1 = 1.1 \cdot W_{\text{veh}} + 0.25\,\text{m}$.

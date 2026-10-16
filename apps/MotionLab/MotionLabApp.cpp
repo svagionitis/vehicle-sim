@@ -147,6 +147,8 @@ void MotionLabApp::resetSimulation() noexcept
 {
     if (mCircuitCoordinator.isEnabled()) {
         mCircuitCoordinator.resetToGrid(mBody);
+    } else if (mSlalomCoordinator.isEnabled()) {
+        mSlalomCoordinator.resetCourse(mBody);
     } else {
         mBody.setPosition(vehicle_sim::math::Vec2::zero());
         mBody.setLinearVelocity(vehicle_sim::math::Vec2::zero());
@@ -228,6 +230,9 @@ void MotionLabApp::toggleCircuit() noexcept
 {
     mCircuitCoordinator.toggleEnabled();
     if (mCircuitCoordinator.isEnabled()) {
+        if (mSlalomCoordinator.isEnabled()) {
+            mSlalomCoordinator.setEnabled(false);
+        }
         mCircuitCoordinator.resetToGrid(mBody);
         mCamera.reset(mBody.getPosition());
     }
@@ -256,6 +261,45 @@ const CircuitTrackCoordinator& MotionLabApp::getCircuit() const noexcept
 CircuitTrackCoordinator& MotionLabApp::getCircuit() noexcept
 {
     return mCircuitCoordinator;
+}
+
+void MotionLabApp::toggleSlalom() noexcept
+{
+    mSlalomCoordinator.toggleEnabled();
+    if (mSlalomCoordinator.isEnabled()) {
+        if (mCircuitCoordinator.isEnabled()) {
+            mCircuitCoordinator.setEnabled(false);
+        }
+        mSlalomCoordinator.resetCourse(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+void MotionLabApp::setSlalom(bool enabled) noexcept
+{
+    mSlalomCoordinator.setEnabled(enabled);
+    if (mSlalomCoordinator.isEnabled()) {
+        if (mCircuitCoordinator.isEnabled()) {
+            mCircuitCoordinator.setEnabled(false);
+        }
+        mSlalomCoordinator.resetCourse(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+bool MotionLabApp::isSlalomActive() const noexcept
+{
+    return mSlalomCoordinator.isEnabled();
+}
+
+const SlalomCourseCoordinator& MotionLabApp::getSlalom() const noexcept
+{
+    return mSlalomCoordinator;
+}
+
+SlalomCourseCoordinator& MotionLabApp::getSlalom() noexcept
+{
+    return mSlalomCoordinator;
 }
 
 void MotionLabApp::cycleTerrain() noexcept
@@ -431,6 +475,9 @@ void MotionLabApp::processEvents() noexcept
                     break;
                 case SDLK_c:
                     toggleCircuit();
+                    break;
+                case SDLK_l:
+                    toggleSlalom();
                     break;
                 case SDLK_n:
                     regenerateCircuit();
@@ -682,6 +729,10 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         mTank.setSurfaceFriction(mat.friction);
     }
 
+    if (mSlalomCoordinator.isEnabled()) {
+        mSlalomCoordinator.stepPhysics(mBody, dt);
+    }
+
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
@@ -714,10 +765,6 @@ void MotionLabApp::renderFrame() noexcept
     context.tank = &mTank;
     context.animTimer = mAnimTimer;
 
-    if (mCircuitCoordinator.isEnabled()) {
-        CircuitTrackRenderer::renderTrack(mRenderer, mCamera, mCircuitCoordinator);
-    }
-
     mWireframe.renderScene(
         mRenderer,
         mCamera,
@@ -727,6 +774,14 @@ void MotionLabApp::renderFrame() noexcept
         mTrail,
         mBarrier
     );
+
+    if (mCircuitCoordinator.isEnabled()) {
+        CircuitTrackRenderer::renderTrack(mRenderer, mCamera, mCircuitCoordinator);
+    }
+
+    if (mSlalomCoordinator.isEnabled()) {
+        SlalomCourseRenderer::renderCourse(mRenderer, mCamera, mSlalomCoordinator);
+    }
 
     const auto v = mBody.getLinearVelocity();
     const double speedMps { v.length() };
@@ -756,6 +811,7 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.vehicleName = std::string(getVehicleName());
 
     snapshot.circuitMode = mCircuitCoordinator.isEnabled();
+    snapshot.slalomMode = mSlalomCoordinator.isEnabled();
     if (mCircuitCoordinator.isEnabled()) {
         const auto& metrics = mCircuitCoordinator.getMetrics();
         snapshot.currentLapTime = metrics.currentLapTime;
@@ -795,6 +851,11 @@ void MotionLabApp::renderFrame() noexcept
         CircuitTrackRenderer::renderRadar(
             mRenderer, mCircuitCoordinator, mBody.getPosition(),
             mConfig.windowWidth - 170, 30, 140, 140);
+    }
+
+    if (mSlalomCoordinator.isEnabled()) {
+        SlalomCourseRenderer::renderHud(
+            mRenderer, mSlalomCoordinator, 10, mConfig.windowHeight - 145);
     }
 
     SDL_RenderPresent(mRenderer);
