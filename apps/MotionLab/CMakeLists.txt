@@ -42,6 +42,12 @@ add_executable(MotionLab
     WindTurbulenceCoordinator.cpp
     WindVectorFieldRenderer.h
     WindVectorFieldRenderer.cpp
+    TireSmokeParticleBuffer.h
+    TireSmokeParticleBuffer.cpp
+    TireThermalCoordinator.h
+    TireThermalCoordinator.cpp
+    TireThermalRenderer.h
+    TireThermalRenderer.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -111,6 +117,12 @@ if(BUILD_TESTING)
         WindTurbulenceCoordinator.cpp
         WindVectorFieldRenderer.h
         WindVectorFieldRenderer.cpp
+        TireSmokeParticleBuffer.h
+        TireSmokeParticleBuffer.cpp
+        TireThermalCoordinator.h
+        TireThermalCoordinator.cpp
+        TireThermalRenderer.h
+        TireThermalRenderer.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

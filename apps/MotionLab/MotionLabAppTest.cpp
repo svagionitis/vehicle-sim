@@ -1497,4 +1497,214 @@ TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
     }
 }
 
+TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
+{
+    auto intersects = [](int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) noexcept {
+        const bool noOverlap = (x1 + w1 <= x2) || (x2 + w2 <= x1) || (y1 + h1 <= y2) || (y2 + h2 <= y1);
+        return !noOverlap;
+    };
+
+    const std::vector<std::pair<int, int>> testResolutions {
+        { 1280, 720 },
+        { 1920, 1080 },
+        { 1024, 768 },
+        { 800, 600 }
+    };
+
+    for (const auto& [w, h] : testResolutions) {
+        for (const bool circuitActive : { false, true }) {
+            for (const bool advancedHudActive : { false, true }) {
+                for (const bool windHudActive : { false, true }) {
+                    for (const bool provingGroundActive : { false, true }) {
+                        const auto pos = TireThermalRenderer::computeHudCardPos(
+                            w, h, circuitActive, advancedHudActive, windHudActive, provingGroundActive);
+
+                        // Ensure HUD card fits inside viewport
+                        EXPECT_GE(pos.x, 0);
+                        EXPECT_LE(pos.x + TireThermalRenderer::kCardWidth, w);
+                        EXPECT_GE(pos.y, 0);
+                        EXPECT_LE(pos.y + TireThermalRenderer::kCardHeight, h);
+
+                        // 1. Verify no overlap with Advanced Telemetry HUD
+                        if (advancedHudActive) {
+                            const int advX { w - 228 - 16 };
+                            const int advY { circuitActive ? 170 : 20 };
+                            constexpr int advW { 228 };
+                            constexpr int advH { 232 };
+
+                            EXPECT_FALSE(intersects(
+                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
+                                advX, advY, advW, advH))
+                                << "Overlap detected with Advanced HUD at res (" << w << "x" << h << "), circuit: "
+                                << circuitActive << ", advanced: " << advancedHudActive << ", wind: " << windHudActive;
+                        }
+
+                        // 2. Verify no overlap with Circuit Radar
+                        if (circuitActive) {
+                            const int radarX { w - 170 };
+                            constexpr int radarY { 30 };
+                            constexpr int radarW { 140 };
+                            constexpr int radarH { 140 };
+
+                            EXPECT_FALSE(intersects(
+                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
+                                radarX, radarY, radarW, radarH))
+                                << "Overlap detected with Circuit Radar at res (" << w << "x" << h << ")";
+                        }
+
+                        // 3. Verify no overlap with Wind HUD
+                        if (windHudActive) {
+                            const auto wPos = WindVectorFieldRenderer::computeHudCardPos(
+                                w, h, circuitActive, advancedHudActive);
+
+                            EXPECT_FALSE(intersects(
+                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
+                                wPos.x, wPos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight))
+                                << "Overlap detected with Wind HUD at res (" << w << "x" << h << "), circuit: "
+                                << circuitActive << ", advanced: " << advancedHudActive << ", wind: " << windHudActive;
+                        }
+
+                        // 4. Verify no overlap with Proving Ground HUD
+                        if (provingGroundActive) {
+                            constexpr int pgX { 10 };
+                            const int pgY { h - 155 };
+                            constexpr int pgW { 220 };
+                            constexpr int pgH { 145 };
+
+                            EXPECT_FALSE(intersects(
+                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
+                                pgX, pgY, pgW, pgH))
+                                << "Overlap detected with Proving Ground HUD at res (" << w << "x" << h << ")";
+                        }
+
+                        // 5. Verify no overlap with Input Indicator HUD
+                        {
+                            const int inputX { w - 264 };
+                            const int inputY { h - 64 };
+                            constexpr int inputW { 250 };
+                            constexpr int inputH { 20 };
+
+                            EXPECT_FALSE(intersects(
+                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
+                                inputX, inputY, inputW, inputH))
+                                << "Overlap detected with Input HUD at res (" << w << "x" << h << "), circuit: "
+                                << circuitActive << ", advanced: " << advancedHudActive;
+                        }
+
+                        // 6. Verify no overlap with Live Telemetry metrics text (top-left)
+                        {
+                            constexpr int textX { 24 };
+                            constexpr int textY { 20 };
+                            constexpr int textW { 180 };
+                            constexpr int textH { 180 };
+
+                            EXPECT_FALSE(intersects(
+                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
+                                textX, textY, textW, textH))
+                                << "Overlap detected with Live Metrics text at res (" << w << "x" << h << "), circuit: "
+                                << circuitActive << ", advanced: " << advancedHudActive;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(MotionLabAppTest, TireThermalCoordinatorFleetConfiguration)
+{
+    TireThermalCoordinator coordinator {};
+
+    // Wheeled vehicles
+    coordinator.setVehicleType(MotionLabVehicleType::ClassicCar);
+    EXPECT_TRUE(coordinator.isWheeledVehicle());
+    EXPECT_DOUBLE_EQ(coordinator.getWheelModel(0).getConfig().optimalTempMin, 65.0);
+
+    coordinator.setVehicleType(MotionLabVehicleType::RaceCar);
+    EXPECT_TRUE(coordinator.isWheeledVehicle());
+    EXPECT_DOUBLE_EQ(coordinator.getWheelModel(0).getConfig().optimalTempMin, 85.0);
+
+    coordinator.setVehicleType(MotionLabVehicleType::DriftCar);
+    EXPECT_TRUE(coordinator.isWheeledVehicle());
+    EXPECT_DOUBLE_EQ(coordinator.getWheelModel(0).getConfig().optimalTempMin, 75.0);
+
+    coordinator.setVehicleType(MotionLabVehicleType::MonsterTruck);
+    EXPECT_TRUE(coordinator.isWheeledVehicle());
+    EXPECT_DOUBLE_EQ(coordinator.getWheelModel(0).getConfig().optimalTempMin, 50.0);
+
+    // Non-wheeled bypass vehicles
+    coordinator.setVehicleType(MotionLabVehicleType::Rocket);
+    EXPECT_FALSE(coordinator.isWheeledVehicle());
+
+    coordinator.setVehicleType(MotionLabVehicleType::Helicopter);
+    EXPECT_FALSE(coordinator.isWheeledVehicle());
+
+    coordinator.setVehicleType(MotionLabVehicleType::Hovercraft);
+    EXPECT_FALSE(coordinator.isWheeledVehicle());
+
+    coordinator.setVehicleType(MotionLabVehicleType::QuadcopterDrone);
+    EXPECT_FALSE(coordinator.isWheeledVehicle());
+}
+
+TEST(MotionLabAppTest, TireThermalScrubHeatingAcrossFleet)
+{
+    TireThermalCoordinator coordinator {};
+    coordinator.setVehicleType(MotionLabVehicleType::DriftCar);
+    coordinator.reset(25.0);
+
+    TireSmokeParticleBuffer smokeBuffer {};
+
+    // Intense rear wheel scrub
+    for (int i { 0 }; i < 300; ++i) {
+        coordinator.updateWheel(2, 4000.0, 2000.0, 4500.0, 6.0, 3.0, 35.0, 0.32, 12.0, { -1.3, 0.8 }, 0.016, smokeBuffer);
+    }
+
+    const auto& stateRL = coordinator.getWheelState(2);
+    EXPECT_GT(stateRL.surfaceTemp, 70.0);
+    EXPECT_GT(stateRL.carcassTemp, 30.0);
+    EXPECT_GT(stateRL.frictionPower, 500.0);
+}
+
+TEST(MotionLabAppTest, TireSmokeParticleEmissionLifecycle)
+{
+    TireSmokeParticleBuffer buffer {};
+    EXPECT_EQ(buffer.getActiveCount(), 0U);
+
+    buffer.emit({ 0.0, 0.0 }, { 2.0, 1.0 }, 0.8);
+    EXPECT_GE(buffer.getActiveCount(), 1U);
+
+    // Advance 0.5s: particle should still be alive
+    buffer.update(0.5);
+    EXPECT_GE(buffer.getActiveCount(), 1U);
+
+    // Advance 2.0s: particle should expire
+    buffer.update(2.0);
+    EXPECT_EQ(buffer.getActiveCount(), 0U);
+}
+
+TEST(MotionLabAppTest, MotionLabAppTireThermalIntegrationAndToggles)
+{
+    MotionLabAppConfig config {};
+    config.headless = true;
+
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    // Verify initial thermal state
+    auto& coordinator = app.getTireThermalCoordinator();
+    EXPECT_TRUE(coordinator.isWheeledVehicle());
+
+    // Run 50 physics steps
+    for (int i { 0 }; i < 50; ++i) {
+        app.stepPhysics(config.fixedDt);
+    }
+
+    // Toggle HUD
+    app.toggleTireThermalHud();
+    app.resetTireThermalStates();
+
+    EXPECT_NEAR(coordinator.getWheelState(0).surfaceTemp, 25.0, 0.5);
+}
+
+
 

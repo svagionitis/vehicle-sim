@@ -95,6 +95,8 @@ add_library(VehicleSimCore STATIC
     dynamics/EarthRoverDynamics.cpp
     dynamics/PacejkaTireModel.h
     dynamics/PacejkaTireModel.cpp
+    dynamics/TireThermalModel.h
+    dynamics/TireThermalModel.cpp
     dynamics/GroundEffectAero2D.h
     dynamics/GroundEffectAero2D.cpp
     dynamics/TrajectoryTracker2D.h

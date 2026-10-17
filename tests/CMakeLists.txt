@@ -11,6 +11,7 @@ add_executable(VehicleSimCoreTests
     DeformableTerrainTest.cpp
     NarrowphaseTest.cpp
     TireModelTest.cpp
+    TireThermalModelTest.cpp
     StanleyControllerTest.cpp
     SpeedProfilerTest.cpp
     TrajectoryTrackerTest.cpp

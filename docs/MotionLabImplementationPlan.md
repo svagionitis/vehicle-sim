@@ -1448,7 +1448,7 @@ stateDiagram-v2
      $$\mathbf{v}_{\text{rel}} = \mathbf{v}_{\text{body}} - \mathbf{v}_{\text{wind}}$$
      $$\mathbf{F}_{\text{aero}} = -\frac{1}{2} \rho C_d A \|\mathbf{v}_{\text{rel}}\| \mathbf{v}_{\text{rel}}$$
    - Light vehicles (Rocket, Helicopter, Hovercraft, Drone) visibly drift with crosswinds.
-3. **Tire Thermal Model**:
+3. **Tire Thermal Model** (see dedicated [Tire Thermal Model Implementation Plan](MotionLabTireThermalImplementationPlan.md)):
    - Frictional energy dissipation increases tire surface temperature $T_{\text{tire}}$:
      $$\frac{dT_{\text{tire}}}{dt} = k_{\text{heat}} \cdot \|\mathbf{v}_{\text{slip}}\| \cdot \|\mathbf{F}_{\text{tire}}\| - k_{\text{cool}} (T_{\text{tire}} - T_{\text{ambient}})$$
    - Optimum grip peaks at $T \approx 85^\circ\text{C}$; overheating ($> 120^\circ\text{C}$) reduces friction by up to $35\%$, producing visual blue smoke particles.

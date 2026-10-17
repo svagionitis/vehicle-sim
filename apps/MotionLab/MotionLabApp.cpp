@@ -207,6 +207,7 @@ void MotionLabApp::applyVehicleProperties() noexcept
     mSlalomCoordinator.updateDimensions(vehWidth, vehLength);
     mSkidpadCoordinator.updateDimensions(vehWidth, vehLength);
     mCircuitCoordinator.updateDimensions(vehWidth, vehLength);
+    mTireThermalCoordinator.setVehicleType(mVehicleType);
 }
 
 void MotionLabApp::resetSimulation() noexcept
@@ -239,6 +240,8 @@ void MotionLabApp::resetSimulation() noexcept
     mArticulatedTruck.reset();
     mForklift.reset();
     mDrone.reset();
+    mTireThermalCoordinator.reset();
+    mTireSmokeBuffer.clear();
 
     applyVehicleProperties();
 
@@ -732,7 +735,16 @@ void MotionLabApp::processEvents() noexcept
                     regenerateCircuit();
                     break;
                 case SDLK_t:
-                    cycleTerrain();
+                    if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        resetTireThermalStates();
+                    } else if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        toggleTireThermalHud();
+                    } else {
+                        cycleTerrain();
+                    }
+                    break;
+                case SDLK_y:
+                    toggleTireThermalHud();
                     break;
                 case SDLK_v:
                     cycleVehicle();
@@ -1259,6 +1271,7 @@ void MotionLabApp::stepPhysics(double dt) noexcept
 
     mTrail.update(mBody.getPosition(), dt);
     updateTireSkidmarks(dt);
+    updateTireThermals(dt);
 
     double wheelbase { 2.6 };
     double trackWidth { 1.5 };
@@ -1365,6 +1378,7 @@ void MotionLabApp::renderFrame() noexcept
     context.animTimer = mAnimTimer;
 
     mWireframe.renderScene(mRenderer, mCamera, context, mBody, mSkids, mTrail, mBarrier);
+    mTireThermalRenderer.renderSmoke(mRenderer, mTireSmokeBuffer, mCamera);
 
     if (mCircuitCoordinator.isEnabled()) {
         CircuitTrackRenderer::renderTrack(mRenderer, mCamera, mCircuitCoordinator);
@@ -1516,6 +1530,20 @@ void MotionLabApp::renderFrame() noexcept
 
             WindVectorFieldRenderer::renderHudCard(
                 mRenderer, mWindCoordinator.getSnapshot(), cardPos.x, cardPos.y);
+        }
+
+        if (mTireThermalHudVisible) {
+            const bool pgActive = mSlalomCoordinator.isEnabled() || mMooseCoordinator.isEnabled()
+                || mSkidpadCoordinator.isEnabled();
+            const SDL_Point cardPos = TireThermalRenderer::computeHudCardPos(
+                mConfig.windowWidth,
+                mConfig.windowHeight,
+                mCircuitCoordinator.isEnabled(),
+                mAdvancedHudVisible,
+                mWindHudVisible,
+                pgActive);
+
+            mTireThermalRenderer.renderHudCard(mRenderer, mTireThermalCoordinator, cardPos.x, cardPos.y);
         }
     }
 
@@ -1815,6 +1843,111 @@ bool MotionLabApp::isWindHudVisible() const noexcept
 void MotionLabApp::setWindHudVisible(bool visible) noexcept
 {
     mWindHudVisible = visible;
+}
+
+void MotionLabApp::updateTireThermals(double dt) noexcept
+{
+    if (!mTireThermalCoordinator.isWheeledVehicle()) {
+        return;
+    }
+
+    const double airSpeed { mBody.getLinearVelocity().length() };
+    const double forwardSpeed { mBody.toLocalVec(mBody.getLinearVelocity()).x };
+
+    if (mVehicleType == MotionLabVehicleType::DriftCar) {
+        const auto& wheels = mDriftCar.getWheelStates();
+        for (std::size_t i { 0U }; i < 4U; ++i) {
+            const auto& w = wheels[i];
+            const auto worldPos = mBody.toWorldPoint(w.localOffset);
+            constexpr double wheelRadius { 0.32 };
+            const double safeVx { std::max(1.0, std::abs(forwardSpeed)) };
+            const double omega { (forwardSpeed + w.slipRatio * safeVx) / wheelRadius };
+            const double vsx { w.slipRatio * safeVx };
+            const double vsy { -std::tan(w.slipAngle) * safeVx };
+            mTireThermalCoordinator.updateWheel(i, w.tractiveForce, w.corneringForce, w.normalLoad,
+                                                vsx, vsy, omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
+        }
+    } else if (mVehicleType == MotionLabVehicleType::RaceCar) {
+        const auto& wheels = mRaceCar.getWheelStates();
+        for (std::size_t i { 0U }; i < 4U; ++i) {
+            const auto& w = wheels[i];
+            const auto worldPos = mBody.toWorldPoint(w.localOffset);
+            constexpr double wheelRadius { 0.33 };
+            const double safeVx { std::max(1.0, std::abs(forwardSpeed)) };
+            const double omega { (forwardSpeed + w.slipRatio * safeVx) / wheelRadius };
+            const double vsx { w.slipRatio * safeVx };
+            const double vsy { -std::tan(w.slipAngle) * safeVx };
+            mTireThermalCoordinator.updateWheel(i, w.tractiveForce, w.corneringForce, w.normalLoad,
+                                                vsx, vsy, omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
+        }
+    } else {
+        const double totalMass { mBody.getMass() };
+        constexpr double gravityAcc { 9.81 };
+        const double normalLoadPerWheel { (totalMass * gravityAcc) * 0.25 };
+        const double lateralSpeed { mBody.toLocalVec(mBody.getLinearVelocity()).y };
+        const double safeForwardSpeed { std::max(1.0, std::abs(forwardSpeed)) };
+        const double slipAngle { -std::atan2(lateralSpeed, safeForwardSpeed) };
+
+        const vehicle_sim::math::Vec2 offsets[4] = {
+            { 1.3, 0.8 }, { 1.3, -0.8 }, { -1.3, 0.8 }, { -1.3, -0.8 }
+        };
+
+        const double tractiveDemand { (mKeyW ? 2500.0 : 0.0) - (mKeyS ? 4000.0 : 0.0) };
+        for (std::size_t i { 0U }; i < 4U; ++i) {
+            const auto worldPos = mBody.toWorldPoint(offsets[i]);
+            constexpr double wheelRadius { 0.32 };
+            const double omega { forwardSpeed / wheelRadius };
+            const double vsx { (i >= 2U && mKeyW) ? 1.5 : 0.0 };
+            const double vsy { lateralSpeed };
+            const double corneringForce { normalLoadPerWheel * std::sin(slipAngle) };
+            mTireThermalCoordinator.updateWheel(i, tractiveDemand * 0.25, corneringForce, normalLoadPerWheel,
+                                                vsx, vsy, omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
+        }
+    }
+
+    mTireSmokeBuffer.update(dt);
+}
+
+const TireThermalCoordinator& MotionLabApp::getTireThermalCoordinator() const noexcept
+{
+    return mTireThermalCoordinator;
+}
+
+TireThermalCoordinator& MotionLabApp::getTireThermalCoordinator() noexcept
+{
+    return mTireThermalCoordinator;
+}
+
+const TireThermalRenderer& MotionLabApp::getTireThermalRenderer() const noexcept
+{
+    return mTireThermalRenderer;
+}
+
+TireThermalRenderer& MotionLabApp::getTireThermalRenderer() noexcept
+{
+    return mTireThermalRenderer;
+}
+
+const TireSmokeParticleBuffer& MotionLabApp::getTireSmokeBuffer() const noexcept
+{
+    return mTireSmokeBuffer;
+}
+
+TireSmokeParticleBuffer& MotionLabApp::getTireSmokeBuffer() noexcept
+{
+    return mTireSmokeBuffer;
+}
+
+void MotionLabApp::toggleTireThermalHud() noexcept
+{
+    mTireThermalHudVisible = !mTireThermalHudVisible;
+    mTireThermalRenderer.setHudVisible(mTireThermalHudVisible);
+}
+
+void MotionLabApp::resetTireThermalStates() noexcept
+{
+    mTireThermalCoordinator.reset();
+    mTireSmokeBuffer.clear();
 }
 
 } // namespace motion_lab

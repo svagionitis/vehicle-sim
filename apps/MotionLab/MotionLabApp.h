@@ -17,6 +17,9 @@
 #include "apps/MotionLab/SlalomCourseRenderer.h"
 #include "apps/MotionLab/TelemetryCoordinator.h"
 #include "apps/MotionLab/TelemetryHud.h"
+#include "apps/MotionLab/TireSmokeParticleBuffer.h"
+#include "apps/MotionLab/TireThermalCoordinator.h"
+#include "apps/MotionLab/TireThermalRenderer.h"
 #include "apps/MotionLab/TrailParticleBuffer.h"
 #include "apps/MotionLab/WindTurbulenceCoordinator.h"
 #include "apps/MotionLab/WindVectorFieldRenderer.h"
@@ -366,6 +369,30 @@ public:
     /// @brief Gets active application configuration.
     [[nodiscard]] const MotionLabAppConfig& getConfig() const noexcept;
 
+    /// @brief Gets constant reference to active tire thermal coordinator.
+    [[nodiscard]] const TireThermalCoordinator& getTireThermalCoordinator() const noexcept;
+
+    /// @brief Gets mutable reference to active tire thermal coordinator.
+    [[nodiscard]] TireThermalCoordinator& getTireThermalCoordinator() noexcept;
+
+    /// @brief Gets constant reference to tire thermal renderer.
+    [[nodiscard]] const TireThermalRenderer& getTireThermalRenderer() const noexcept;
+
+    /// @brief Gets mutable reference to tire thermal renderer.
+    [[nodiscard]] TireThermalRenderer& getTireThermalRenderer() noexcept;
+
+    /// @brief Gets constant reference to tire smoke particle buffer.
+    [[nodiscard]] const TireSmokeParticleBuffer& getTireSmokeBuffer() const noexcept;
+
+    /// @brief Gets mutable reference to tire smoke particle buffer.
+    [[nodiscard]] TireSmokeParticleBuffer& getTireSmokeBuffer() noexcept;
+
+    /// @brief Toggles visibility of tire thermal diagnostics HUD card.
+    void toggleTireThermalHud() noexcept;
+
+    /// @brief Resets tire thermal states to ambient baseline.
+    void resetTireThermalStates() noexcept;
+
 private:
     struct RearTireState {
         vehicle_sim::math::Vec2 position { 0.0, 0.0 };
@@ -373,6 +400,7 @@ private:
     };
 
     void updateTireSkidmarks(double dt) noexcept;
+    void updateTireThermals(double dt) noexcept;
     void applyVehicleProperties() noexcept;
     [[nodiscard]] vehicle_sim::math::Vec2 computeSupportPoint(const vehicle_sim::math::Vec2& normal) const noexcept;
 
@@ -421,6 +449,10 @@ private:
     WindTurbulenceCoordinator mWindCoordinator { };
     WindVectorFieldRenderer mWindRenderer { };
     bool mWindHudVisible { true };
+    TireThermalCoordinator mTireThermalCoordinator { };
+    TireSmokeParticleBuffer mTireSmokeBuffer { };
+    TireThermalRenderer mTireThermalRenderer { };
+    bool mTireThermalHudVisible { true };
     bool mAdvancedHudVisible { true };
     bool mAllHudVisible { true };
 
