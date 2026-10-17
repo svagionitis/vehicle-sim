@@ -15,6 +15,10 @@ int main(int argc, char* argv[])
             app.setSlalom(true);
         } else if (arg == "--circuit" || arg == "-c" || arg == "circuit") {
             app.toggleCircuit();
+        } else if (arg == "--moose" || arg == "-m" || arg == "moose") {
+            app.setMooseTest(true);
+        } else if (arg == "--skidpad" || arg == "-k" || arg == "skidpad") {
+            app.setSkidpad(true);
         }
     }
 

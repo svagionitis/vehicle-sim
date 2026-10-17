@@ -32,6 +32,10 @@ add_executable(MotionLab
     MooseTestCoordinator.cpp
     MooseTestRenderer.h
     MooseTestRenderer.cpp
+    SkidpadCoordinator.h
+    SkidpadCoordinator.cpp
+    SkidpadRenderer.h
+    SkidpadRenderer.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -91,6 +95,10 @@ if(BUILD_TESTING)
         MooseTestCoordinator.cpp
         MooseTestRenderer.h
         MooseTestRenderer.cpp
+        SkidpadCoordinator.h
+        SkidpadCoordinator.cpp
+        SkidpadRenderer.h
+        SkidpadRenderer.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

@@ -792,5 +792,214 @@ TEST(MotionLabAppTest, MooseTestAppTogglesAndExclusivity)
     EXPECT_FALSE(app.isMooseTestActive());
 }
 
+TEST(MotionLabAppTest, SkidpadPylonLayout15m)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setRadiusPreset(SkidpadRadiusPreset::Radius15m);
+    EXPECT_EQ(coordinator.getRadiusPreset(), SkidpadRadiusPreset::Radius15m);
+    EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 15.0);
+    EXPECT_EQ(coordinator.getActivePylonCount(), 36U);
+
+    const auto& pylons = coordinator.getPylons();
+    constexpr double rInnerExpected { 15.0 - 1.75 };
+    constexpr double rOuterExpected { 15.0 + 1.75 };
+
+    // Check first 16 inner cones
+    for (std::size_t i { 0U }; i < 16U; ++i) {
+        EXPECT_FALSE(pylons[i].isOuterRing);
+        EXPECT_NEAR(pylons[i].position.length(), rInnerExpected, 1e-4);
+    }
+    // Check remaining 20 outer cones
+    for (std::size_t i { 16U }; i < 36U; ++i) {
+        EXPECT_TRUE(pylons[i].isOuterRing);
+        EXPECT_NEAR(pylons[i].position.length(), rOuterExpected, 1e-4);
+    }
+}
+
+TEST(MotionLabAppTest, SkidpadPylonLayout30m)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setRadiusPreset(SkidpadRadiusPreset::Radius30m);
+    EXPECT_EQ(coordinator.getRadiusPreset(), SkidpadRadiusPreset::Radius30m);
+    EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 30.0);
+    EXPECT_EQ(coordinator.getActivePylonCount(), 68U);
+
+    const auto& pylons = coordinator.getPylons();
+    constexpr double rInnerExpected { 30.0 - 1.75 };
+    constexpr double rOuterExpected { 30.0 + 1.75 };
+
+    // Check first 32 inner cones
+    for (std::size_t i { 0U }; i < 32U; ++i) {
+        EXPECT_FALSE(pylons[i].isOuterRing);
+        EXPECT_NEAR(pylons[i].position.length(), rInnerExpected, 1e-4);
+    }
+    // Check remaining 36 outer cones
+    for (std::size_t i { 32U }; i < 68U; ++i) {
+        EXPECT_TRUE(pylons[i].isOuterRing);
+        EXPECT_NEAR(pylons[i].position.length(), rOuterExpected, 1e-4);
+    }
+}
+
+TEST(MotionLabAppTest, SkidpadKinematicLatAcc)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Speed corresponding to exactly 1.0G on 30m circle: v = sqrt(9.80665 * 30) = 17.152 m/s
+    constexpr double targetSpeed { 17.15227 };
+    body.setPosition(vehicle_sim::math::Vec2 { 30.0, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, targetSpeed });
+
+    coordinator.stepPhysics(body, 0.08, 2.6, 0.02);
+    EXPECT_NEAR(coordinator.getMetrics().instantaneousLatAcc, 1.0, 0.02);
+    EXPECT_NEAR(coordinator.getMetrics().instantaneousSpeed, targetSpeed * 3.6, 0.1);
+    EXPECT_NEAR(coordinator.getMetrics().radiusError, 0.0, 1e-4);
+}
+
+TEST(MotionLabAppTest, SkidpadDirectionAndGateEvaluation)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    constexpr double r { 30.0 };
+    constexpr double dt { 0.05 };
+    constexpr double speed { 15.0 };
+    constexpr int steps { 120 };
+
+    // Simulate smooth CCW orbit: theta increases from -pi to +pi
+    for (int i { 0 }; i <= steps; ++i) {
+        const double frac { static_cast<double>(i) / static_cast<double>(steps) };
+        const double theta { -3.14159265358979323846 + frac * 2.0 * 3.14159265358979323846 };
+        body.setPosition(vehicle_sim::math::Vec2 { r * std::cos(theta), r * std::sin(theta) });
+        body.setLinearVelocity(vehicle_sim::math::Vec2 { -speed * std::sin(theta), speed * std::cos(theta) });
+        coordinator.stepPhysics(body, 0.08, 2.6, dt);
+    }
+
+    EXPECT_EQ(coordinator.getMetrics().direction, SkidpadDirection::CounterClockwise);
+    EXPECT_TRUE(coordinator.getMetrics().hasValidLap);
+    EXPECT_GE(coordinator.getMetrics().completedLaps, 1U);
+    EXPECT_GT(coordinator.getMetrics().lapAverageLatAcc, 0.0);
+    EXPECT_GT(coordinator.getMetrics().bestCcwLapTime, 0.0);
+}
+
+TEST(MotionLabAppTest, SkidpadUndersteerGradientAndBalance)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    constexpr double r { 30.0 };
+    constexpr double wheelbase { 2.6 };
+    // delta0 = 2.6 / 30 = 0.08667 rad (~4.96 deg)
+    // At v = 17.15 m/s, ay = 1.0G.
+    // If road steer is 0.12 rad (~6.87 deg), deltaDiff = 0.0333 rad = +1.91 deg
+    // Kus = +1.91 deg / 1.0G = +1.91 deg/G -> Understeer
+    constexpr double steerInput { 0.12 };
+
+    body.setPosition(vehicle_sim::math::Vec2 { 0.0, -r });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 17.15, 0.0 });
+
+    // Step steadily to acquire steady-state lock (timer >= 0.35s)
+    for (int i { 0 }; i < 30; ++i) {
+        coordinator.stepPhysics(body, steerInput, wheelbase, 0.02);
+    }
+
+    EXPECT_TRUE(coordinator.getMetrics().isSteadyState);
+    EXPECT_GT(coordinator.getMetrics().understeerGradient, 0.5);
+    EXPECT_EQ(coordinator.getMetrics().balance, HandlingClassification::Understeer);
+}
+
+TEST(MotionLabAppTest, SkidpadPylonCollisionOBB)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Find first inner pylon position
+    const auto& pylons = coordinator.getPylons();
+    const vehicle_sim::math::Vec2 targetPylonPos = pylons[0].position;
+
+    body.setPosition(targetPylonPos);
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 10.0, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 2.6, 0.02);
+
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 1U);
+    EXPECT_TRUE(pylons[0].wasHit);
+    EXPECT_GT(pylons[0].toppleAngle, 1.0);
+}
+
+TEST(MotionLabAppTest, SkidpadStagingReset)
+{
+    SkidpadCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Move somewhere and hit a cone
+    body.setPosition(coordinator.getPylons()[0].position);
+    coordinator.stepPhysics(body, 0.0, 2.6, 0.02);
+    ASSERT_EQ(coordinator.getMetrics().hitCount, 1U);
+
+    // Call reset
+    coordinator.resetToStaging(body);
+    EXPECT_EQ(coordinator.getState(), SkidpadState::Staging);
+    EXPECT_NEAR(body.getPosition().x, -40.0, 1e-4);
+    EXPECT_NEAR(body.getPosition().y, -30.0, 1e-4);
+    EXPECT_DOUBLE_EQ(body.getLinearVelocity().length(), 0.0);
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 0U);
+    EXPECT_FALSE(coordinator.getPylons()[0].wasHit);
+}
+
+TEST(MotionLabAppTest, SkidpadAppTogglesAndExclusivity)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+
+    EXPECT_FALSE(app.isSkidpadActive());
+    app.toggleSkidpad();
+    EXPECT_TRUE(app.isSkidpadActive());
+    EXPECT_FALSE(app.isCircuitActive());
+    EXPECT_FALSE(app.isSlalomActive());
+    EXPECT_FALSE(app.isMooseTestActive());
+
+    // Toggling Slalom deactivates Skidpad
+    app.toggleSlalom();
+    EXPECT_TRUE(app.isSlalomActive());
+    EXPECT_FALSE(app.isSkidpadActive());
+
+    // Toggling Skidpad deactivates Slalom
+    app.toggleSkidpad();
+    EXPECT_TRUE(app.isSkidpadActive());
+    EXPECT_FALSE(app.isSlalomActive());
+
+    // Toggling Moose Test deactivates Skidpad
+    app.toggleMooseTest();
+    EXPECT_TRUE(app.isMooseTestActive());
+    EXPECT_FALSE(app.isSkidpadActive());
+
+    // Toggling Skidpad deactivates Moose Test
+    app.toggleSkidpad();
+    EXPECT_TRUE(app.isSkidpadActive());
+    EXPECT_FALSE(app.isMooseTestActive());
+
+    // Toggling Circuit deactivates Skidpad
+    app.toggleCircuit();
+    EXPECT_TRUE(app.isCircuitActive());
+    EXPECT_FALSE(app.isSkidpadActive());
+
+    // Toggling Skidpad deactivates Circuit
+    app.toggleSkidpad();
+    EXPECT_TRUE(app.isSkidpadActive());
+    EXPECT_FALSE(app.isCircuitActive());
+
+    // Setting radius preset resets position
+    app.setSkidpadRadius(SkidpadRadiusPreset::Radius15m);
+    EXPECT_EQ(app.getSkidpad().getRadiusPreset(), SkidpadRadiusPreset::Radius15m);
+    EXPECT_NEAR(app.getBody().getPosition().y, -15.0, 1e-4);
+}
+
+
 
 

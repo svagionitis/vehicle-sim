@@ -37,6 +37,7 @@ struct TelemetrySnapshot {
     bool circuitMode { false };                ///< Procedural circuit track active status.
     bool slalomMode { false };                 ///< 100-meter slalom course active status.
     bool mooseMode { false };                  ///< ISO 3888-2 Moose Test active status.
+    bool skidpadMode { false };                ///< Skidpad steady-state circles active status.
     double currentLapTime { 0.0 };             ///< Elapsed time in current lap in seconds.
     double bestLapTime { 0.0 };                ///< Fastest recorded lap duration in seconds.
     double lastLapTime { 0.0 };                ///< Previous lap duration in seconds.

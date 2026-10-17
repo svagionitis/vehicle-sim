@@ -902,7 +902,7 @@ Instead of only offering an infinite empty grid or a plain rectangular perimeter
      - **Section 3 (Evasion Corridor)**: Length $L_3 = 11.0\,\text{m}$, Width $W_3 = W_{\text{veh}} + 1.0\,\text{m}$.
      - **Section 4 (Return Shift)**: Length $L_4 = 12.5\,\text{m}$, Return displacement $\Delta y = -3.5\,\text{m}$.
      - **Section 5 (Exit)**: Length $L_5 = 12.0\,\text{m}$, Width $W_5 = 1.3 \cdot W_{\text{veh}} + 0.25\,\text{m}$.
-4. **Skidpad Circles (Steady-State Lateral Grip)**:
+4. **Skidpad Circles (Steady-State Lateral Grip)** (see dedicated [Skidpad Circles (Steady-State Lateral Grip) Implementation Plan](MotionLabSkidpadImplementationPlan.md)):
    - Two concentric circular tracks: $R_1 = 15.0\,\text{m}$ (tight autocross) and $R_2 = 30.0\,\text{m}$ (standard automotive skidpad).
    - Inner and outer circle wireframe boundaries with radial guidance lines.
    - Calculates steady-state lateral acceleration $a_y = \frac{v^2}{R}$ and understeer gradient $K_{\text{us}} = \frac{d\delta}{da_y}$.

@@ -163,6 +163,8 @@ void MotionLabApp::resetSimulation() noexcept
         mSlalomCoordinator.resetCourse(mBody);
     } else if (mMooseCoordinator.isEnabled()) {
         mMooseCoordinator.resetCourse(mBody);
+    } else if (mSkidpadCoordinator.isEnabled()) {
+        mSkidpadCoordinator.resetToStaging(mBody);
     } else {
         mBody.setPosition(vehicle_sim::math::Vec2::zero());
         mBody.setLinearVelocity(vehicle_sim::math::Vec2::zero());
@@ -250,6 +252,9 @@ void MotionLabApp::toggleCircuit() noexcept
         if (mMooseCoordinator.isEnabled()) {
             mMooseCoordinator.setEnabled(false);
         }
+        if (mSkidpadCoordinator.isEnabled()) {
+            mSkidpadCoordinator.setEnabled(false);
+        }
         mCircuitCoordinator.resetToGrid(mBody);
         mCamera.reset(mBody.getPosition());
     }
@@ -290,6 +295,9 @@ void MotionLabApp::toggleSlalom() noexcept
         if (mMooseCoordinator.isEnabled()) {
             mMooseCoordinator.setEnabled(false);
         }
+        if (mSkidpadCoordinator.isEnabled()) {
+            mSkidpadCoordinator.setEnabled(false);
+        }
         mSlalomCoordinator.resetCourse(mBody);
         mCamera.reset(mBody.getPosition());
     }
@@ -304,6 +312,9 @@ void MotionLabApp::setSlalom(bool enabled) noexcept
         }
         if (mMooseCoordinator.isEnabled()) {
             mMooseCoordinator.setEnabled(false);
+        }
+        if (mSkidpadCoordinator.isEnabled()) {
+            mSkidpadCoordinator.setEnabled(false);
         }
         mSlalomCoordinator.resetCourse(mBody);
         mCamera.reset(mBody.getPosition());
@@ -335,6 +346,9 @@ void MotionLabApp::toggleMooseTest() noexcept
         if (mSlalomCoordinator.isEnabled()) {
             mSlalomCoordinator.setEnabled(false);
         }
+        if (mSkidpadCoordinator.isEnabled()) {
+            mSkidpadCoordinator.setEnabled(false);
+        }
         mMooseCoordinator.resetCourse(mBody);
         mCamera.reset(mBody.getPosition());
     }
@@ -349,6 +363,9 @@ void MotionLabApp::setMooseTest(bool enabled) noexcept
         }
         if (mSlalomCoordinator.isEnabled()) {
             mSlalomCoordinator.setEnabled(false);
+        }
+        if (mSkidpadCoordinator.isEnabled()) {
+            mSkidpadCoordinator.setEnabled(false);
         }
         mMooseCoordinator.resetCourse(mBody);
         mCamera.reset(mBody.getPosition());
@@ -368,6 +385,66 @@ const MooseTestCoordinator& MotionLabApp::getMooseTest() const noexcept
 MooseTestCoordinator& MotionLabApp::getMooseTest() noexcept
 {
     return mMooseCoordinator;
+}
+
+void MotionLabApp::toggleSkidpad() noexcept
+{
+    mSkidpadCoordinator.toggleEnabled();
+    if (mSkidpadCoordinator.isEnabled()) {
+        if (mCircuitCoordinator.isEnabled()) {
+            mCircuitCoordinator.setEnabled(false);
+        }
+        if (mSlalomCoordinator.isEnabled()) {
+            mSlalomCoordinator.setEnabled(false);
+        }
+        if (mMooseCoordinator.isEnabled()) {
+            mMooseCoordinator.setEnabled(false);
+        }
+        mSkidpadCoordinator.resetToStaging(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+void MotionLabApp::setSkidpad(bool enabled) noexcept
+{
+    mSkidpadCoordinator.setEnabled(enabled);
+    if (mSkidpadCoordinator.isEnabled()) {
+        if (mCircuitCoordinator.isEnabled()) {
+            mCircuitCoordinator.setEnabled(false);
+        }
+        if (mSlalomCoordinator.isEnabled()) {
+            mSlalomCoordinator.setEnabled(false);
+        }
+        if (mMooseCoordinator.isEnabled()) {
+            mMooseCoordinator.setEnabled(false);
+        }
+        mSkidpadCoordinator.resetToStaging(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+void MotionLabApp::setSkidpadRadius(SkidpadRadiusPreset preset) noexcept
+{
+    mSkidpadCoordinator.setRadiusPreset(preset);
+    if (mSkidpadCoordinator.isEnabled()) {
+        mSkidpadCoordinator.resetToStaging(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+bool MotionLabApp::isSkidpadActive() const noexcept
+{
+    return mSkidpadCoordinator.isEnabled();
+}
+
+const SkidpadCoordinator& MotionLabApp::getSkidpad() const noexcept
+{
+    return mSkidpadCoordinator;
+}
+
+SkidpadCoordinator& MotionLabApp::getSkidpad() noexcept
+{
+    return mSkidpadCoordinator;
 }
 
 void MotionLabApp::cycleTerrain() noexcept
@@ -550,6 +627,9 @@ void MotionLabApp::processEvents() noexcept
                 case SDLK_m:
                     toggleMooseTest();
                     break;
+                case SDLK_k:
+                    toggleSkidpad();
+                    break;
                 case SDLK_n:
                     regenerateCircuit();
                     break;
@@ -579,11 +659,19 @@ void MotionLabApp::processEvents() noexcept
                     break;
                 case SDLK_1:
                 case SDLK_KP_1:
-                    setTerrain(vehicle_sim::terrain::MaterialType::Tarmac);
+                    if (mSkidpadCoordinator.isEnabled()) {
+                        setSkidpadRadius(SkidpadRadiusPreset::Radius15m);
+                    } else {
+                        setTerrain(vehicle_sim::terrain::MaterialType::Tarmac);
+                    }
                     break;
                 case SDLK_2:
                 case SDLK_KP_2:
-                    setTerrain(vehicle_sim::terrain::MaterialType::Ice);
+                    if (mSkidpadCoordinator.isEnabled()) {
+                        setSkidpadRadius(SkidpadRadiusPreset::Radius30m);
+                    } else {
+                        setTerrain(vehicle_sim::terrain::MaterialType::Ice);
+                    }
                     break;
                 case SDLK_3:
                 case SDLK_KP_3:
@@ -810,6 +898,38 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         mMooseCoordinator.stepPhysics(mBody, throttleInput, brakeInput, dt);
     }
 
+    if (mSkidpadCoordinator.isEnabled()) {
+        double steerAngle { 0.0 };
+        double wheelbase { 2.6 };
+        switch (mVehicleType) {
+        case MotionLabVehicleType::ClassicCar:
+            steerAngle = mCar.getTires()[vehicle_sim::dynamics::MotionLabCarDynamics::kFrontLeft].steerAngle;
+            wheelbase = 2.6;
+            break;
+        case MotionLabVehicleType::RaceCar:
+            steerAngle = ((mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0)) * 0.45;
+            wheelbase = 2.8;
+            break;
+        case MotionLabVehicleType::Rocket:
+            steerAngle = ((mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0)) * 0.35;
+            wheelbase = 3.0;
+            break;
+        case MotionLabVehicleType::Helicopter:
+            steerAngle = ((mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0)) * 0.30;
+            wheelbase = 2.0;
+            break;
+        case MotionLabVehicleType::Hovercraft:
+            steerAngle = ((mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0)) * 0.40;
+            wheelbase = 2.2;
+            break;
+        case MotionLabVehicleType::TrackedTank:
+            steerAngle = ((mKeyA ? 1.0 : 0.0) - (mKeyD ? 1.0 : 0.0)) * 0.30;
+            wheelbase = 3.2;
+            break;
+        }
+        mSkidpadCoordinator.stepPhysics(mBody, steerAngle, wheelbase, dt);
+    }
+
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
@@ -864,6 +984,10 @@ void MotionLabApp::renderFrame() noexcept
         MooseTestRenderer::renderCourse(mRenderer, mCamera, mMooseCoordinator);
     }
 
+    if (mSkidpadCoordinator.isEnabled()) {
+        SkidpadRenderer::renderCourse(mRenderer, mCamera, mSkidpadCoordinator);
+    }
+
     const auto v = mBody.getLinearVelocity();
     const double speedMps { v.length() };
     const double speedMph { speedMps / 0.44704 };
@@ -894,6 +1018,7 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.circuitMode = mCircuitCoordinator.isEnabled();
     snapshot.slalomMode = mSlalomCoordinator.isEnabled();
     snapshot.mooseMode = mMooseCoordinator.isEnabled();
+    snapshot.skidpadMode = mSkidpadCoordinator.isEnabled();
     if (mCircuitCoordinator.isEnabled()) {
         const auto& metrics = mCircuitCoordinator.getMetrics();
         snapshot.currentLapTime = metrics.currentLapTime;
@@ -943,6 +1068,11 @@ void MotionLabApp::renderFrame() noexcept
     if (mMooseCoordinator.isEnabled()) {
         MooseTestRenderer::renderHud(
             mRenderer, mMooseCoordinator, 10, mConfig.windowHeight - 155);
+    }
+
+    if (mSkidpadCoordinator.isEnabled()) {
+        SkidpadRenderer::renderHud(
+            mRenderer, mSkidpadCoordinator, 10, mConfig.windowHeight - 155);
     }
 
     SDL_RenderPresent(mRenderer);

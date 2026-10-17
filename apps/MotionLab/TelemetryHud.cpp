@@ -157,6 +157,8 @@ void TelemetryHud::render(SDL_Renderer* renderer,
         drawText(renderer, "COURSE  100M SLALOM ACTIVE [L]", 24, 164, 2, SDL_Color { 255, 140, 0, 255 });
     } else if (snapshot.mooseMode) {
         drawText(renderer, "COURSE  ISO 3888-2 MOOSE TEST ACTIVE [M]", 24, 164, 2, SDL_Color { 0, 240, 255, 255 });
+    } else if (snapshot.skidpadMode) {
+        drawText(renderer, "COURSE  SKIDPAD CIRCLES ACTIVE [K]", 24, 164, 2, SDL_Color { 0, 255, 200, 255 });
     }
 
     // 2. Bottom Caption Bar
@@ -166,6 +168,7 @@ void TelemetryHud::render(SDL_Renderer* renderer,
     caption += snapshot.circuitMode ? "[C] CIRCUIT ON / " : "[C] CIRCUIT OFF / ";
     caption += snapshot.slalomMode ? "[L] SLALOM ON / " : "[L] SLALOM OFF / ";
     caption += snapshot.mooseMode ? "[M] MOOSE ON / " : "[M] MOOSE OFF / ";
+    caption += snapshot.skidpadMode ? "[K] SKIDPAD ON / " : "[K] SKIDPAD OFF / ";
     caption += snapshot.deadZoneOn ? "DEAD ZONE / " : "";
     caption += snapshot.speedZoomOn ? "SPEED ZOOM / " : "";
     caption += "[V] " + snapshot.vehicleName + " / [T] " + snapshot.terrainName;

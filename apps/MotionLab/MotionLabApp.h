@@ -10,6 +10,8 @@
 #include "apps/MotionLab/SlalomCourseRenderer.h"
 #include "apps/MotionLab/MooseTestCoordinator.h"
 #include "apps/MotionLab/MooseTestRenderer.h"
+#include "apps/MotionLab/SkidpadCoordinator.h"
+#include "apps/MotionLab/SkidpadRenderer.h"
 #include "apps/MotionLab/MotionLabCamera.h"
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
@@ -145,6 +147,26 @@ public:
 
     /// @brief Gets mutable reference to Moose Test coordinator.
     [[nodiscard]] MooseTestCoordinator& getMooseTest() noexcept;
+
+    /// @brief Toggles skidpad circles mode.
+    void toggleSkidpad() noexcept;
+
+    /// @brief Sets skidpad circles mode state.
+    /// @param[in] enabled Desired enabled state.
+    void setSkidpad(bool enabled) noexcept;
+
+    /// @brief Sets skidpad radius preset (15m or 30m).
+    /// @param[in] preset Desired radius preset.
+    void setSkidpadRadius(SkidpadRadiusPreset preset) noexcept;
+
+    /// @brief Queries whether skidpad circles mode is actively enabled.
+    [[nodiscard]] bool isSkidpadActive() const noexcept;
+
+    /// @brief Gets constant reference to Skidpad coordinator.
+    [[nodiscard]] const SkidpadCoordinator& getSkidpad() const noexcept;
+
+    /// @brief Gets mutable reference to Skidpad coordinator.
+    [[nodiscard]] SkidpadCoordinator& getSkidpad() noexcept;
 
     /// @brief Cycles to the next available terrain surface preset.
     void cycleTerrain() noexcept;
@@ -283,6 +305,7 @@ private:
     std::uint32_t mCircuitSeed { 2024U };
     SlalomCourseCoordinator mSlalomCoordinator { };
     MooseTestCoordinator mMooseCoordinator { };
+    SkidpadCoordinator mSkidpadCoordinator { };
 
     // Keyboard inputs
     bool mKeyW { false };
