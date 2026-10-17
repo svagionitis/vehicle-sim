@@ -1493,7 +1493,7 @@ graph TD
 
 ### 9.7 Procedural Retro Audio Synthesis
 
-Motion Lab adheres to the zero-external-dependency rule by synthesizing retro audio waves via SDL2 audio callbacks (leveraging the audio synthesis architecture established in [`apps/EarthPatrol/AudioSystem.h`](../apps/EarthPatrol/AudioSystem.h)).
+Motion Lab adheres to the zero-external-dependency rule by synthesizing retro audio waves via SDL2 audio callbacks (leveraging the audio synthesis architecture established in [`apps/EarthPatrol/AudioSystem.h`](../apps/EarthPatrol/AudioSystem.h); see dedicated [Synthesized Sound Channels Implementation Plan](MotionLabSoundChannelsImplementationPlan.md)).
 
 #### 9.7.1 Synthesized Sound Channels
 

@@ -51,6 +51,7 @@ MotionLabApp::MotionLabApp(const MotionLabAppConfig& config)
 
 MotionLabApp::~MotionLabApp() noexcept
 {
+    mAudioSystem.shutdown();
     if (mRenderer != nullptr) {
         SDL_DestroyRenderer(mRenderer);
         mRenderer = nullptr;
@@ -67,6 +68,7 @@ MotionLabApp::~MotionLabApp() noexcept
 bool MotionLabApp::initialize()
 {
     if (mConfig.headless) {
+        static_cast<void>(mAudioSystem.initialize(true));
         mRunning = true;
         resetSimulation();
         return true;
@@ -89,6 +91,7 @@ bool MotionLabApp::initialize()
         return false;
     }
 
+    static_cast<void>(mAudioSystem.initialize(false));
     mRunning = true;
     resetSimulation();
     return true;
@@ -242,6 +245,7 @@ void MotionLabApp::resetSimulation() noexcept
     mDrone.reset();
     mTireThermalCoordinator.reset();
     mTireSmokeBuffer.clear();
+    mAudioSystem.resetSynths();
 
     applyVehicleProperties();
 
@@ -264,6 +268,7 @@ void MotionLabApp::resetSimulation() noexcept
 
 void MotionLabApp::stop() noexcept
 {
+    mAudioSystem.shutdown();
     mRunning = false;
 }
 
@@ -726,7 +731,13 @@ void MotionLabApp::processEvents() noexcept
                     toggleSlalom();
                     break;
                 case SDLK_m:
-                    toggleMooseTest();
+                    if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        toggleAudioHud();
+                    } else if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        toggleAudio();
+                    } else {
+                        toggleMooseTest();
+                    }
                     break;
                 case SDLK_k:
                     toggleSkidpad();
@@ -756,18 +767,31 @@ void MotionLabApp::processEvents() noexcept
                     mWindRenderer.toggleOverlay();
                     break;
                 case SDLK_LEFTBRACKET:
-                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                    if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        mAudioSystem.adjustVolume(-0.05f);
+                    } else if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
                         mWindCoordinator.rotateWindHeading(-15.0);
                     } else {
                         mWindCoordinator.adjustWindSpeed(0.80);
                     }
                     break;
                 case SDLK_RIGHTBRACKET:
-                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                    if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        mAudioSystem.adjustVolume(0.05f);
+                    } else if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
                         mWindCoordinator.rotateWindHeading(15.0);
                     } else {
                         mWindCoordinator.adjustWindSpeed(1.25);
                     }
+                    break;
+                case SDLK_MINUS:
+                case SDLK_KP_MINUS:
+                    mAudioSystem.adjustVolume(-0.05f);
+                    break;
+                case SDLK_EQUALS:
+                case SDLK_PLUS:
+                case SDLK_KP_PLUS:
+                    mAudioSystem.adjustVolume(0.05f);
                     break;
                 case SDLK_q:
                     mKeyQ = true;
@@ -1265,8 +1289,11 @@ void MotionLabApp::stepPhysics(double dt) noexcept
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
-        vehicle_sim::physics::BarrierSolver2D::solveInside(mBody, mCamera.getBounds(),
-            [this](const vehicle_sim::math::Vec2& normal) noexcept { return computeSupportPoint(normal); });
+        const double impulse { vehicle_sim::physics::BarrierSolver2D::solveInside(mBody, mCamera.getBounds(),
+            [this](const vehicle_sim::math::Vec2& normal) noexcept { return computeSupportPoint(normal); }) };
+        if (impulse > 1.0) {
+            mAudioSystem.triggerImpact(impulse);
+        }
     }
 
     mTrail.update(mBody.getPosition(), dt);
@@ -1352,6 +1379,47 @@ void MotionLabApp::stepPhysics(double dt) noexcept
     const double surfaceMu { getSurfaceMaterial().friction };
     mTelemetryCoordinator.update(
         mBody, mBody.getMass(), wheelbase, trackWidth, cgHeight, surfaceMu, frontSlip, rearSlip, mAnimTimer, dt);
+
+    // Audio telemetry synthesis coupling
+    const double speed { mBody.getLinearVelocity().length() };
+    const double throttleInput { (mKeyW ? 1.0 : 0.0) };
+    double engineRpm { 800.0 + (speed * 110.0) + (throttleInput * 2400.0) };
+    double rotorSpeed { 0.0 };
+    double thrusterPower { 0.0 };
+
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar:
+    case MotionLabVehicleType::DriftCar:
+    case MotionLabVehicleType::MonsterTruck:
+    case MotionLabVehicleType::SemiTruck:
+    case MotionLabVehicleType::Forklift:
+    case MotionLabVehicleType::TrackedTank:
+        break;
+    case MotionLabVehicleType::RaceCar:
+        engineRpm = 1200.0 + (speed * 140.0) + (throttleInput * 3800.0);
+        break;
+    case MotionLabVehicleType::Rocket:
+        thrusterPower = throttleInput;
+        break;
+    case MotionLabVehicleType::Helicopter:
+        rotorSpeed = 450.0;
+        engineRpm = 1500.0 + (throttleInput * 1000.0);
+        break;
+    case MotionLabVehicleType::Hovercraft:
+        rotorSpeed = 1200.0;
+        thrusterPower = std::abs((mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0));
+        break;
+    case MotionLabVehicleType::AntiGravity:
+        thrusterPower = std::abs((mKeyW ? 1.0 : 0.0) - (mKeyS ? 1.0 : 0.0));
+        engineRpm = 2200.0 + (speed * 90.0);
+        break;
+    case MotionLabVehicleType::QuadcopterDrone:
+        rotorSpeed = 5400.0 * (0.3 + (0.7 * throttleInput));
+        break;
+    }
+
+    const double slipVel { (std::abs(frontSlip) + std::abs(rearSlip)) * speed };
+    mAudioSystem.updateTelemetry(mVehicleType, engineRpm, throttleInput, slipVel, surfaceMu, rotorSpeed, thrusterPower);
 }
 
 void MotionLabApp::renderFrame() noexcept
@@ -1496,6 +1564,11 @@ void MotionLabApp::renderFrame() noexcept
             + " N | 4-ROTOR UAV FLIGHT";
         break;
     }
+
+    snapshot.audioMuted = mAudioSystem.isMuted();
+    snapshot.audioVolume = mAudioSystem.getVolume();
+    snapshot.audioLevels = mAudioSystem.getLevels();
+    snapshot.audioHudVisible = mAudioHudVisible;
 
     ExtendedTelemetrySnapshot extendedSnapshot { };
     mTelemetryCoordinator.populateSnapshot(extendedSnapshot);
@@ -1948,6 +2021,31 @@ void MotionLabApp::resetTireThermalStates() noexcept
 {
     mTireThermalCoordinator.reset();
     mTireSmokeBuffer.clear();
+}
+
+const AudioSystem& MotionLabApp::getAudio() const noexcept
+{
+    return mAudioSystem;
+}
+
+AudioSystem& MotionLabApp::getAudio() noexcept
+{
+    return mAudioSystem;
+}
+
+void MotionLabApp::toggleAudio() noexcept
+{
+    mAudioSystem.toggleMute();
+}
+
+void MotionLabApp::toggleAudioHud() noexcept
+{
+    mAudioHudVisible = !mAudioHudVisible;
+}
+
+bool MotionLabApp::isAudioHudActive() const noexcept
+{
+    return mAudioHudVisible;
 }
 
 } // namespace motion_lab

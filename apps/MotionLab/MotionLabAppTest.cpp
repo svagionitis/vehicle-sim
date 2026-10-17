@@ -1706,5 +1706,63 @@ TEST(MotionLabAppTest, MotionLabAppTireThermalIntegrationAndToggles)
     EXPECT_NEAR(coordinator.getWheelState(0).surfaceTemp, 25.0, 0.5);
 }
 
+TEST(MotionLabAppTest, AudioSystemAppIntegrationAndToggles)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
 
+    // AudioSystem initialized
+    auto& audio = app.getAudio();
+    EXPECT_TRUE(audio.isInitialized());
+    EXPECT_TRUE(audio.isMuted());
 
+    // Toggle mute
+    app.toggleAudio();
+    EXPECT_FALSE(audio.isMuted());
+    app.toggleAudio();
+    EXPECT_TRUE(audio.isMuted());
+
+    // Toggle audio HUD
+    EXPECT_TRUE(app.isAudioHudActive());
+    app.toggleAudioHud();
+    EXPECT_FALSE(app.isAudioHudActive());
+    app.toggleAudioHud();
+    EXPECT_TRUE(app.isAudioHudActive());
+
+    // Run physics steps and assert audio updates
+    for (int i { 0 }; i < 30; ++i) {
+        app.stepPhysics(config.fixedDt);
+    }
+
+    const auto levels = audio.getLevels();
+    EXPECT_GE(levels.engineLevel, 0.0f);
+    EXPECT_GE(levels.masterLevel, 0.0f);
+}
+
+TEST(MotionLabAppTest, BarrierImpactTriggersAudioClang)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    app.toggleBarrier();
+    EXPECT_TRUE(app.isBarrierActive());
+
+    // Set high velocity heading directly into barrier wall
+    app.getBody().setPosition({ 48.0, 0.0 });
+    app.getBody().setLinearVelocity({ 25.0, 0.0 });
+
+    for (int i { 0 }; i < 5; ++i) {
+        app.stepPhysics(config.fixedDt);
+    }
+
+    // Impact synthesizer should have triggered
+    app.getAudio().setMuted(false);
+    std::vector<std::int16_t> buffer(512, 0);
+    app.getAudio().synthesizeHeadless(buffer.data(), buffer.size());
+    const auto levels = app.getAudio().getLevels();
+    EXPECT_GT(levels.impactLevel, 0.01f);
+}

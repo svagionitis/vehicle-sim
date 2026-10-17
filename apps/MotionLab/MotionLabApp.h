@@ -12,6 +12,7 @@
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
 #include "apps/MotionLab/SkidpadCoordinator.h"
+#include "apps/MotionLab/AudioSystem.h"
 #include "apps/MotionLab/SkidpadRenderer.h"
 #include "apps/MotionLab/SlalomCourseCoordinator.h"
 #include "apps/MotionLab/SlalomCourseRenderer.h"
@@ -393,6 +394,21 @@ public:
     /// @brief Resets tire thermal states to ambient baseline.
     void resetTireThermalStates() noexcept;
 
+    /// @brief Gets constant reference to procedural audio system.
+    [[nodiscard]] const AudioSystem& getAudio() const noexcept;
+
+    /// @brief Gets mutable reference to procedural audio system.
+    [[nodiscard]] AudioSystem& getAudio() noexcept;
+
+    /// @brief Toggles audio mute state.
+    void toggleAudio() noexcept;
+
+    /// @brief Toggles visibility of audio VU meter HUD card.
+    void toggleAudioHud() noexcept;
+
+    /// @brief Queries whether audio VU meter HUD card is visible.
+    [[nodiscard]] bool isAudioHudActive() const noexcept;
+
 private:
     struct RearTireState {
         vehicle_sim::math::Vec2 position { 0.0, 0.0 };
@@ -453,6 +469,8 @@ private:
     TireSmokeParticleBuffer mTireSmokeBuffer { };
     TireThermalRenderer mTireThermalRenderer { };
     bool mTireThermalHudVisible { true };
+    AudioSystem mAudioSystem { };
+    bool mAudioHudVisible { true };
     bool mAdvancedHudVisible { true };
     bool mAllHudVisible { true };
 

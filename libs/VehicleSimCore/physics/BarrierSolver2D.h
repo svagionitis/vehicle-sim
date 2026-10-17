@@ -37,13 +37,14 @@ public:
     /// @param[in,out] body Target rigid body to correct and receive contact impulses.
     /// @param[in] bounds World arena bounding coordinates.
     /// @param[in] supportFn Callback returning the body's furthest surface point facing normal.
-    /// @param[in] restitution Coefficient of restitution (default 0.55).
+    /// @return Maximum contact impulse magnitude in N*s resolved during this step.
     template <typename SupportFn>
-    static void solveInside(RigidBody2D& body,
-                           const BarrierBounds2D& bounds,
-                           SupportFn&& supportFn,
-                           double restitution = 0.55) noexcept
+    static double solveInside(RigidBody2D& body,
+                             const BarrierBounds2D& bounds,
+                             SupportFn&& supportFn,
+                             double restitution = 0.55) noexcept
     {
+        double maxImpulse { 0.0 };
         const std::array<BarrierEdge, 4> barrierEdges {{
             { math::Vec2 { 1.0, 0.0 }, bounds.left },
             { math::Vec2 { -1.0, 0.0 }, -bounds.right },
@@ -86,11 +87,13 @@ public:
 
                 const double velocityChange { -(1.0 + bounce) * normalSpeed };
                 const double impulseMagnitude { velocityChange / effectiveInvMass };
+                maxImpulse = std::max(maxImpulse, impulseMagnitude);
                 const math::Vec2 impulse { edge.normal * impulseMagnitude };
 
                 body.applyImpulseAtPoint(impulse, point);
             }
         }
+        return maxImpulse;
     }
 };
 

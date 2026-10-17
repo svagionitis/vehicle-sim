@@ -150,6 +150,9 @@ add_library(VehicleSimCore STATIC
     telemetry/CsvTelemetryExporter.cpp
     telemetry/KlvTelemetryExporter.h
     telemetry/KlvTelemetryExporter.cpp
+    audio/AudioDspMath.h
+    audio/AudioChannels.h
+    audio/AudioChannels.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC

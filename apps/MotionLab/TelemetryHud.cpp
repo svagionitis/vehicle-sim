@@ -388,6 +388,59 @@ void TelemetryHud::renderStripChart(SDL_Renderer* renderer, const float* values,
     }
 }
 
+void TelemetryHud::renderAudioVu(SDL_Renderer* renderer, const AudioChannelLevels& levels, float volume, bool muted,
+    int x, int y, int width) noexcept
+{
+    if (renderer == nullptr || width < 100) {
+        return;
+    }
+
+    constexpr int kCardHeight { 78 };
+    const SDL_Rect bgRect { x, y, width, kCardHeight };
+
+    SDL_SetRenderDrawColor(renderer, 10, 14, 18, 140);
+    SDL_RenderFillRect(renderer, &bgRect);
+    SDL_SetRenderDrawColor(renderer, 40, 60, 75, 180);
+    SDL_RenderDrawRect(renderer, &bgRect);
+
+    char titleBuf[64] { };
+    if (muted) {
+        std::snprintf(titleBuf, sizeof(titleBuf), "AUDIO: [MUTED]");
+        drawText(renderer, titleBuf, x + 8, y + 4, 1, SDL_Color { 255, 60, 60, 255 });
+    } else {
+        std::snprintf(titleBuf, sizeof(titleBuf), "AUDIO: VOL %d%%", static_cast<int>(std::round(volume * 100.0f)));
+        drawText(renderer, titleBuf, x + 8, y + 4, 1, SDL_Color { 212, 171, 113, 255 });
+    }
+
+    auto drawVuBar = [&](const char* label, float level, int barY, SDL_Color tint) {
+        drawText(renderer, label, x + 8, barY, 1, tint);
+        const int barStartX { x + 34 };
+        const int barW { width - 42 };
+        constexpr int barH { 6 };
+
+        const SDL_Rect outline { barStartX, barY, barW, barH };
+        SDL_SetRenderDrawColor(renderer, 25, 35, 45, 160);
+        SDL_RenderFillRect(renderer, &outline);
+        SDL_SetRenderDrawColor(renderer, 50, 70, 85, 180);
+        SDL_RenderDrawRect(renderer, &outline);
+
+        const float clampedLevel { std::clamp(level, 0.0f, 1.0f) };
+        const int fillW { static_cast<int>(std::round(clampedLevel * static_cast<float>(barW))) };
+        if (fillW > 0) {
+            const SDL_Rect fillRect { barStartX, barY, fillW, barH };
+            SDL_SetRenderDrawColor(renderer, tint.r, tint.g, tint.b, 220);
+            SDL_RenderFillRect(renderer, &fillRect);
+        }
+    };
+
+    drawVuBar("ENG", levels.engineLevel, y + 16, SDL_Color { 140, 230, 197, 255 });
+    drawVuBar("TIR", levels.tireLevel, y + 26, SDL_Color { 255, 191, 0, 255 });
+    drawVuBar("ROT", levels.rotorLevel, y + 36, SDL_Color { 0, 220, 255, 255 });
+    drawVuBar("THR", levels.thrusterLevel, y + 46, SDL_Color { 255, 120, 40, 255 });
+    drawVuBar("IMP", levels.impactLevel, y + 56, SDL_Color { 255, 80, 180, 255 });
+    drawVuBar("MST", levels.masterLevel, y + 66, SDL_Color { 255, 255, 255, 255 });
+}
+
 void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snapshot,
     const ExtendedTelemetrySnapshot& extended, int screenWidth, int screenHeight) noexcept
 {
@@ -497,6 +550,12 @@ void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snaps
 
         const int wtX { sidebarX + 110 };
         renderWeightTransfer(renderer, extended.wheelLoads, wtX, lowerY);
+
+        if (snapshot.audioHudVisible) {
+            const int audioCardY { lowerY + 118 };
+            renderAudioVu(renderer, snapshot.audioLevels, snapshot.audioVolume, snapshot.audioMuted, sidebarX,
+                audioCardY, kSidebarW);
+        }
     }
 
     // 3. Compact Input Indicator HUD
@@ -533,7 +592,7 @@ void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snaps
     }
 
     // 4. Bottom Caption Bar
-    std::string caption { "[TAB] HUD / [H] ADV HUD / [SH+H] WIND / [O] AIRFLOW / [I] INPUTS / " };
+    std::string caption { "[TAB] HUD / [H] ADV / [M] MUTE / [[/]] VOL / [SH+H] WIND / [O] AIRFLOW / [I] INPUTS / " };
     caption += snapshot.barrierOn ? "BARRIER ON / " : "BARRIER OFF / ";
     caption += snapshot.gravityOn ? "GRAVITY ON / " : "GRAVITY OFF / ";
     if (snapshot.circuitMode) {

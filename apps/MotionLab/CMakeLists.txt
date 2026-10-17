@@ -48,6 +48,8 @@ add_executable(MotionLab
     TireThermalCoordinator.cpp
     TireThermalRenderer.h
     TireThermalRenderer.cpp
+    AudioSystem.h
+    AudioSystem.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -81,6 +83,7 @@ endif()
 if(BUILD_TESTING)
     add_executable(MotionLabTests
         MotionLabAppTest.cpp
+        AudioSystemTest.cpp
         MotionLabApp.h
         MotionLabApp.cpp
         MotionLabCamera.h
@@ -123,6 +126,8 @@ if(BUILD_TESTING)
         TireThermalCoordinator.cpp
         TireThermalRenderer.h
         TireThermalRenderer.cpp
+        AudioSystem.h
+        AudioSystem.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

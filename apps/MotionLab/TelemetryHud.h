@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 
+#include "apps/MotionLab/AudioSystem.h"
 #include "apps/MotionLab/MotionLabCamera.h"
 #include "libs/VehicleSimCore/dynamics/MotionLabCarDynamics.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
@@ -105,6 +106,10 @@ struct TelemetrySnapshot {
     std::uint32_t currentSector { 1U }; ///< Active sector index (1, 2, or 3).
     std::uint32_t completedLaps { 0U }; ///< Total completed laps.
     bool allHudVisible { true }; ///< Clean view status (if false, all HUD overlays hidden).
+    bool audioMuted { true };  ///< Global audio mute status.
+    float audioVolume { 0.8f }; ///< Master volume level in [0.0, 1.0].
+    AudioChannelLevels audioLevels { }; ///< Real-time channel RMS levels.
+    bool audioHudVisible { true }; ///< Audio VU meters card visibility.
 };
 
 /// @class TelemetryHud
@@ -113,6 +118,16 @@ struct TelemetrySnapshot {
 /// friction circle, 4-corner weight transfer load bars, and live rolling oscilloscopes.
 class TelemetryHud {
 public:
+    /// @brief Renders 5-channel procedural audio VU level meters.
+    /// @param[in] renderer Active hardware SDL renderer.
+    /// @param[in] levels Channel RMS signal levels.
+    /// @param[in] volume Master volume ratio in [0.0, 1.0].
+    /// @param[in] muted Whether global audio mute is active.
+    /// @param[in] x Top-left pixel X coordinate.
+    /// @param[in] y Top-left pixel Y coordinate.
+    /// @param[in] width Card width in pixels.
+    static void renderAudioVu(SDL_Renderer* renderer, const AudioChannelLevels& levels, float volume, bool muted,
+        int x, int y, int width) noexcept;
     /// @brief Renders the HUD overlay into the target SDL renderer with extended analytics.
     /// @param[in] renderer Active SDL hardware renderer.
     /// @param[in] snapshot Live telemetry metrics and toggle states.
