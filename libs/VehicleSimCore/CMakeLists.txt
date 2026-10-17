@@ -140,6 +140,12 @@ add_library(VehicleSimCore STATIC
     terrain/BankedTrack.cpp
     terrain/TrackGenerator.h
     terrain/TrackGenerator.cpp
+    terrain/WaveGrid1D.h
+    terrain/WaveGrid1D.cpp
+    terrain/WaveGrid2D.h
+    terrain/WaveGrid2D.cpp
+    terrain/ShallowWaterCoupler.h
+    terrain/ShallowWaterCoupler.cpp
     telemetry/TelemetryFrame2D.h
     telemetry/TelemetryFrame2D.cpp
     telemetry/TelemetryRingBuffer2D.h

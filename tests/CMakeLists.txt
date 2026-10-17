@@ -32,6 +32,7 @@ add_executable(VehicleSimCoreTests
     BarrierSolver2DTest.cpp
     AudioDspTest.cpp
     VehicleSoundDesignTest.cpp
+    ShallowWaterWaveTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

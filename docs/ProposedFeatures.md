@@ -168,7 +168,7 @@ graph TD
 ### 2.3 Dynamic Shallow Water and Wave Propagation (1D/2D)
 
 #### Objective
-Provide a real-time wave height perturbation simulation for watercraft, amphibious hovercraft, and submarine surface interactions.
+Provide a real-time wave height perturbation simulation for watercraft, amphibious hovercraft, and submarine surface interactions. Detailed architectural and hydrodynamic wave design specification: [Shallow Water Wave Plan](ShallowWaterWaveImplementationPlan.md).
 
 #### Technical Formulation
 - **Wave PDE (Discrete 2D Wave Grid)**:

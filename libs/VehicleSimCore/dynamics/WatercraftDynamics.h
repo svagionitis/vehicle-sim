@@ -9,6 +9,10 @@ namespace vehicle_sim::physics {
 class RigidBody2D;
 } // namespace vehicle_sim::physics
 
+namespace vehicle_sim::terrain {
+class WaveGrid2D;
+} // namespace vehicle_sim::terrain
+
 namespace vehicle_sim::dynamics {
 
 /// @struct WatercraftConfig
@@ -126,11 +130,20 @@ public:
     /// @return Rudder angle in radians.
     [[nodiscard]] double getRudderAngle() const noexcept;
 
+    /// @brief Attaches a 2D shallow water wave basin for dynamic wave interaction.
+    /// @param[in] waveGrid Pointer to WaveGrid2D, or nullptr to disable.
+    void attachWaveGrid(terrain::WaveGrid2D* waveGrid) noexcept;
+
+    /// @brief Gets pointer to attached 2D wave basin.
+    /// @return Pointer to active WaveGrid2D or nullptr.
+    [[nodiscard]] terrain::WaveGrid2D* getWaveGrid() const noexcept;
+
 private:
     WatercraftConfig mConfig { };
     WatercraftInput mInput { };
     WatercraftTelemetry mTelemetry { };
     double mRudderAngle { 0.0 };
+    terrain::WaveGrid2D* mWaveGrid { nullptr };
 };
 
 } // namespace vehicle_sim::dynamics
