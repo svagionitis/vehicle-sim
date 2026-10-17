@@ -1419,7 +1419,8 @@ void MotionLabApp::stepPhysics(double dt) noexcept
     }
 
     const double slipVel { (std::abs(frontSlip) + std::abs(rearSlip)) * speed };
-    mAudioSystem.updateTelemetry(mVehicleType, engineRpm, throttleInput, slipVel, surfaceMu, rotorSpeed, thrusterPower);
+    const double brakeInput { mKeySpace ? 1.0 : ((mKeyS && speed > 0.5) ? 0.8 : 0.0) };
+    mAudioSystem.updateTelemetry(mVehicleType, engineRpm, throttleInput, slipVel, surfaceMu, rotorSpeed, thrusterPower, speed, brakeInput);
 }
 
 void MotionLabApp::renderFrame() noexcept

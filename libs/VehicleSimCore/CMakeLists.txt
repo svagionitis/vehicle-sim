@@ -153,6 +153,16 @@ add_library(VehicleSimCore STATIC
     audio/AudioDspMath.h
     audio/AudioChannels.h
     audio/AudioChannels.cpp
+    audio/VehicleAcousticProfile.h
+    audio/VehicleAcousticProfile.cpp
+    audio/CylinderHarmonicSynth.h
+    audio/CylinderHarmonicSynth.cpp
+    audio/ForcedInductionSynth.h
+    audio/ForcedInductionSynth.cpp
+    audio/ExhaustPopSynth.h
+    audio/ExhaustPopSynth.cpp
+    audio/DrivetrainAcousticSynth.h
+    audio/DrivetrainAcousticSynth.cpp
 )
 
 target_include_directories(VehicleSimCore PUBLIC

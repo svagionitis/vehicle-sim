@@ -47,6 +47,30 @@ public:
         coeffs_.a2 = (1.0 - alpha) / a0;
     }
 
+    /// @brief Configures resonant high-pass filter coefficients.
+    /// @param[in] sampleRate Sampling frequency in Hz.
+    /// @param[in] cutoff Cutoff frequency in Hz.
+    /// @param[in] q Resonance factor.
+    void setHighPass(double sampleRate, double cutoff, double q = 1.414) noexcept
+    {
+        if (sampleRate <= 0.0 || cutoff <= 0.0) {
+            return;
+        }
+        constexpr double kPi { 3.14159265358979323846 };
+        const double clampedCutoff { std::clamp(cutoff, 10.0, sampleRate * 0.49) };
+        const double omega { 2.0 * kPi * clampedCutoff / sampleRate };
+        const double sinOmega { std::sin(omega) };
+        const double cosOmega { std::cos(omega) };
+        const double alpha { sinOmega / (2.0 * std::max(0.1, q)) };
+
+        const double a0 { 1.0 + alpha };
+        coeffs_.b0 = ((1.0 + cosOmega) * 0.5) / a0;
+        coeffs_.b1 = (-(1.0 + cosOmega)) / a0;
+        coeffs_.b2 = ((1.0 + cosOmega) * 0.5) / a0;
+        coeffs_.a1 = (-2.0 * cosOmega) / a0;
+        coeffs_.a2 = (1.0 - alpha) / a0;
+    }
+
     /// @brief Configures resonant band-pass filter coefficients.
     /// @param[in] sampleRate Sampling frequency in Hz.
     /// @param[in] center Center frequency in Hz.

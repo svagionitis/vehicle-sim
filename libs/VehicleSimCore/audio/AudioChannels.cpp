@@ -7,10 +7,28 @@ namespace vehicle_sim::audio {
 
 // --- EngineSynthesizer ---
 
+void EngineSynthesizer::configure(const VehicleAcousticProfile& profile) noexcept
+{
+    profile_ = profile;
+    configured_ = true;
+    cylinderSynth_.configure(profile.engineConfig, profile.dieselKnockIntensity);
+    inductionSynth_.configure(profile.inductionType, profile.superchargerGearRatio, profile.turboWhistleMaxFreq);
+}
+
 double EngineSynthesizer::process(double rpm, double throttle, double sampleRate) noexcept
 {
     if (sampleRate <= 0.0) {
         return 0.0;
+    }
+
+    if (configured_) {
+        const double combustion { cylinderSynth_.process(rpm, throttle, sampleRate) };
+        const double induction { inductionSynth_.process(rpm, throttle, sampleRate) };
+        lastInduction_ = induction;
+        const double pops { profile_.hasOverrunPops ? popSynth_.process(rpm, throttle, profile_.overrunPopIntensity, sampleRate) : 0.0 };
+
+        const double raw { (0.68 * combustion) + (0.45 * induction) + (0.50 * pops) };
+        return std::clamp(raw, -1.0, 1.0);
     }
 
     const double baseFreq { std::clamp(45.0 + (rpm * 0.055), 45.0, 700.0) };
@@ -55,7 +73,11 @@ void EngineSynthesizer::reset() noexcept
     phase_ = 0.0;
     subPhase_ = 0.0;
     lastCutoff_ = 0.0;
+    lastInduction_ = 0.0;
     filter_.reset();
+    cylinderSynth_.reset();
+    inductionSynth_.reset();
+    popSynth_.reset();
 }
 
 // --- TireSlipSynthesizer ---
@@ -63,6 +85,7 @@ void EngineSynthesizer::reset() noexcept
 TireSlipSynthesizer::TireSlipSynthesizer() noexcept
 {
     bandpass_.setBandPass(44100.0, 1800.0, 3.2);
+    gravelFilter_.setBandPass(44100.0, 480.0, 1.5);
     lastCenterFreq_ = 1800.0;
 }
 
@@ -84,7 +107,15 @@ double TireSlipSynthesizer::process(double slipVelocity, double surfaceMu, doubl
     const double normalizedSlip { std::clamp(slipVelocity / 5.5, 0.0, 1.0) };
     const double amp { std::pow(normalizedSlip, 1.25) * std::clamp(surfaceMu, 0.0, 1.0) };
 
-    return std::clamp(filtered * amp * 1.8, -1.0, 1.0);
+    double out { filtered * amp * 1.8 };
+    if (surfaceMu < 0.70) {
+        // Coarse gravel/dirt crunch texture
+        const double gravelNoise { AudioDspMath::xorshift32(rngState_) };
+        const double gravelFiltered { gravelFilter_.process(gravelNoise) };
+        out += (gravelFiltered * normalizedSlip * (1.0 - surfaceMu) * 1.2);
+    }
+
+    return std::clamp(out, -1.0, 1.0);
 }
 
 void TireSlipSynthesizer::reset() noexcept
@@ -92,6 +123,7 @@ void TireSlipSynthesizer::reset() noexcept
     rngState_ = 0x12345678U;
     lastCenterFreq_ = 0.0;
     bandpass_.reset();
+    gravelFilter_.reset();
 }
 
 // --- RotorSynthesizer ---

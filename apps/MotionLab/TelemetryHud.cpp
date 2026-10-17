@@ -395,7 +395,7 @@ void TelemetryHud::renderAudioVu(SDL_Renderer* renderer, const AudioChannelLevel
         return;
     }
 
-    constexpr int kCardHeight { 78 };
+    constexpr int kCardHeight { 88 };
     const SDL_Rect bgRect { x, y, width, kCardHeight };
 
     SDL_SetRenderDrawColor(renderer, 10, 14, 18, 140);
@@ -437,8 +437,9 @@ void TelemetryHud::renderAudioVu(SDL_Renderer* renderer, const AudioChannelLevel
     drawVuBar("TIR", levels.tireLevel, y + 26, SDL_Color { 255, 191, 0, 255 });
     drawVuBar("ROT", levels.rotorLevel, y + 36, SDL_Color { 0, 220, 255, 255 });
     drawVuBar("THR", levels.thrusterLevel, y + 46, SDL_Color { 255, 120, 40, 255 });
-    drawVuBar("IMP", levels.impactLevel, y + 56, SDL_Color { 255, 80, 180, 255 });
-    drawVuBar("MST", levels.masterLevel, y + 66, SDL_Color { 255, 255, 255, 255 });
+    drawVuBar("DRV", levels.drivetrainLevel, y + 56, SDL_Color { 180, 140, 255, 255 });
+    drawVuBar("IMP", levels.impactLevel, y + 66, SDL_Color { 255, 80, 180, 255 });
+    drawVuBar("MST", levels.masterLevel, y + 76, SDL_Color { 255, 255, 255, 255 });
 }
 
 void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snapshot,

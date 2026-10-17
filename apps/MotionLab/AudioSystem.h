@@ -8,6 +8,8 @@
 
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "libs/VehicleSimCore/audio/AudioChannels.h"
+#include "libs/VehicleSimCore/audio/DrivetrainAcousticSynth.h"
+#include "libs/VehicleSimCore/audio/VehicleAcousticProfile.h"
 
 namespace motion_lab {
 
@@ -16,12 +18,13 @@ namespace audio = vehicle_sim::audio;
 /// @struct AudioChannelLevels
 /// @brief Real-time RMS output levels for HUD telemetry visualization.
 struct AudioChannelLevels {
-    float engineLevel { 0.0f };   ///< Engine combustion channel RMS in [0.0, 1.0].
-    float tireLevel { 0.0f };     ///< Tire scrub noise channel RMS in [0.0, 1.0].
-    float rotorLevel { 0.0f };    ///< Rotor aerodynamic chop channel RMS in [0.0, 1.0].
-    float thrusterLevel { 0.0f }; ///< Thruster roar channel RMS in [0.0, 1.0].
-    float impactLevel { 0.0f };   ///< Impact collision clang channel RMS in [0.0, 1.0].
-    float masterLevel { 0.0f };   ///< Composite master output level in [0.0, 1.0].
+    float engineLevel { 0.0f };     ///< Engine combustion channel RMS in [0.0, 1.0].
+    float tireLevel { 0.0f };       ///< Tire scrub noise channel RMS in [0.0, 1.0].
+    float rotorLevel { 0.0f };      ///< Rotor aerodynamic chop channel RMS in [0.0, 1.0].
+    float thrusterLevel { 0.0f };   ///< Thruster roar channel RMS in [0.0, 1.0].
+    float impactLevel { 0.0f };     ///< Impact collision clang channel RMS in [0.0, 1.0].
+    float drivetrainLevel { 0.0f }; ///< Drivetrain gear whine / air brake RMS in [0.0, 1.0].
+    float masterLevel { 0.0f };     ///< Composite master output level in [0.0, 1.0].
 };
 
 /// @class AudioSystem
@@ -57,8 +60,11 @@ public:
     /// @param[in] surfaceMu Ground friction coefficient.
     /// @param[in] rotorSpeed Rotor rotational speed in RPM.
     /// @param[in] thrusterPower Thruster power level [0.0, 1.0].
+    /// @param[in] wheelSpeed Linear wheel speed in m/s.
+    /// @param[in] brakePressure Brake application pressure [0.0, 1.0].
     void updateTelemetry(MotionLabVehicleType type, double rpm, double throttle, double slipVelocity,
-        double surfaceMu, double rotorSpeed, double thrusterPower) noexcept;
+        double surfaceMu, double rotorSpeed, double thrusterPower, double wheelSpeed = 0.0,
+        double brakePressure = 0.0) noexcept;
 
     /// @brief Triggers structural collision impact clang.
     /// @param[in] impulse Contact impulse magnitude in N*s.
@@ -109,6 +115,8 @@ private:
         std::atomic<float> surfaceMu { 1.0f };
         std::atomic<float> rotorSpeed { 0.0f };
         std::atomic<float> thrusterPower { 0.0f };
+        std::atomic<float> wheelSpeed { 0.0f };
+        std::atomic<float> brakePressure { 0.0f };
         std::atomic<float> impactImpulse { 0.0f };
         std::atomic<std::uint8_t> vehicleType { 0U };
         std::atomic<bool> muted { true };
@@ -128,12 +136,17 @@ private:
     audio::RotorSynthesizer rotorSynth_ { };
     audio::ThrusterSynthesizer thrusterSynth_ { };
     audio::ImpactSynthesizer impactSynth_ { };
+    audio::DrivetrainAcousticSynth drivetrainSynth_ { };
+
+    std::uint8_t currentVehicleType_ { 255U };
+    float lastBrakePressure_ { 0.0f };
 
     std::atomic<float> rmsEngine_ { 0.0f };
     std::atomic<float> rmsTire_ { 0.0f };
     std::atomic<float> rmsRotor_ { 0.0f };
     std::atomic<float> rmsThruster_ { 0.0f };
     std::atomic<float> rmsImpact_ { 0.0f };
+    std::atomic<float> rmsDrivetrain_ { 0.0f };
     std::atomic<float> rmsMaster_ { 0.0f };
 };
 

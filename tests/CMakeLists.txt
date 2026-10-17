@@ -31,6 +31,7 @@ add_executable(VehicleSimCoreTests
     MotionLabCarDynamicsTest.cpp
     BarrierSolver2DTest.cpp
     AudioDspTest.cpp
+    VehicleSoundDesignTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

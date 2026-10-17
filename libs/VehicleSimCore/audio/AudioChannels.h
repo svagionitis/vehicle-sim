@@ -3,16 +3,25 @@
 #include <cstdint>
 
 #include "libs/VehicleSimCore/audio/AudioDspMath.h"
+#include "libs/VehicleSimCore/audio/CylinderHarmonicSynth.h"
+#include "libs/VehicleSimCore/audio/DrivetrainAcousticSynth.h"
+#include "libs/VehicleSimCore/audio/ExhaustPopSynth.h"
+#include "libs/VehicleSimCore/audio/ForcedInductionSynth.h"
+#include "libs/VehicleSimCore/audio/VehicleAcousticProfile.h"
 
 namespace vehicle_sim::audio {
 
 /// @class EngineSynthesizer
 /// @brief Synthesizes internal combustion engine acoustic signatures.
-/// @details Combines PolyBLEP sawtooth oscillators, sub-harmonics, and throttle-modulated
-/// biquad lowpass filtering with rev-limiter spark cut emulation.
+/// @details Combines multi-cylinder harmonic modeling, turbo/supercharger induction,
+/// and throttle overrun crackles with zero heap allocation.
 class EngineSynthesizer {
 public:
-    constexpr EngineSynthesizer() noexcept = default;
+    EngineSynthesizer() noexcept = default;
+
+    /// @brief Configures engine synthesis with vehicle acoustic profile.
+    /// @param[in] profile Vehicle acoustic calibration profile.
+    void configure(const VehicleAcousticProfile& profile) noexcept;
 
     /// @brief Advances synthesis by one sample.
     /// @param[in] rpm Engine revolutions per minute.
@@ -24,7 +33,18 @@ public:
     /// @brief Resets oscillator phase and filter registers.
     void reset() noexcept;
 
+    /// @brief Queries current turbocharger / induction sound component.
+    /// @return Most recent forced induction component sample.
+    [[nodiscard]] double getLastInductionSample() const noexcept { return lastInduction_; }
+
 private:
+    VehicleAcousticProfile profile_ { };
+    CylinderHarmonicSynth cylinderSynth_ { };
+    ForcedInductionSynth inductionSynth_ { };
+    ExhaustPopSynth popSynth_ { };
+    bool configured_ { false };
+    double lastInduction_ { 0.0 };
+
     double phase_ { 0.0 };
     double subPhase_ { 0.0 };
     double lastCutoff_ { 0.0 };
@@ -32,8 +52,9 @@ private:
 };
 
 /// @class TireSlipSynthesizer
-/// @brief Synthesizes tire scrub and skid squeal noise.
-/// @details Generates resonant bandpass-filtered white noise scaling with slip velocity.
+/// @brief Synthesizes tire scrub and skid squeal noise across road surfaces.
+/// @details Generates resonant bandpass-filtered white noise scaling with slip velocity
+/// and surface friction texture.
 class TireSlipSynthesizer {
 public:
     TireSlipSynthesizer() noexcept;
@@ -52,6 +73,7 @@ private:
     std::uint32_t rngState_ { 0x12345678U };
     double lastCenterFreq_ { 0.0 };
     BiquadFilter bandpass_ { };
+    BiquadFilter gravelFilter_ { };
 };
 
 /// @class RotorSynthesizer
