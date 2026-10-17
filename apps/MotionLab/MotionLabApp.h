@@ -18,9 +18,15 @@
 #include "apps/MotionLab/TelemetryHud.h"
 #include "apps/MotionLab/TrailParticleBuffer.h"
 #include "apps/MotionLab/WireframeRenderer.h"
+#include "libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h"
+#include "libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h"
+#include "libs/VehicleSimCore/dynamics/DriftCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/ForkliftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HelicopterDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
+#include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MotionLabCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RaceCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
@@ -246,6 +252,42 @@ public:
     /// @brief Gets mutable reference to active tracked tank coordinator.
     [[nodiscard]] vehicle_sim::dynamics::TrackedTankDynamics& getTank() noexcept;
 
+    /// @brief Gets constant reference to active anti-gravity racer coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::AntiGravityRacerDynamics& getAntiGravity() const noexcept;
+
+    /// @brief Gets mutable reference to active anti-gravity racer coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::AntiGravityRacerDynamics& getAntiGravity() noexcept;
+
+    /// @brief Gets constant reference to active drift car coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::DriftCarDynamics& getDriftCar() const noexcept;
+
+    /// @brief Gets mutable reference to active drift car coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::DriftCarDynamics& getDriftCar() noexcept;
+
+    /// @brief Gets constant reference to active monster truck coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::MonsterCarDynamics& getMonsterCar() const noexcept;
+
+    /// @brief Gets mutable reference to active monster truck coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::MonsterCarDynamics& getMonsterCar() noexcept;
+
+    /// @brief Gets constant reference to active articulated truck coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::ArticulatedTruckDynamics& getArticulatedTruck() const noexcept;
+
+    /// @brief Gets mutable reference to active articulated truck coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::ArticulatedTruckDynamics& getArticulatedTruck() noexcept;
+
+    /// @brief Gets constant reference to active forklift coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::ForkliftDynamics& getForklift() const noexcept;
+
+    /// @brief Gets mutable reference to active forklift coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::ForkliftDynamics& getForklift() noexcept;
+
+    /// @brief Gets constant reference to active drone coordinator.
+    [[nodiscard]] const vehicle_sim::dynamics::QuadcopterDroneDynamics& getDrone() const noexcept;
+
+    /// @brief Gets mutable reference to active drone coordinator.
+    [[nodiscard]] vehicle_sim::dynamics::QuadcopterDroneDynamics& getDrone() noexcept;
+
     /// @brief Gets constant reference to vehicle chassis rigid body.
     [[nodiscard]] const vehicle_sim::physics::RigidBody2D& getBody() const noexcept;
 
@@ -292,6 +334,12 @@ private:
     vehicle_sim::dynamics::HelicopterDynamics mHelicopter { };
     vehicle_sim::dynamics::HovercraftDynamics mHovercraft { };
     vehicle_sim::dynamics::TrackedTankDynamics mTank { };
+    vehicle_sim::dynamics::AntiGravityRacerDynamics mAntiGravity { };
+    vehicle_sim::dynamics::DriftCarDynamics mDriftCar { };
+    vehicle_sim::dynamics::MonsterCarDynamics mMonsterCar { };
+    vehicle_sim::dynamics::ArticulatedTruckDynamics mArticulatedTruck { };
+    vehicle_sim::dynamics::ForkliftDynamics mForklift { };
+    vehicle_sim::dynamics::QuadcopterDroneDynamics mDrone { };
 
     MotionLabCamera mCamera { };
     SkidRibbonBuffer mSkids { 10.0 };
@@ -313,6 +361,8 @@ private:
     bool mKeyA { false };
     bool mKeyD { false };
     bool mKeySpace { false };
+    bool mKeyQ { false };
+    bool mKeyE { false };
 
     // FPS & Timing statistics
     double mTimeAccumulator { 0.0 };

@@ -17,6 +17,18 @@ std::string_view getVehicleTypeName(MotionLabVehicleType type) noexcept
         return "HOVERCRAFT";
     case MotionLabVehicleType::TrackedTank:
         return "TRACKED TANK";
+    case MotionLabVehicleType::AntiGravity:
+        return "ANTI-GRAVITY";
+    case MotionLabVehicleType::DriftCar:
+        return "DRIFT CAR";
+    case MotionLabVehicleType::MonsterTruck:
+        return "MONSTER TRUCK";
+    case MotionLabVehicleType::SemiTruck:
+        return "SEMI-TRUCK";
+    case MotionLabVehicleType::Forklift:
+        return "FORKLIFT";
+    case MotionLabVehicleType::QuadcopterDrone:
+        return "DRONE (UAV)";
     }
     return "UNKNOWN";
 }

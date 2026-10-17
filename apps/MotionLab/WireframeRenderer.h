@@ -6,9 +6,15 @@
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
 #include "apps/MotionLab/TrailParticleBuffer.h"
+#include "libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h"
+#include "libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h"
+#include "libs/VehicleSimCore/dynamics/DriftCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/ForkliftDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HelicopterDynamics.h"
 #include "libs/VehicleSimCore/dynamics/HovercraftDynamics.h"
+#include "libs/VehicleSimCore/dynamics/MonsterCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/MotionLabCarDynamics.h"
+#include "libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RaceCarDynamics.h"
 #include "libs/VehicleSimCore/dynamics/RocketDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
@@ -28,6 +34,12 @@ struct VehicleRenderContext {
     const vehicle_sim::dynamics::HelicopterDynamics* helicopter { nullptr }; ///< Helicopter dynamics pointer.
     const vehicle_sim::dynamics::HovercraftDynamics* hovercraft { nullptr }; ///< Hovercraft dynamics pointer.
     const vehicle_sim::dynamics::TrackedTankDynamics* tank { nullptr }; ///< Tank dynamics pointer.
+    const vehicle_sim::dynamics::AntiGravityRacerDynamics* antiGravity { nullptr }; ///< Anti-gravity racer pointer.
+    const vehicle_sim::dynamics::DriftCarDynamics* driftCar { nullptr }; ///< Drift car dynamics pointer.
+    const vehicle_sim::dynamics::MonsterCarDynamics* monsterCar { nullptr }; ///< Monster truck dynamics pointer.
+    const vehicle_sim::dynamics::ArticulatedTruckDynamics* articulatedTruck { nullptr }; ///< Semi-truck dynamics pointer.
+    const vehicle_sim::dynamics::ForkliftDynamics* forklift { nullptr }; ///< Forklift dynamics pointer.
+    const vehicle_sim::dynamics::QuadcopterDroneDynamics* quadcopter { nullptr }; ///< Quadcopter drone pointer.
     double animTimer { 0.0 }; ///< Continuous animation timer in seconds.
 };
 
@@ -132,6 +144,38 @@ private:
                          const MotionLabCamera& camera,
                          const vehicle_sim::dynamics::TrackedTankDynamics& tank,
                          const vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    void drawAntiGravityRacer(SDL_Renderer* renderer,
+                              const MotionLabCamera& camera,
+                              const vehicle_sim::dynamics::AntiGravityRacerDynamics& antiGravity,
+                              const vehicle_sim::physics::RigidBody2D& body,
+                              double animTimer) noexcept;
+
+    void drawDriftCar(SDL_Renderer* renderer,
+                      const MotionLabCamera& camera,
+                      const vehicle_sim::dynamics::DriftCarDynamics& driftCar,
+                      const vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    void drawMonsterTruck(SDL_Renderer* renderer,
+                          const MotionLabCamera& camera,
+                          const vehicle_sim::dynamics::MonsterCarDynamics& monsterCar,
+                          const vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    void drawArticulatedTruck(SDL_Renderer* renderer,
+                              const MotionLabCamera& camera,
+                              const vehicle_sim::dynamics::ArticulatedTruckDynamics& truck,
+                              const vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    void drawForklift(SDL_Renderer* renderer,
+                      const MotionLabCamera& camera,
+                      const vehicle_sim::dynamics::ForkliftDynamics& forklift,
+                      const vehicle_sim::physics::RigidBody2D& body) noexcept;
+
+    void drawQuadcopterDrone(SDL_Renderer* renderer,
+                             const MotionLabCamera& camera,
+                             const vehicle_sim::dynamics::QuadcopterDroneDynamics& drone,
+                             const vehicle_sim::physics::RigidBody2D& body,
+                             double animTimer) noexcept;
 };
 
 } // namespace motion_lab

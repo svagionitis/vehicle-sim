@@ -1040,7 +1040,7 @@ stateDiagram-v2
 
 ### 9.3 Vehicle Fleet Expansion
 
-The fleet expands from the initial 6 vehicles to 12 distinct mechanical disciplines by integrating the existing models from [`libs/VehicleSimCore/dynamics`](../libs/VehicleSimCore/dynamics).
+The fleet expands from the initial 6 vehicles to 12 distinct mechanical disciplines by integrating the existing models from [`libs/VehicleSimCore/dynamics`](../libs/VehicleSimCore/dynamics) (see dedicated [Vehicle Fleet Expansion Implementation Plan](MotionLabFleetExpansionImplementationPlan.md)).
 
 #### 9.3.1 Extended Fleet Specifications
 

@@ -168,6 +168,7 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
     EXPECT_EQ(app.getVehicleName(), "CLASSIC CAR");
     EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1000.0);
     EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 1666.667);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 2.0);
 
     // Direct selection: RaceCar
     app.setVehicleType(MotionLabVehicleType::RaceCar);
@@ -175,6 +176,7 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
     EXPECT_EQ(app.getVehicleName(), "RACE CAR");
     EXPECT_DOUBLE_EQ(app.getBody().getMass(), 750.0);
     EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 900.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 1.80);
 
     // Direct selection: Rocket
     app.setVehicleType(MotionLabVehicleType::Rocket);
@@ -182,6 +184,7 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
     EXPECT_EQ(app.getVehicleName(), "ROCKET");
     EXPECT_DOUBLE_EQ(app.getBody().getMass(), 5000.0);
     EXPECT_GT(app.getBody().getInertia(), 10000.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 1.60);
 
     // Direct selection: Helicopter
     app.setVehicleType(MotionLabVehicleType::Helicopter);
@@ -189,6 +192,7 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
     EXPECT_EQ(app.getVehicleName(), "HELICOPTER");
     EXPECT_DOUBLE_EQ(app.getBody().getMass(), 2200.0);
     EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 4800.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 2.40);
 
     // Direct selection: Hovercraft
     app.setVehicleType(MotionLabVehicleType::Hovercraft);
@@ -196,6 +200,7 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
     EXPECT_EQ(app.getVehicleName(), "HOVERCRAFT");
     EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1200.0);
     EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 2084.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 2.20);
 
     // Direct selection: TrackedTank
     app.setVehicleType(MotionLabVehicleType::TrackedTank);
@@ -203,6 +208,61 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
     EXPECT_EQ(app.getVehicleName(), "TRACKED TANK");
     EXPECT_DOUBLE_EQ(app.getBody().getMass(), 12000.0);
     EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 30000.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 2.40);
+
+    // Direct selection: AntiGravity
+    app.setVehicleType(MotionLabVehicleType::AntiGravity);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::AntiGravity);
+    EXPECT_EQ(app.getVehicleName(), "ANTI-GRAVITY");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1050.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 950.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 2.40);
+    EXPECT_GT(app.getAntiGravity().getConfig().suspensionStiffness, 0.0);
+
+    // Direct selection: DriftCar
+    app.setVehicleType(MotionLabVehicleType::DriftCar);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::DriftCar);
+    EXPECT_EQ(app.getVehicleName(), "DRIFT CAR");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1250.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 1800.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 1.85);
+    EXPECT_GT(app.getDriftCar().getConfig().mass, 0.0);
+
+    // Direct selection: MonsterTruck
+    app.setVehicleType(MotionLabVehicleType::MonsterTruck);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::MonsterTruck);
+    EXPECT_EQ(app.getVehicleName(), "MONSTER TRUCK");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1500.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 12000.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 3.00);
+    EXPECT_GT(app.getMonsterCar().getConfig().wheelRadius, 0.0);
+
+    // Direct selection: SemiTruck
+    app.setVehicleType(MotionLabVehicleType::SemiTruck);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::SemiTruck);
+    EXPECT_EQ(app.getVehicleName(), "SEMI-TRUCK");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 31500.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 52000.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 2.50);
+    EXPECT_GT(app.getArticulatedTruck().getConfig().trailerLength, 0.0);
+
+    // Direct selection: Forklift
+    app.setVehicleType(MotionLabVehicleType::Forklift);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Forklift);
+    EXPECT_EQ(app.getVehicleName(), "FORKLIFT");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 3500.0);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 4200.0);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 1.30);
+    EXPECT_GT(app.getForklift().getConfig().wheelbase, 0.0);
+
+    // Direct selection: QuadcopterDrone
+    app.setVehicleType(MotionLabVehicleType::QuadcopterDrone);
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::QuadcopterDrone);
+    EXPECT_EQ(app.getVehicleName(), "DRONE (UAV)");
+    EXPECT_DOUBLE_EQ(app.getBody().getMass(), 1.5);
+    EXPECT_DOUBLE_EQ(app.getBody().getInertia(), 0.025);
+    EXPECT_DOUBLE_EQ(app.getMooseTest().getVehicleWidth(), 1.20);
+    EXPECT_GT(app.getDrone().getConfig().armLength, 0.0);
 }
 
 TEST(MotionLabAppTest, CycleVehicleSequencesAllPresets)
@@ -230,6 +290,24 @@ TEST(MotionLabAppTest, CycleVehicleSequencesAllPresets)
     app.cycleVehicle();
     EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::TrackedTank);
 
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::AntiGravity);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::DriftCar);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::MonsterTruck);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::SemiTruck);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::Forklift);
+
+    app.cycleVehicle();
+    EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::QuadcopterDrone);
+
     // Wraps around to ClassicCar
     app.cycleVehicle();
     EXPECT_EQ(app.getVehicleType(), MotionLabVehicleType::ClassicCar);
@@ -244,13 +322,19 @@ TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
     EXPECT_TRUE(app.initialize());
 
     constexpr double dt { 1.0 / 120.0 };
-    const std::array<MotionLabVehicleType, 6> vehicles {{
+    const std::array<MotionLabVehicleType, 12> vehicles {{
         MotionLabVehicleType::ClassicCar,
         MotionLabVehicleType::RaceCar,
         MotionLabVehicleType::Rocket,
         MotionLabVehicleType::Helicopter,
         MotionLabVehicleType::Hovercraft,
-        MotionLabVehicleType::TrackedTank
+        MotionLabVehicleType::TrackedTank,
+        MotionLabVehicleType::AntiGravity,
+        MotionLabVehicleType::DriftCar,
+        MotionLabVehicleType::MonsterTruck,
+        MotionLabVehicleType::SemiTruck,
+        MotionLabVehicleType::Forklift,
+        MotionLabVehicleType::QuadcopterDrone
     }};
 
     for (const auto vType : vehicles) {
@@ -264,6 +348,8 @@ TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
 
         EXPECT_GT(app.getBody().getMass(), 0.0);
         EXPECT_GT(app.getBody().getInertia(), 0.0);
+        EXPECT_FALSE(std::isnan(app.getBody().getPosition().x));
+        EXPECT_FALSE(std::isnan(app.getBody().getPosition().y));
     }
 }
 
@@ -1000,6 +1086,35 @@ TEST(MotionLabAppTest, SkidpadAppTogglesAndExclusivity)
     EXPECT_NEAR(app.getBody().getPosition().y, -15.0, 1e-4);
 }
 
+TEST(MotionLabAppTest, FleetExpansionDistinctModelProperties)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
 
+    constexpr std::array<MotionLabVehicleType, 12> allVehicles {{
+        MotionLabVehicleType::ClassicCar,
+        MotionLabVehicleType::RaceCar,
+        MotionLabVehicleType::Rocket,
+        MotionLabVehicleType::Helicopter,
+        MotionLabVehicleType::Hovercraft,
+        MotionLabVehicleType::TrackedTank,
+        MotionLabVehicleType::AntiGravity,
+        MotionLabVehicleType::DriftCar,
+        MotionLabVehicleType::MonsterTruck,
+        MotionLabVehicleType::SemiTruck,
+        MotionLabVehicleType::Forklift,
+        MotionLabVehicleType::QuadcopterDrone
+    }};
 
-
+    for (const auto vType : allVehicles) {
+        app.setVehicleType(vType);
+        EXPECT_EQ(app.getVehicleType(), vType);
+        EXPECT_FALSE(app.getVehicleName().empty());
+        EXPECT_NE(app.getVehicleName(), "UNKNOWN");
+        EXPECT_GT(app.getBody().getMass(), 0.0);
+        EXPECT_GT(app.getBody().getInertia(), 0.0);
+        EXPECT_GT(app.getMooseTest().getVehicleWidth(), 0.5);
+    }
+}
