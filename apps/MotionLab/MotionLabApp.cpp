@@ -893,6 +893,7 @@ void MotionLabApp::renderFrame() noexcept
 
     snapshot.circuitMode = mCircuitCoordinator.isEnabled();
     snapshot.slalomMode = mSlalomCoordinator.isEnabled();
+    snapshot.mooseMode = mMooseCoordinator.isEnabled();
     if (mCircuitCoordinator.isEnabled()) {
         const auto& metrics = mCircuitCoordinator.getMetrics();
         snapshot.currentLapTime = metrics.currentLapTime;

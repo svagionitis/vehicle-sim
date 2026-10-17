@@ -1,6 +1,7 @@
 #include "apps/MotionLab/MooseTestRenderer.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 
@@ -46,6 +47,7 @@ void MooseTestRenderer::renderCourse(SDL_Renderer* renderer,
     }
 
     drawBoundaries(renderer, camera, coordinator);
+    drawTrajectoryRoute(renderer, camera, coordinator);
     drawGates(renderer, camera, coordinator);
     drawChevrons(renderer, camera, coordinator);
 
@@ -240,6 +242,125 @@ void MooseTestRenderer::drawChevrons(SDL_Renderer* renderer,
     const int py2 { static_cast<int>(std::round(c2.y)) };
     WireframeRenderer::drawLine(renderer, px2 - 5, py2, px2 + 10, py2 + 10, chevColor);
     WireframeRenderer::drawLine(renderer, px2 - 5, py2, px2 + 10, py2 - 10, chevColor);
+}
+
+void MooseTestRenderer::drawTrajectoryRoute(SDL_Renderer* renderer,
+                                            const MotionLabCamera& camera,
+                                            const MooseTestCoordinator& coordinator) noexcept {
+    (void)coordinator;
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    constexpr double kMaxShift { 3.5 };
+    constexpr double kStartX { -30.0 }; // Staging spawn coordinate
+    constexpr double kEndX { 75.0 };    // Run-off braking zone coordinate
+    constexpr double kDashLength { 1.2 };
+    constexpr double kGapLength { 0.6 };
+    constexpr double kCycleLength { kDashLength + kGapLength };
+    constexpr double kSubStep { 0.2 };
+
+    auto computeRouteY = [](double x) noexcept -> double {
+        if (x <= 12.0) {
+            // Staging approach and Section 1 Entry Corridor along centerline
+            return 0.0;
+        }
+        if (x < 25.5) {
+            // Shortest direct diagonal chord across Section 2 with cubic Hermite fillets (dy = +3.5m)
+            const double u { (x - 12.0) / 13.5 };
+            return kMaxShift * (3.0 * u * u - 2.0 * u * u * u);
+        }
+        if (x <= 36.5) {
+            // Section 3: Evasion Corridor along shifted lane (y = +3.5m)
+            return kMaxShift;
+        }
+        if (x < 49.0) {
+            // Shortest direct diagonal chord across Section 4 with cubic Hermite fillets (dy = -3.5m)
+            const double v { (x - 36.5) / 12.5 };
+            return kMaxShift * (1.0 - (3.0 * v * v - 2.0 * v * v * v));
+        }
+        // Section 5 & Run-off: Exit Corridor along centerline
+        return 0.0;
+    };
+
+    auto drawBoldLine = [&](int x1, int y1, int x2, int y2, SDL_Color color) noexcept {
+        WireframeRenderer::drawLine(renderer, x1, y1, x2, y2, color);
+        WireframeRenderer::drawLine(renderer, x1 + 1, y1, x2 + 1, y2, color);
+        WireframeRenderer::drawLine(renderer, x1 - 1, y1, x2 - 1, y2, color);
+        WireframeRenderer::drawLine(renderer, x1, y1 + 1, x2, y2 + 1, color);
+        WireframeRenderer::drawLine(renderer, x1, y1 - 1, x2, y2 - 1, color);
+    };
+
+    const SDL_Color routeColor { 0, 255, 240, 255 };
+    const SDL_Color glowColor { 0, 180, 255, 180 };
+    const SDL_Color beadCoreColor { 220, 255, 255, 255 };
+
+    // 1. Draw bold 3-pixel-wide dashed double lane-change trajectory route and waypoint beads
+    for (double dashStart { kStartX }; dashStart < kEndX; dashStart += kCycleLength) {
+        const double dashEnd { std::min(dashStart + kDashLength, kEndX) };
+
+        double currX { dashStart };
+        while (currX < dashEnd) {
+            const double nextX { std::min(currX + kSubStep, dashEnd) };
+
+            const vehicle_sim::math::Vec2 p1World { currX, computeRouteY(currX) };
+            const vehicle_sim::math::Vec2 p2World { nextX, computeRouteY(nextX) };
+
+            const vehicle_sim::math::Vec2 p1Screen { camera.worldToScreen(p1World) };
+            const vehicle_sim::math::Vec2 p2Screen { camera.worldToScreen(p2World) };
+
+            drawBoldLine(static_cast<int>(std::round(p1Screen.x)),
+                         static_cast<int>(std::round(p1Screen.y)),
+                         static_cast<int>(std::round(p2Screen.x)),
+                         static_cast<int>(std::round(p2Screen.y)),
+                         routeColor);
+
+            currX = nextX;
+        }
+
+        // Prominent glowing waypoint bead at center of each dash
+        const double midDashX { 0.5 * (dashStart + dashEnd) };
+        const vehicle_sim::math::Vec2 midWorld { midDashX, computeRouteY(midDashX) };
+        const vehicle_sim::math::Vec2 midScreen { camera.worldToScreen(midWorld) };
+        const int bx { static_cast<int>(std::round(midScreen.x)) };
+        const int by { static_cast<int>(std::round(midScreen.y)) };
+
+        drawFilledCircle(renderer, bx, by, 4, glowColor);
+        drawFilledCircle(renderer, bx, by, 2, beadCoreColor);
+    }
+
+    // 2. Bold directional guidance chevrons across key maneuver sections
+    const SDL_Color chevronColor { 100, 255, 250, 255 };
+    const std::array<double, 8> guideStations { -20.0, -8.0, 6.0, 18.75, 31.0, 42.75, 55.0, 68.0 };
+
+    for (const double stationX : guideStations) {
+        const double yPos { computeRouteY(stationX) };
+        const double yPosAhead { computeRouteY(stationX + 0.6) };
+
+        const vehicle_sim::math::Vec2 pMidWorld { stationX, yPos };
+        const vehicle_sim::math::Vec2 pAheadWorld { stationX + 0.6, yPosAhead };
+
+        const vehicle_sim::math::Vec2 pMidScr { camera.worldToScreen(pMidWorld) };
+        const vehicle_sim::math::Vec2 pAheadScr { camera.worldToScreen(pAheadWorld) };
+
+        vehicle_sim::math::Vec2 dir { pAheadScr.x - pMidScr.x, pAheadScr.y - pMidScr.y };
+        const double len { std::sqrt(dir.x * dir.x + dir.y * dir.y) };
+        if (len > 0.001) {
+            dir.x /= len;
+            dir.y /= len;
+            const vehicle_sim::math::Vec2 normal { -dir.y, dir.x };
+
+            const int mx { static_cast<int>(std::round(pMidScr.x)) };
+            const int my { static_cast<int>(std::round(pMidScr.y)) };
+
+            const int wing1X { static_cast<int>(std::round(pMidScr.x - dir.x * 8.0 + normal.x * 6.5)) };
+            const int wing1Y { static_cast<int>(std::round(pMidScr.y - dir.y * 8.0 + normal.y * 6.5)) };
+            const int wing2X { static_cast<int>(std::round(pMidScr.x - dir.x * 8.0 - normal.x * 6.5)) };
+            const int wing2Y { static_cast<int>(std::round(pMidScr.y - dir.y * 8.0 - normal.y * 6.5)) };
+
+            drawBoldLine(wing1X, wing1Y, mx, my, chevronColor);
+            drawBoldLine(wing2X, wing2Y, mx, my, chevronColor);
+        }
+    }
 }
 
 void MooseTestRenderer::renderHud(SDL_Renderer* renderer,

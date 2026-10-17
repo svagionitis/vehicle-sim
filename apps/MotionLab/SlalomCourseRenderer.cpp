@@ -47,6 +47,7 @@ void SlalomCourseRenderer::renderCourse(SDL_Renderer* renderer,
     }
 
     drawGates(renderer, camera, coordinator);
+    drawTrajectoryRoute(renderer, camera, coordinator);
     drawWeaveGuides(renderer, camera, coordinator);
 
     const auto& pylons = coordinator.getPylons();
@@ -271,6 +272,128 @@ void SlalomCourseRenderer::drawWeaveGuides(SDL_Renderer* renderer,
             WireframeRenderer::drawLine(renderer, px + 12, py + dir * 12, px, py, activeColor);
             WireframeRenderer::drawLine(renderer, px - 12, py + dir * 13, px, py + 1, activeColor);
             WireframeRenderer::drawLine(renderer, px + 12, py + dir * 13, px, py + 1, activeColor);
+        }
+    }
+}
+
+void SlalomCourseRenderer::drawTrajectoryRoute(SDL_Renderer* renderer,
+                                              const MotionLabCamera& camera,
+                                              const SlalomCourseCoordinator& coordinator) noexcept {
+    (void)coordinator;
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    constexpr double kApexClearance { 1.55 }; // Shortest route apex clearance: 0.4m cone + 1.0m half-width + 0.15m margin
+    constexpr double kStartX { -15.0 };       // Staging spawn coordinate
+    constexpr double kEndX { 120.0 };         // Finish roll-out coordinate
+    constexpr double kDashLength { 1.2 };
+    constexpr double kGapLength { 0.6 };
+    constexpr double kCycleLength { kDashLength + kGapLength };
+    constexpr double kSubStep { 0.2 };
+
+    auto computeWeaveY = [](double x) noexcept -> double {
+        if (x <= 0.0) {
+            // Staging approach line straight into Start gate along centerline
+            return 0.0;
+        }
+        if (x < 10.0) {
+            // Shortest direct chord from (0, 0) to Apex 1 clipping point (10, +1.55m)
+            const double t { x / 10.0 };
+            return kApexClearance * (3.0 * t * t - 2.0 * t * t * t);
+        }
+        if (x <= 100.0) {
+            // Shortest straight-chord transitions between consecutive pylon clipping apexes
+            const std::size_t k { static_cast<std::size_t>((x - 10.0) / 10.0) };
+            const double x0 { 10.0 + static_cast<double>(k) * 10.0 };
+            const double t { (x - x0) / 10.0 };
+            const double y0 { (k % 2U == 0U) ? kApexClearance : -kApexClearance };
+            const double y1 { -y0 };
+            return y0 * (2.0 * t * t * t - 3.0 * t * t + 1.0) + y1 * (-2.0 * t * t * t + 3.0 * t * t);
+        }
+        if (x < 110.0) {
+            // Shortest direct exit chord from Apex 10 (100, -1.55m) to Finish gate (110, 0)
+            const double t { (x - 100.0) / 10.0 };
+            return -kApexClearance * (1.0 - 3.0 * t * t + 2.0 * t * t * t);
+        }
+        // Roll-out zone past finish line
+        return 0.0;
+    };
+
+    auto drawBoldLine = [&](int x1, int y1, int x2, int y2, SDL_Color color) noexcept {
+        WireframeRenderer::drawLine(renderer, x1, y1, x2, y2, color);
+        WireframeRenderer::drawLine(renderer, x1 + 1, y1, x2 + 1, y2, color);
+        WireframeRenderer::drawLine(renderer, x1 - 1, y1, x2 - 1, y2, color);
+        WireframeRenderer::drawLine(renderer, x1, y1 + 1, x2, y2 + 1, color);
+        WireframeRenderer::drawLine(renderer, x1, y1 - 1, x2, y2 - 1, color);
+    };
+
+    const SDL_Color routeColor { 255, 220, 20, 255 };
+    const SDL_Color glowColor { 255, 160, 0, 180 };
+    const SDL_Color beadCoreColor { 255, 255, 200, 255 };
+
+    // 1. Draw bold 3-pixel-wide dashed sinusoidal trajectory line and waypoint beads
+    for (double dashStart { kStartX }; dashStart < kEndX; dashStart += kCycleLength) {
+        const double dashEnd { std::min(dashStart + kDashLength, kEndX) };
+
+        double currX { dashStart };
+        while (currX < dashEnd) {
+            const double nextX { std::min(currX + kSubStep, dashEnd) };
+
+            const vehicle_sim::math::Vec2 p1World { currX, computeWeaveY(currX) };
+            const vehicle_sim::math::Vec2 p2World { nextX, computeWeaveY(nextX) };
+
+            const vehicle_sim::math::Vec2 p1Screen { camera.worldToScreen(p1World) };
+            const vehicle_sim::math::Vec2 p2Screen { camera.worldToScreen(p2World) };
+
+            drawBoldLine(static_cast<int>(std::round(p1Screen.x)),
+                         static_cast<int>(std::round(p1Screen.y)),
+                         static_cast<int>(std::round(p2Screen.x)),
+                         static_cast<int>(std::round(p2Screen.y)),
+                         routeColor);
+
+            currX = nextX;
+        }
+
+        // Prominent glowing waypoint bead at center of each dash
+        const double midDashX { 0.5 * (dashStart + dashEnd) };
+        const vehicle_sim::math::Vec2 midWorld { midDashX, computeWeaveY(midDashX) };
+        const vehicle_sim::math::Vec2 midScreen { camera.worldToScreen(midWorld) };
+        const int bx { static_cast<int>(std::round(midScreen.x)) };
+        const int by { static_cast<int>(std::round(midScreen.y)) };
+
+        drawFilledCircle(renderer, bx, by, 4, glowColor);
+        drawFilledCircle(renderer, bx, by, 2, beadCoreColor);
+    }
+
+    // 2. Bold directional flow chevrons along the trajectory between pylons
+    const SDL_Color chevronColor { 255, 250, 80, 255 };
+    for (double chevronX { -7.5 }; chevronX <= 115.0; chevronX += 10.0) {
+        const double yPos { computeWeaveY(chevronX) };
+        const double yPosAhead { computeWeaveY(chevronX + 0.6) };
+
+        const vehicle_sim::math::Vec2 pMidWorld { chevronX, yPos };
+        const vehicle_sim::math::Vec2 pAheadWorld { chevronX + 0.6, yPosAhead };
+
+        const vehicle_sim::math::Vec2 pMidScr { camera.worldToScreen(pMidWorld) };
+        const vehicle_sim::math::Vec2 pAheadScr { camera.worldToScreen(pAheadWorld) };
+
+        vehicle_sim::math::Vec2 dir { pAheadScr.x - pMidScr.x, pAheadScr.y - pMidScr.y };
+        const double len { std::sqrt(dir.x * dir.x + dir.y * dir.y) };
+        if (len > 0.001) {
+            dir.x /= len;
+            dir.y /= len;
+            const vehicle_sim::math::Vec2 normal { -dir.y, dir.x };
+
+            const int mx { static_cast<int>(std::round(pMidScr.x)) };
+            const int my { static_cast<int>(std::round(pMidScr.y)) };
+
+            const int wing1X { static_cast<int>(std::round(pMidScr.x - dir.x * 8.0 + normal.x * 6.5)) };
+            const int wing1Y { static_cast<int>(std::round(pMidScr.y - dir.y * 8.0 + normal.y * 6.5)) };
+            const int wing2X { static_cast<int>(std::round(pMidScr.x - dir.x * 8.0 - normal.x * 6.5)) };
+            const int wing2Y { static_cast<int>(std::round(pMidScr.y - dir.y * 8.0 - normal.y * 6.5)) };
+
+            drawBoldLine(wing1X, wing1Y, mx, my, chevronColor);
+            drawBoldLine(wing2X, wing2Y, mx, my, chevronColor);
         }
     }
 }

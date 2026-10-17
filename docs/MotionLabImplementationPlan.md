@@ -909,37 +909,119 @@ Instead of only offering an infinite empty grid or a plain rectangular perimeter
 5. **Procedural Closed-Circuit Race Track**:
    - Uses [`TrackGenerator`](../libs/VehicleSimCore/terrain/TrackGenerator.h) and [`BankedTrack`](../libs/VehicleSimCore/terrain/BankedTrack.h) to generate a closed-loop ribbon track with apex kerbs, start/finish line, and sector splits (see dedicated [Procedural Closed-Circuit Race Track Implementation Plan](MotionLabCircuitTrackImplementationPlan.md)).
 
-#### 9.2.2 Proving Ground ASCII Course Layout Diagram
+#### 9.2.2 Proving Ground ASCII Course Layout & Shortest Route Trajectory Diagrams
 
 ```
 +---------------------------------------------------------------------------------------------------+
-|                                ISO 3888-2 Moose Test Layout                                       |
+|               ISO 3888-2 Severe Lane-Change Layout ("Moose Test") Shortest Route                  |
 +---------------------------------------------------------------------------------------------------+
 |                                                                                                   |
-|                       +--------------------+ (Evasion Corridor Lane)                              |
-|                       |  Section 3 (11m)   |                                                      |
-|                       |                    |                                                      |
-|                 /----/                      \----\                                                |
-|   Section 2    /                                  \   Section 4                                   |
-|   Shift (13.5m)                                    \  Return (12.5m)                              |
-|               /                                      \                                            |
-|   +----------+                                        +----------+ (Exit Corridor)                |
-|   |Section 1 |                                        |Section 5 |                                |
-|==>|Entry 12m |                                        |Exit 12m  |==> Finished                    |
-|   +----------+                                        +----------+                                |
-|   (Start Line)                                                                                    |
+| y=+5.5m                   *====================* (Section 3 Left Boundary: y = +3.5m + W3/2)      |
+|                           |  Section 3 (11.0m)  |                                                 |
+| y=+3.5m             . - - | - - - - - - - - - >| - - . (Lateral Offset: dy = +3.5m)                |
+|                   /       *====================*       \                                          |
+|                  /       (Section 3 Right Boundary)     \  Shortest Diagonal Chord                |
+|   Shortest      /                                        \ Section 4 (L = 12.98m)                 |
+|   Diagonal     /                                          \                                       |
+|   Chord       /                                            \                                      |
+|   Section 2  /                                              \                                     |
+|  (L=13.95m) /                                                \                                    |
+|            .                                                   .                                  |
+|           /                                                     \                                 |
+|   *======*=====* (Sec 1 Left)                          *======*=====* (Sec 5 Left)                |
+|   | Section 1  |                                       | Section 5  |                             |
+|==>|- - - - - ->.                                       . - - - - - >|==> [FINISH / PASSED]        |
+|   | Entry (12m)| (Throttle Lift: x = 12.0m)            | Exit (12m) |    (x = 61.0m)              |
+|   *======*=====* (Sec 1 Right)                         *======*=====* (Sec 5 Right)               |
+|   (Start: x=0m)                                                                                   |
+|                                                                                                   |
+| Route Legend & Shortest Route Geometry:                                                           |
+|   - - - > / .   Dotted / Dashed Shortest Route (Min-distance diagonal chords across Sec 2 & 4)    |
+|   *             Pylon Cones (Fixed 24-cone ISO 3888-2 boundary grid)                              |
+|   ===           Corridor boundary limits                                                          |
+|   Shortest Path: Sec 1 (12.0m) + Sec 2 Chord (13.95m) + Sec 3 (11.0m) + Sec 4 Chord (12.98m)     |
+|                  + Sec 5 (12.0m) = 61.93m total path length (fillet curve: 62.06m)               |
 +---------------------------------------------------------------------------------------------------+
-|                                100m Slalom Course Layout                                          |
+|                  100-Meter Slalom Course Layout & Shortest Clipping Weave Route                   |
 +---------------------------------------------------------------------------------------------------+
 |                                                                                                   |
-|  [Entry] -->   ^        v        ^        v        ^        v        ^        v   --> [Finish]     |
-|               (1)      (2)      (3)      (4)      (5)      (6)      (7)      (8)                  |
-|              Cone     Cone     Cone     Cone     Cone     Cone     Cone     Cone                  |
-|              x=10m    x=20m    x=30m    x=40m    x=50m    x=60m    x=70m    x=80m                 |
+| y=+1.55m     .-.         .-.         .-.         .-.         .-.  <-- Clipping Apex (+1.55m)      |
+|            ./   \.     ./   \.     ./   \.     ./   \.     ./   \.                                |
+|           /  ^    \   /  ^    \   /  ^    \   /  ^    \   /  ^    \   Shortest Chord Transitions  |
+|          / (Clip L)\ / (Clip L)\ / (Clip L)\ / (Clip L)\ / (Clip L)\  (L_chord = 10.47m between   |
+| y=0m  ==>.- -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - ==>     |
+|     [START] (1)          (3)          (5)          (7)          (9)       Finish Gate [FINISH]    |
+|     x=0.0m x=10m        x=30m        x=50m        x=70m        x=90m        x=110m                |
+|                      \ (Clip R)/ \ (Clip R)/ \ (Clip R)/ \ (Clip R)/ \ (Clip R)/                  |
+|                       \  v    /   \  v    /   \  v    /   \  v    /   \  v    /                   |
+|                        '\   /'     '\   /'     '\   /'     '\   /'     '\   /'                    |
+| y=-1.55m                 '-'         '-'         '-'         '-'         '-'  <-- Apex (-1.55m)   |
+|                          (2)         (4)         (6)         (8)         (10)                     |
+|                         x=20m       x=40m       x=60m       x=80m       x=100m                    |
+|                                                                                                   |
+| Route Legend & Shortest Route Formulation:                                                        |
+|   .- - / \ .   Dotted / Dashed Shortest Feasible Route (Minimum-distance pylon-clipping line)     |
+|   *            Pylon Cones (10 pylons centered at y = 0.0m, spaced longitudinally at dx = 10.0m)   |
+|   Apex y_apex  Clearance = R_cone (0.4m) + W_veh/2 (1.0m) + Margin (0.15m) = 1.55m                |
+|   Shortest Path: Total length = 115.28m (saving >7.1m over standard wide weaves of 122.37m)       |
 +---------------------------------------------------------------------------------------------------+
 ```
 
-#### 9.2.3 Proving Ground State Flow Mermaid Diagram
+#### 9.2.3 Proving Ground Trajectory Mermaid Diagrams
+
+```mermaid
+flowchart LR
+    subgraph MooseRoute ["ISO 3888-2 Moose Test: Shortest Route (Min-Distance Diagonal Chords)"]
+        direction LR
+        M_Start["Start Gate<br/>(x = 0.0m, y = 0.0m)"]
+        M_Lift["Throttle Release<br/>(x = 12.0m, y = 0.0m)"]
+        M_Shift["Shortest Diagonal Chord Sec 2<br/>(dx = 13.5m, dy = +3.5m, L = 13.95m)"]
+        M_Apex["Section 3 Evasion Corridor<br/>(x = 25.5m to 36.5m, y = +3.5m)"]
+        M_Return["Shortest Diagonal Chord Sec 4<br/>(dx = 12.5m, dy = -3.5m, L = 12.98m)"]
+        M_Exit["Section 5 Exit Corridor<br/>(x = 49.0m, y = 0.0m)"]
+        M_Finish["Finish Gate<br/>(x = 61.0m, y = 0.0m)"]
+
+        M_Start ==>|Straight Entry (12.0m)| M_Lift
+        M_Lift -.->|Dashed Diagonal Chord +3.5m| M_Shift
+        M_Shift -.->|Dashed Evasion Path (11.0m)| M_Apex
+        M_Apex -.->|Dashed Diagonal Chord -3.5m| M_Return
+        M_Return -.->|Dashed Re-alignment Path| M_Exit
+        M_Exit ==>|Exit Roll-out (12.0m)| M_Finish
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph SlalomRoute ["100-Meter Slalom Course: Shortest Clipping Weave Route (Apex y = ±1.55m)"]
+        direction LR
+        S_Start["Start Gate<br/>(x = 0m, y = 0m)"]
+        S_C1["Clip Left (+1.55m)<br/>Cone 1 (x = 10m)"]
+        S_C2["Clip Right (-1.55m)<br/>Cone 2 (x = 20m)"]
+        S_C3["Clip Left (+1.55m)<br/>Cone 3 (x = 30m)"]
+        S_C4["Clip Right (-1.55m)<br/>Cone 4 (x = 40m)"]
+        S_C5["Clip Left (+1.55m)<br/>Cone 5 (x = 50m)"]
+        S_C6["Clip Right (-1.55m)<br/>Cone 6 (x = 60m)"]
+        S_C7["Clip Left (+1.55m)<br/>Cone 7 (x = 70m)"]
+        S_C8["Clip Right (-1.55m)<br/>Cone 8 (x = 80m)"]
+        S_C9["Clip Left (+1.55m)<br/>Cone 9 (x = 90m)"]
+        S_C10["Clip Right (-1.55m)<br/>Cone 10 (x = 100m)"]
+        S_Finish["Finish Timing Gate<br/>(x = 110m, y = 0m)"]
+
+        S_Start -.->|Dashed Diagonal Chord| S_C1
+        S_C1 -.->|Dashed Diagonal Chord (10.47m)| S_C2
+        S_C2 -.->|Dashed Diagonal Chord (10.47m)| S_C3
+        S_C3 -.->|Dashed Diagonal Chord (10.47m)| S_C4
+        S_C4 -.->|Dashed Diagonal Chord (10.47m)| S_C5
+        S_C5 -.->|Dashed Diagonal Chord (10.47m)| S_C6
+        S_C6 -.->|Dashed Diagonal Chord (10.47m)| S_C7
+        S_C7 -.->|Dashed Diagonal Chord (10.47m)| S_C8
+        S_C8 -.->|Dashed Diagonal Chord (10.47m)| S_C9
+        S_C9 -.->|Dashed Diagonal Chord (10.47m)| S_C10
+        S_C10 -.->|Dashed Exit Sprint| S_Finish
+    end
+```
+
+#### 9.2.4 Proving Ground State Flow Mermaid Diagram
 
 ```mermaid
 stateDiagram-v2

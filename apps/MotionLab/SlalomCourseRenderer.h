@@ -44,6 +44,10 @@ private:
     static void drawWeaveGuides(SDL_Renderer* renderer,
                                 const MotionLabCamera& camera,
                                 const SlalomCourseCoordinator& coordinator) noexcept;
+
+    static void drawTrajectoryRoute(SDL_Renderer* renderer,
+                                    const MotionLabCamera& camera,
+                                    const SlalomCourseCoordinator& coordinator) noexcept;
 };
 
 } // namespace motion_lab

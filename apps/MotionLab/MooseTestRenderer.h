@@ -47,6 +47,10 @@ private:
     static void drawChevrons(SDL_Renderer* renderer,
                              const MotionLabCamera& camera,
                              const MooseTestCoordinator& coordinator) noexcept;
+
+    static void drawTrajectoryRoute(SDL_Renderer* renderer,
+                                    const MotionLabCamera& camera,
+                                    const MooseTestCoordinator& coordinator) noexcept;
 };
 
 } // namespace motion_lab
