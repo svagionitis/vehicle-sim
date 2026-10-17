@@ -67,6 +67,10 @@ struct TireState {
     double camberAngle { 0.0 }; ///< Wheel camber inclination angle gamma in radians.
     double surfaceFriction { 1.0 }; ///< Ground material friction multiplier (from SurfaceMaterial).
     double surfaceDrag { 1.0 }; ///< Ground material rolling drag multiplier.
+    double waterFilmDepth { 0.0 }; ///< Environmental standing water depth d_w in meters.
+    double tirePressurePsi { 32.0 }; ///< Tire inflation pressure in psi.
+    double treadDepth { 0.008 }; ///< Tread grooving depth in meters.
+    double treadVoidRatio { 0.32 }; ///< Tread channel void ratio in [0.0, 1.0].
 };
 
 /// @struct TireForces
@@ -81,6 +85,11 @@ struct TireForces {
     double effSlipRatio { 0.0 }; ///< Filtered transient effective slip ratio.
     double effSlipAngle { 0.0 }; ///< Filtered transient effective slip angle (rad).
     bool isSaturated { false }; ///< True if combined friction demand reached peak limit.
+    double hydroLiftForce { 0.0 }; ///< Upward hydrodynamic lift F_lift in Newtons.
+    double effectiveLoadFz { 4000.0 }; ///< Net normal load F_z,eff in Newtons.
+    double sprayDragForce { 0.0 }; ///< Fluid displacement drag in Newtons.
+    double wetFrictionScale { 1.0 }; ///< Hydroplaning friction multiplier eta_wet.
+    bool isHydroplaning { false }; ///< True if tire entered dynamic hydroplaning.
 };
 
 /// @class PacejkaTireModel

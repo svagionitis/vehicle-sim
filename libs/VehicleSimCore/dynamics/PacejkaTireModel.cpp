@@ -1,4 +1,5 @@
 #include "libs/VehicleSimCore/dynamics/PacejkaTireModel.h"
+#include "libs/VehicleSimCore/terrain/HydroplaningModel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -173,11 +174,47 @@ void PacejkaTireModel::updateRelaxation(double dt, double vx, double targetKappa
 
     updateRelaxation(dt, state.forwardSpeed, geomKappa, geomAlpha);
 
-    const double Fz { state.normalLoad };
+    double hydroLift { 0.0 };
+    double effFz { state.normalLoad };
+    double sprayDrag { 0.0 };
+    double wetScale { 1.0 };
+    bool isHydro { false };
+
+    if (state.waterFilmDepth > 0.0) {
+        terrain::HydroplaningConfig hConfig {};
+        hConfig.tirePressurePsi = state.tirePressurePsi;
+        hConfig.treadDepth = state.treadDepth;
+        hConfig.voidRatio = state.treadVoidRatio;
+
+        terrain::HydroplaningState hState {};
+        hState.forwardVelocity = state.forwardSpeed;
+        hState.normalLoad = state.normalLoad;
+        hState.patchWidth = 2.0 * mConfig.wheelRadius * 0.35;
+        hState.patchLength = 2.0 * mConfig.wheelRadius * 0.25;
+        hState.waterDepth = state.waterFilmDepth;
+        hState.velocityVector = math::Vec2 { state.forwardSpeed, state.lateralSpeed };
+
+        const auto hRes = terrain::HydroplaningSolver::evaluateHydroplaning(hState, hConfig);
+        hydroLift = hRes.hydroLiftForce;
+        effFz = hRes.effectiveNormalLoad;
+        sprayDrag = hRes.sprayDragForce;
+        wetScale = hRes.frictionScale;
+        isHydro = hRes.isHydroplaning;
+    }
+
+    if (effFz <= 0.0) {
+        return TireForces {
+            0.0, 0.0, 0.0, 0.0,
+            geomKappa, geomAlpha, mEffectiveKappa, mEffectiveAlpha,
+            false, hydroLift, 0.0, sprayDrag, wetScale, isHydro
+        };
+    }
+
+    const double Fz { effFz };
     const double Fz0 { std::max(mConfig.nominalLoadFz, 100.0) };
     const double loadFactor { 1.0 - (mConfig.loadSensitivity * ((Fz - Fz0) / Fz0)) };
     const double muLoad { std::clamp(loadFactor, 0.40, 1.60) };
-    const double surfFriction { std::max(state.surfaceFriction, 0.0) };
+    const double surfFriction { std::max(state.surfaceFriction, 0.0) * wetScale };
 
     const double Dx { mConfig.longitudinal.D * surfFriction * muLoad * Fz };
     const double Dy { mConfig.lateral.D * surfFriction * muLoad * Fz };
@@ -220,7 +257,11 @@ void PacejkaTireModel::updateRelaxation(double dt, double vx, double targetKappa
     const double speedFactor { std::clamp(vx / 0.10, -1.0, 1.0) };
     const double Frr { -mConfig.rollingResistanceCoeff * Fz * std::max(state.surfaceDrag, 0.0) * speedFactor };
 
-    return TireForces { Fx, Fy, Mz, Frr, geomKappa, geomAlpha, mEffectiveKappa, mEffectiveAlpha, isSaturated };
+    return TireForces {
+        Fx, Fy, Mz, Frr,
+        geomKappa, geomAlpha, mEffectiveKappa, mEffectiveAlpha,
+        isSaturated, hydroLift, effFz, sprayDrag, wetScale, isHydro
+    };
 }
 
 void PacejkaTireModel::reset() noexcept

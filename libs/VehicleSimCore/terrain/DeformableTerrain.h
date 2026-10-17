@@ -9,6 +9,9 @@
 
 namespace vehicle_sim::terrain {
 
+struct StratifiedSoilConfig;
+struct StratifiedSinkageResult;
+
 /// @struct RutStamp2D
 /// @brief Wheel or track contact footprint description for terrain rut deformation.
 struct RutStamp2D {
@@ -134,6 +137,27 @@ public:
     /// @return Elastic elevation delta in meters.
     [[nodiscard]] double getElasticDelta(std::size_t index) const noexcept;
 
+    /// @brief Sets baseline uniform upper stratum depth.
+    /// @param[in] depth Upper stratum layer thickness in meters.
+    void setTopStratumDepth(double depth) noexcept;
+
+    /// @brief Configures spatially varying stratum depth grid.
+    /// @param[in] depths Flattened row-major layer depths in meters.
+    void setTopStratumGrid(const std::vector<double>& depths);
+
+    /// @brief Queries upper stratum depth at world coordinates (x, y).
+    /// @param[in] x World X coordinate in meters.
+    /// @param[in] y World Y coordinate in meters.
+    /// @return Stratum thickness d_top in meters.
+    [[nodiscard]] double getStratumDepth(double x, double y) const noexcept;
+
+    /// @brief Applies a stratified rut stamp, mutating delta elevations.
+    /// @param[in] stamp Wheel footprint geometry, load, and kinematics.
+    /// @param[in] config Stratified soil properties.
+    /// @return StratifiedSinkageResult with partitioned forces and depths.
+    StratifiedSinkageResult applyStratifiedRut(
+        const RutStamp2D& stamp, const StratifiedSoilConfig& config) noexcept;
+
 private:
     [[nodiscard]] double sampleBilinear(const std::vector<double>& data, double x, double y) const noexcept;
 
@@ -145,6 +169,8 @@ private:
     std::vector<double> mPlasticDelta {}; ///< Permanent plastic elevation delta (negative = depression).
     std::vector<double> mElasticDelta {}; ///< Transient viscoelastic elevation delta.
     std::vector<double> mHardening {}; ///< Accumulated plastic compaction depth.
+    double mBaseStratumDepth { 0.15 }; ///< Uniform baseline stratum thickness in meters.
+    std::vector<double> mStratumDepth {}; ///< Spatially varying stratum depth array.
 };
 
 } // namespace vehicle_sim::terrain

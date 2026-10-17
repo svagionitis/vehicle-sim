@@ -14,6 +14,12 @@
 
 namespace vehicle_sim::terrain {
 
+struct StratifiedSoilConfig;
+struct StratifiedSinkageResult;
+struct HydroplaningConfig;
+struct HydroplaningState;
+struct HydroplaningResult;
+
 /// @enum ElevationInterp2D
 /// @brief Spatial interpolation algorithm across discrete 2D elevation grid samples.
 enum class ElevationInterp2D : std::uint8_t {
@@ -424,6 +430,43 @@ public:
     /// @return Mutable reference to internal DeformableTerrainLayer.
     [[nodiscard]] DeformableTerrainLayer& getDeformableLayer() noexcept;
 
+    /// @brief Sets baseline uniform standing water depth.
+    /// @param[in] waterDepth Surface water film thickness in meters.
+    void setBaseWaterDepth(double waterDepth) noexcept;
+
+    /// @brief Gets baseline uniform standing water depth.
+    /// @return Water depth in meters.
+    [[nodiscard]] double getBaseWaterDepth() const noexcept;
+
+    /// @brief Configures spatial standing water film thickness grid.
+    /// @param[in] waterDepths Row-major flattened water depth in meters.
+    void setWaterFilmGrid(const std::vector<double>& waterDepths);
+
+    /// @brief Queries standing water film thickness at world coordinates (x, y).
+    /// @param[in] x World X coordinate in meters.
+    /// @param[in] y World Y coordinate in meters.
+    /// @return Water depth in meters (0.0 if dry).
+    [[nodiscard]] double getWaterDepth(double x, double y) const noexcept;
+
+    /// @brief Queries standing water film thickness at vector position.
+    /// @param[in] point World coordinates in meters.
+    /// @return Water depth in meters (0.0 if dry).
+    [[nodiscard]] double getWaterDepth(const math::Vec2& point) const noexcept;
+
+    /// @brief Applies a stratified rut stamp and mutates surface elevations.
+    /// @param[in] stamp Wheel footprint geometry, load, and kinematics.
+    /// @param[in] config Stratified soil properties.
+    /// @return StratifiedSinkageResult with partitioned forces and depths.
+    StratifiedSinkageResult applyStratifiedRut(
+        const RutStamp2D& stamp, const StratifiedSoilConfig& config) noexcept;
+
+    /// @brief Evaluates hydroplaning conditions for a tire at world coordinates.
+    /// @param[in] state Contact patch kinematics.
+    /// @param[in] config Tire hydroplaning specifications.
+    /// @return HydroplaningResult containing lift, drag, and friction scale.
+    [[nodiscard]] HydroplaningResult sampleHydroplaning(
+        const HydroplaningState& state, const HydroplaningConfig& config) const noexcept;
+
 private:
     [[nodiscard]] std::pair<double, math::Vec2> sampleGrid(double x, double y) const noexcept;
     [[nodiscard]] double getGridSample(int ix, int iy) const noexcept;
@@ -448,6 +491,9 @@ private:
 
     bool mEnableDeformable { false };
     DeformableTerrainLayer mDeformableLayer {};
+
+    double mBaseWaterDepth { 0.0 };
+    std::vector<double> mWaterFilmData {};
 };
 
 /// @brief Type alias for 2D top-down surface and elevation map.

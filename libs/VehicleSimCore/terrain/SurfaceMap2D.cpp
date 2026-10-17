@@ -1,4 +1,6 @@
 #include "libs/VehicleSimCore/terrain/SurfaceMap2D.h"
+#include "libs/VehicleSimCore/terrain/HydroplaningModel.h"
+#include "libs/VehicleSimCore/terrain/StratifiedSoil.h"
 
 #include <algorithm>
 #include <array>
@@ -557,6 +559,77 @@ const DeformableTerrainLayer& SurfaceMap2D::getDeformableLayer() const noexcept
 DeformableTerrainLayer& SurfaceMap2D::getDeformableLayer() noexcept
 {
     return mDeformableLayer;
+}
+
+void SurfaceMap2D::setBaseWaterDepth(double waterDepth) noexcept
+{
+    mBaseWaterDepth = (waterDepth > 0.0) ? waterDepth : 0.0;
+}
+
+double SurfaceMap2D::getBaseWaterDepth() const noexcept
+{
+    return mBaseWaterDepth;
+}
+
+void SurfaceMap2D::setWaterFilmGrid(const std::vector<double>& waterDepths)
+{
+    mWaterFilmData = waterDepths;
+}
+
+double SurfaceMap2D::getWaterDepth(double x, double y) const noexcept
+{
+    if (mWaterFilmData.empty() || mGridWidth == 0U || mGridHeight == 0U) {
+        const auto mat = getMaterial(x, y);
+        if (mat.type == MaterialType::Water) {
+            return (mBaseWaterDepth > 0.0) ? mBaseWaterDepth : 0.05;
+        }
+        return mBaseWaterDepth;
+    }
+
+    const double gx = (x - mGridOrigin.x) / mCellSize.x;
+    const double gy = (y - mGridOrigin.y) / mCellSize.y;
+
+    const auto x0 = static_cast<std::size_t>(
+        std::clamp(std::floor(gx), 0.0, static_cast<double>(mGridWidth - 1U)));
+    const auto x1 = static_cast<std::size_t>(
+        std::clamp(x0 + 1U, 0ULL, static_cast<unsigned long long>(mGridWidth - 1U)));
+    const auto y0 = static_cast<std::size_t>(
+        std::clamp(std::floor(gy), 0.0, static_cast<double>(mGridHeight - 1U)));
+    const auto y1 = static_cast<std::size_t>(
+        std::clamp(y0 + 1U, 0ULL, static_cast<unsigned long long>(mGridHeight - 1U)));
+
+    const double fx = std::clamp(gx - std::floor(gx), 0.0, 1.0);
+    const double fy = std::clamp(gy - std::floor(gy), 0.0, 1.0);
+
+    const double d00 = mWaterFilmData[(y0 * mGridWidth) + x0];
+    const double d10 = mWaterFilmData[(y0 * mGridWidth) + x1];
+    const double d01 = mWaterFilmData[(y1 * mGridWidth) + x0];
+    const double d11 = mWaterFilmData[(y1 * mGridWidth) + x1];
+
+    const double d0 = d00 + (fx * (d10 - d00));
+    const double d1 = d01 + (fx * (d11 - d01));
+
+    return std::max(0.0, d0 + (fy * (d1 - d0)));
+}
+
+double SurfaceMap2D::getWaterDepth(const math::Vec2& point) const noexcept
+{
+    return getWaterDepth(point.x, point.y);
+}
+
+StratifiedSinkageResult SurfaceMap2D::applyStratifiedRut(
+    const RutStamp2D& stamp, const StratifiedSoilConfig& config) noexcept
+{
+    if (!mEnableDeformable || !mDeformableLayer.isInitialized()) {
+        return StratifiedSoilSolver::evaluateStamp(stamp, config);
+    }
+    return mDeformableLayer.applyStratifiedRut(stamp, config);
+}
+
+HydroplaningResult SurfaceMap2D::sampleHydroplaning(
+    const HydroplaningState& state, const HydroplaningConfig& config) const noexcept
+{
+    return HydroplaningSolver::evaluateHydroplaning(state, config);
 }
 
 } // namespace vehicle_sim::terrain

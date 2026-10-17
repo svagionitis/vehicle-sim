@@ -236,10 +236,10 @@ graph LR
 
 ---
 
-### 2.5 Multi-Layer Stratified Soil and Hydroplaning Model
+### 2.5 Multi-Layer Stratified Soil and Hydroplaning Model (Implemented)
 
 #### Objective
-Extend terramechanics in [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) from homogeneous ground to vertically stratified layers (e.g., mud/snow layer over bedrock or asphalt) and simulate wet-weather dynamic tire hydroplaning.
+Extend terramechanics in [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) from homogeneous ground to vertically stratified layers (e.g., mud/snow layer over bedrock or asphalt) and simulate wet-weather dynamic tire hydroplaning. Detailed architectural and physics design specification: [Stratified Soil & Hydroplaning Plan](StratifiedSoilHydroplaningImplementationPlan.md).
 
 #### Technical Formulation
 - **Stratified Soil Depth ($d_{\text{top}}$)**:

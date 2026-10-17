@@ -1,4 +1,5 @@
 #include "DeformableTerrain.h"
+#include "StratifiedSoil.h"
 
 #include <algorithm>
 #include <cmath>
@@ -339,6 +340,112 @@ double DeformableTerrainLayer::getElasticDelta(std::size_t index) const noexcept
         return mElasticDelta[index];
     }
     return 0.0;
+}
+
+void DeformableTerrainLayer::setTopStratumDepth(double depth) noexcept
+{
+    mBaseStratumDepth = (depth > kEpsilon) ? depth : 0.01;
+}
+
+void DeformableTerrainLayer::setTopStratumGrid(const std::vector<double>& depths)
+{
+    mStratumDepth = depths;
+}
+
+double DeformableTerrainLayer::getStratumDepth(double x, double y) const noexcept
+{
+    if (mStratumDepth.empty() || !isInitialized()) {
+        return mBaseStratumDepth;
+    }
+    return sampleBilinear(mStratumDepth, x, y);
+}
+
+StratifiedSinkageResult DeformableTerrainLayer::applyStratifiedRut(
+    const RutStamp2D& stamp, const StratifiedSoilConfig& config) noexcept
+{
+    const StratifiedSinkageResult result = StratifiedSoilSolver::evaluateStamp(stamp, config);
+    if (!isInitialized() || result.totalSinkage <= 0.0) {
+        return result;
+    }
+
+    const double width = (stamp.width > 0.01) ? stamp.width : 0.01;
+    const double length = (stamp.length > 0.01) ? stamp.length : 0.01;
+    const double bermWidth = width * 0.50;
+    const double totalHalfWidth = (width * 0.50) + bermWidth;
+    const double totalHalfLength = length * 0.50;
+
+    const double cosAngle = std::cos(stamp.heading);
+    const double sinAngle = std::sin(stamp.heading);
+
+    const double maxRadius = std::hypot(totalHalfWidth, totalHalfLength);
+    const double minWorldX = stamp.position.x - maxRadius;
+    const double maxWorldX = stamp.position.x + maxRadius;
+    const double minWorldY = stamp.position.y - maxRadius;
+    const double maxWorldY = stamp.position.y + maxRadius;
+
+    const auto minCol = static_cast<std::size_t>(
+        std::clamp(std::floor((minWorldX - mOrigin.x) / mCellSize.x), 0.0, static_cast<double>(mWidth - 1U)));
+    const auto maxCol = static_cast<std::size_t>(
+        std::clamp(std::ceil((maxWorldX - mOrigin.x) / mCellSize.x), 0.0, static_cast<double>(mWidth - 1U)));
+    const auto minRow = static_cast<std::size_t>(
+        std::clamp(std::floor((minWorldY - mOrigin.y) / mCellSize.y), 0.0, static_cast<double>(mHeight - 1U)));
+    const auto maxRow = static_cast<std::size_t>(
+        std::clamp(std::ceil((maxWorldY - mOrigin.y) / mCellSize.y), 0.0, static_cast<double>(mHeight - 1U)));
+
+    const double plasticRatio = std::clamp(config.topLayer.soil.plasticRatio, 0.0, 1.0);
+    const double bermHeight = ((1.0 - std::clamp(config.topLayer.soil.compactionRatio, 0.0, 1.0))
+        * result.totalSinkage * width) / (2.0 * bermWidth);
+
+    for (std::size_t j = minRow; j <= maxRow; ++j) {
+        for (std::size_t i = minCol; i <= maxCol; ++i) {
+            const double vx = mOrigin.x + (static_cast<double>(i) * mCellSize.x);
+            const double vy = mOrigin.y + (static_cast<double>(j) * mCellSize.y);
+
+            const double dx = vx - stamp.position.x;
+            const double dy = vy - stamp.position.y;
+
+            const double u = (dx * cosAngle) + (dy * sinAngle);
+            const double w = (-dx * sinAngle) + (dy * cosAngle);
+
+            if (std::abs(u) > totalHalfLength) {
+                continue;
+            }
+
+            const double absW = std::abs(w);
+            const std::size_t idx = (j * mWidth) + i;
+
+            if (absW <= (width * 0.50)) {
+                const double normalizedW = absW / (width * 0.50);
+                const double cosTerm = std::cos(0.5 * kPi * normalizedW);
+                const double shape = cosTerm * cosTerm;
+
+                const double effectiveZ = result.totalSinkage;
+                const double effectiveZp = effectiveZ * plasticRatio;
+                const double effectiveZe = effectiveZ * (1.0 - plasticRatio);
+
+                const double plasticDelta = effectiveZp * shape;
+                const double elasticDelta = effectiveZe * shape;
+
+                const double currentPlasticDepth = -mPlasticDelta[idx];
+                const double maxDepth = config.topLayer.layerDepth + config.substrate.soil.maxPlasticDepth;
+                const double newPlasticDepth = std::min(currentPlasticDepth + plasticDelta, maxDepth);
+
+                mPlasticDelta[idx] = -newPlasticDepth;
+                mElasticDelta[idx] = -std::max(-mElasticDelta[idx], elasticDelta);
+                mHardening[idx] = newPlasticDepth;
+            } else if (absW <= totalHalfWidth) {
+                const double bermOffset = absW - (width * 0.50);
+                const double normalizedBerm = bermOffset / bermWidth;
+                const double bermShape = std::sin(kPi * normalizedBerm);
+                const double positiveBerm = bermHeight * bermShape * bermShape;
+
+                const double priorBerm = std::max(0.0, mPlasticDelta[idx]);
+                mPlasticDelta[idx] = std::max(priorBerm, positiveBerm);
+            }
+        }
+    }
+
+    return result;
 }
 
 } // namespace vehicle_sim::terrain
