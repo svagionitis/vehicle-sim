@@ -533,7 +533,7 @@ void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snaps
     }
 
     // 4. Bottom Caption Bar
-    std::string caption { "[TAB] HUD / [H] TELEMETRY / [I] INPUTS / " };
+    std::string caption { "[TAB] HUD / [H] ADV HUD / [SH+H] WIND / [O] AIRFLOW / [I] INPUTS / " };
     caption += snapshot.barrierOn ? "BARRIER ON / " : "BARRIER OFF / ";
     caption += snapshot.gravityOn ? "GRAVITY ON / " : "GRAVITY OFF / ";
     if (snapshot.circuitMode) {

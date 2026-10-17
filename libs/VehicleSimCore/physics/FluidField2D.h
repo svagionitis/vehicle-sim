@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "libs/VehicleSimCore/math/Vec2.h"
+#include "libs/VehicleSimCore/terrain/FractalNoise.h"
 
 namespace vehicle_sim::physics {
 
@@ -41,6 +42,27 @@ struct HarmonicGust2D {
     math::Vec2 amplitude { 2.0, 0.0 };   ///< Gust velocity amplitude vector in m/s.
     double frequency { 0.5 };            ///< Temporal frequency omega in rad/s.
     double phase { 0.0 };                ///< Initial phase offset in radians.
+};
+
+/// @enum WindEnvironmentPreset
+/// @brief Standardized environmental wind scenarios.
+enum class WindEnvironmentPreset {
+    Calm,          ///< Zero ambient wind (0 m/s).
+    LightBreeze,   ///< Gentle sea breeze (5 m/s, East).
+    CrosswindGale, ///< Strong crosswind test (15 m/s, North-West).
+    SevereStorm,   ///< Severe gale with stochastic turbulence (25 m/s, West).
+    Microburst,    ///< Severe localized downburst / vortex shear (38 m/s).
+    DynamicStorm   ///< Continuous shifting meteorological heading and fluctuating gusts.
+};
+
+/// @struct DynamicGustConfig
+/// @brief Configuration parameters for stochastic turbulence and transient gusts.
+struct DynamicGustConfig {
+    double turbulenceIntensity { 0.15 }; ///< Ratio of RMS turbulence to mean wind speed.
+    double integralLengthScale { 25.0 }; ///< Characteristic eddy spatial dimension in meters.
+    double temporalFrequency { 0.20 };   ///< Temporal turbulence evolution frequency in Hz.
+    std::uint32_t randomSeed { 1996U };  ///< Deterministic PRNG seed for gradient noise.
+    bool enableTurbulence { false };     ///< Master toggle for fBm turbulence cascades.
 };
 
 /// @struct FluidFieldConfig
@@ -137,8 +159,31 @@ public:
     /// @return Number of harmonic gusts.
     [[nodiscard]] std::size_t getHarmonicGustCount() const noexcept;
 
+    /// @brief Configures multi-octave stochastic turbulence parameters.
+    /// @param[in] config Turbulence configuration.
+    void setTurbulence(const DynamicGustConfig& config) noexcept;
+
+    /// @brief Gets active turbulence configuration parameters.
+    /// @return Active DynamicGustConfig.
+    [[nodiscard]] const DynamicGustConfig& getTurbulenceConfig() const noexcept;
+
+    /// @brief Samples stochastic turbulence velocity at given position and time.
+    /// @param[in] position World position vector in meters.
+    /// @param[in] time Current simulation time in seconds.
+    /// @return 2D turbulence perturbation velocity in m/s.
+    [[nodiscard]] math::Vec2 sampleTurbulence(const math::Vec2& position, double time) const noexcept;
+
+    /// @brief Injects an isolated 1-Cosine discrete transient gust pulse.
+    /// @param[in] direction Gust unit direction vector.
+    /// @param[in] amplitude Peak gust speed in m/s.
+    /// @param[in] duration Total pulse duration in seconds.
+    /// @param[in] startTime Epoch in seconds when gust begins.
+    void triggerGust(const math::Vec2& direction, double amplitude, double duration, double startTime = 0.0) noexcept;
+
 private:
     FluidFieldConfig mConfig { };
+    DynamicGustConfig mTurbulenceConfig { };
+    terrain::FractalNoise mTurbulenceNoise { };
     std::vector<DiscreteGust2D> mDiscreteGusts { };
     std::vector<HarmonicGust2D> mHarmonicGusts { };
 };

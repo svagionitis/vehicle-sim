@@ -688,7 +688,11 @@ void MotionLabApp::processEvents() noexcept
                     toggleBarrier();
                     break;
                 case SDLK_g:
-                    toggleGravity();
+                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        mWindCoordinator.triggerDiscreteGust(12.0, 2.5);
+                    } else {
+                        toggleGravity();
+                    }
                     break;
                 case SDLK_z:
                     toggleDeadZone();
@@ -697,7 +701,11 @@ void MotionLabApp::processEvents() noexcept
                     toggleSpeedZoom();
                     break;
                 case SDLK_h:
-                    toggleAdvancedHud();
+                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        toggleWindHud();
+                    } else {
+                        toggleAdvancedHud();
+                    }
                     break;
                 case SDLK_TAB:
                     toggleAllHud();
@@ -729,6 +737,26 @@ void MotionLabApp::processEvents() noexcept
                 case SDLK_v:
                     cycleVehicle();
                     break;
+                case SDLK_u:
+                    mWindCoordinator.cycleNextPreset();
+                    break;
+                case SDLK_o:
+                    mWindRenderer.toggleOverlay();
+                    break;
+                case SDLK_LEFTBRACKET:
+                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        mWindCoordinator.rotateWindHeading(-15.0);
+                    } else {
+                        mWindCoordinator.adjustWindSpeed(0.80);
+                    }
+                    break;
+                case SDLK_RIGHTBRACKET:
+                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        mWindCoordinator.rotateWindHeading(15.0);
+                    } else {
+                        mWindCoordinator.adjustWindSpeed(1.25);
+                    }
+                    break;
                 case SDLK_q:
                     mKeyQ = true;
                     break;
@@ -758,7 +786,13 @@ void MotionLabApp::processEvents() noexcept
                     setVehicleType(MotionLabVehicleType::TrackedTank);
                     break;
                 case SDLK_F7:
-                    setVehicleType(MotionLabVehicleType::AntiGravity);
+                    if ((event.key.keysym.mod & KMOD_SHIFT) != 0) {
+                        mWindCoordinator.toggleWindActive();
+                    } else if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        mWindCoordinator.cycleNextPreset();
+                    } else {
+                        setVehicleType(MotionLabVehicleType::AntiGravity);
+                    }
                     break;
                 case SDLK_F8:
                     setVehicleType(MotionLabVehicleType::DriftCar);
@@ -1140,6 +1174,8 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         mBody.applyForce(gravForce);
     }
 
+    mWindCoordinator.stepPhysics(mBody, mVehicleType, dt);
+
     if (mCircuitCoordinator.isEnabled()) {
         mCircuitCoordinator.stepPhysics(mBody, dt);
         const auto mat = mCircuitCoordinator.getActiveMaterial();
@@ -1346,6 +1382,8 @@ void MotionLabApp::renderFrame() noexcept
         SkidpadRenderer::renderCourse(mRenderer, mCamera, mSkidpadCoordinator);
     }
 
+    mWindRenderer.renderVectorField(mRenderer, mWindCoordinator, mCamera, &mBody);
+
     const auto v = mBody.getLinearVelocity();
     const double speedMps { v.length() };
     const double speedMph { speedMps / 0.44704 };
@@ -1468,6 +1506,17 @@ void MotionLabApp::renderFrame() noexcept
         if (mSkidpadCoordinator.isEnabled()) {
             SkidpadRenderer::renderHud(mRenderer, mSkidpadCoordinator, 10, mConfig.windowHeight - 155);
         }
+
+        if (mWindHudVisible) {
+            const SDL_Point cardPos = WindVectorFieldRenderer::computeHudCardPos(
+                mConfig.windowWidth,
+                mConfig.windowHeight,
+                mCircuitCoordinator.isEnabled(),
+                mAdvancedHudVisible);
+
+            WindVectorFieldRenderer::renderHudCard(
+                mRenderer, mWindCoordinator.getSnapshot(), cardPos.x, cardPos.y);
+        }
     }
 
     SDL_RenderPresent(mRenderer);
@@ -1515,6 +1564,7 @@ void MotionLabApp::run()
         }
 
         mCamera.update(mBody.getPosition(), mBody.getLinearVelocity(), elapsed);
+        mWindRenderer.updateParticles(mWindCoordinator, mCamera, elapsed, &mBody);
         renderFrame();
     }
 }
@@ -1729,6 +1779,42 @@ const TelemetryCoordinator& MotionLabApp::getTelemetryCoordinator() const noexce
 TelemetryCoordinator& MotionLabApp::getTelemetryCoordinator() noexcept
 {
     return mTelemetryCoordinator;
+}
+
+const WindTurbulenceCoordinator& MotionLabApp::getWindCoordinator() const noexcept
+{
+    return mWindCoordinator;
+}
+
+WindTurbulenceCoordinator& MotionLabApp::getWindCoordinator() noexcept
+{
+    return mWindCoordinator;
+}
+
+const WindVectorFieldRenderer& MotionLabApp::getWindRenderer() const noexcept
+{
+    return mWindRenderer;
+}
+
+WindVectorFieldRenderer& MotionLabApp::getWindRenderer() noexcept
+{
+    return mWindRenderer;
+}
+
+bool MotionLabApp::toggleWindHud() noexcept
+{
+    mWindHudVisible = !mWindHudVisible;
+    return mWindHudVisible;
+}
+
+bool MotionLabApp::isWindHudVisible() const noexcept
+{
+    return mWindHudVisible;
+}
+
+void MotionLabApp::setWindHudVisible(bool visible) noexcept
+{
+    mWindHudVisible = visible;
 }
 
 } // namespace motion_lab

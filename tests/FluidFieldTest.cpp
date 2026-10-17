@@ -393,4 +393,107 @@ TEST(FluidFieldTest, PhysicsWorldRegistration)
     EXPECT_EQ(world.getFluidField(), nullptr);
 }
 
+// -----------------------------------------------------------------------------
+// Stochastic Turbulence & 1-Cosine Gust Trigger Tests
+// -----------------------------------------------------------------------------
+
+TEST(FluidFieldTest, TurbulenceConfigurationAndSampling)
+{
+    FluidField2D field { };
+    field.setAmbientWind(Vec2 { 10.0, 0.0 });
+
+    vehicle_sim::physics::DynamicGustConfig turbCfg { };
+    turbCfg.enableTurbulence = true;
+    turbCfg.turbulenceIntensity = 0.20;
+    turbCfg.integralLengthScale = 25.0;
+    turbCfg.temporalFrequency = 0.20;
+    turbCfg.randomSeed = 1996U;
+
+    field.setTurbulence(turbCfg);
+    EXPECT_TRUE(field.getTurbulenceConfig().enableTurbulence);
+    EXPECT_EQ(field.getTurbulenceConfig().randomSeed, 1996U);
+
+    const Vec2 pos { 12.0, 8.5 };
+    const double time { 2.5 };
+    const Vec2 turb1 { field.sampleTurbulence(pos, time) };
+    EXPECT_NE(turb1.lengthSquared(), 0.0);
+
+    // Exact determinism: identical seed, position, and time produce bitwise identical output
+    const Vec2 turb2 { field.sampleTurbulence(pos, time) };
+    EXPECT_DOUBLE_EQ(turb1.x, turb2.x);
+    EXPECT_DOUBLE_EQ(turb1.y, turb2.y);
+
+    // Disabling turbulence yields zero perturbation
+    turbCfg.enableTurbulence = false;
+    field.setTurbulence(turbCfg);
+    const Vec2 zeroTurb { field.sampleTurbulence(pos, time) };
+    EXPECT_DOUBLE_EQ(zeroTurb.x, 0.0);
+    EXPECT_DOUBLE_EQ(zeroTurb.y, 0.0);
+}
+
+TEST(FluidFieldTest, TriggerDiscreteGustPulse)
+{
+    FluidField2D field { };
+    field.setAmbientWind(Vec2 { 0.0, 0.0 });
+
+    // 15 m/s peak along +X, 2.0s duration, starting at t = 1.0s
+    field.triggerGust(Vec2 { 1.0, 0.0 }, 15.0, 2.0, 1.0);
+    EXPECT_EQ(field.getDiscreteGustCount(), 1U);
+
+    // Before gust start (t = 0.5s) -> 0 m/s
+    const Vec2 vBefore { field.getVelocity(Vec2 { 0.0, 10.0 }, 0.5) };
+    EXPECT_NEAR(vBefore.x, 0.0, kTolerance);
+
+    // At peak (t = 2.0s, midpoint of [1.0, 3.0]) -> 15.0 m/s
+    const Vec2 vPeak { field.getVelocity(Vec2 { 0.0, 10.0 }, 2.0) };
+    EXPECT_NEAR(vPeak.x, 15.0, kTolerance);
+    EXPECT_NEAR(vPeak.y, 0.0, kTolerance);
+
+    // After gust finished (t = 3.5s) -> 0 m/s
+    const Vec2 vAfter { field.getVelocity(Vec2 { 0.0, 10.0 }, 3.5) };
+    EXPECT_NEAR(vAfter.x, 0.0, kTolerance);
+}
+
+TEST(FluidFieldTest, ExtendedAeroForcesComputation)
+{
+    const Vec2 bodyVel { 20.0, 0.0 }; // moving East at 20 m/s
+    constexpr double bodyOrientation { 0.0 }; // pointing East
+
+    FluidSample2D sample { };
+    sample.velocity = Vec2 { 0.0, -10.0 }; // wind blowing South (from North at 10 m/s)
+    sample.density = 1.225;
+    sample.medium = FluidMediumType::Air;
+
+    FluidDragProperties props { };
+    props.frontalArea = 2.0;
+    props.frontalDragCoeff = 0.30;
+    props.sideArea = 6.0;
+    props.sideDragCoeff = 1.0;
+    props.cpOffset = 0.25;
+
+    constexpr double downforceCoeff { 1.5 }; // CL * A
+
+    const auto aero = FluidDrag2D::computeAeroForces(
+        bodyVel, bodyOrientation, sample, props, downforceCoeff);
+
+    // vRel = (20 - 0, 0 - (-10)) = (20, 10) m/s
+    // Relative airspeed = sqrt(20^2 + 10^2) = sqrt(500) approx 22.360679 m/s
+    EXPECT_NEAR(aero.relativeAirspeed, std::sqrt(500.0), kTolerance);
+
+    // fwdDrag = -0.5 * 1.225 * 0.30 * 2.0 * 20^2 = -147.0 N
+    EXPECT_NEAR(aero.fwdDragForce, -147.0, kTolerance);
+
+    // latSideForce = -0.5 * 1.225 * 1.0 * 6.0 * 10^2 = -367.5 N
+    EXPECT_NEAR(aero.latSideForce, -367.5, kTolerance);
+
+    // yawMoment = latSideForce * cpOffset = -367.5 * 0.25 = -91.875 N*m
+    EXPECT_NEAR(aero.yawMomentAroundCm, -91.875, kTolerance);
+
+    // downforce = 0.5 * 1.225 * 1.5 * 500 = 459.375 N
+    EXPECT_NEAR(aero.downforceLoad, 459.375, kTolerance);
+
+    // sideslip angle = atan2(10, 20)
+    EXPECT_NEAR(aero.sideslipAngleRad, std::atan2(10.0, 20.0), kTolerance);
+}
+
 } // namespace vehicle_sim::testing

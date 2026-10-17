@@ -26,6 +26,18 @@ struct CrosswindForces {
     double yawMoment { 0.0 };           ///< Aerodynamic yaw or overturning moment around CM in N*m.
 };
 
+/// @struct ExtendedAeroForces
+/// @brief Comprehensive multi-coefficient aerodynamic reaction summary.
+struct ExtendedAeroForces {
+    math::Vec2 totalForceWorld { 0.0, 0.0 }; ///< Combined world-space aerodynamic force in Newtons.
+    double fwdDragForce { 0.0 };             ///< Body longitudinal form drag in Newtons.
+    double latSideForce { 0.0 };             ///< Body lateral crosswind side force in Newtons.
+    double downforceLoad { 0.0 };            ///< Aerodynamic downforce (negative lift) in Newtons.
+    double yawMomentAroundCm { 0.0 };        ///< Overturning yaw moment about CM in N*m.
+    double relativeAirspeed { 0.0 };         ///< Apparent airspeed ||v_rel|| in m/s.
+    double sideslipAngleRad { 0.0 };         ///< Aerodynamic sideslip angle beta in radians.
+};
+
 /// @class FluidDrag2D
 /// @brief Deterministic aerodynamic and hydrodynamic force evaluation utilities.
 /// @details Evaluates relative fluid velocities, quadratic form drag, crosswind lateral loads, and overturning moments.
@@ -64,6 +76,18 @@ public:
     [[nodiscard]] static CrosswindForces computeCrosswind(
         const math::Vec2& bodyVelocity, double bodyOrientation,
         const FluidSample2D& fluidSample, const FluidDragProperties& properties) noexcept;
+
+    /// @brief Computes comprehensive multi-coefficient aerodynamic forces and moments.
+    /// @param[in] bodyVelocity World velocity of vehicle in m/s.
+    /// @param[in] bodyOrientation Vehicle orientation angle in radians.
+    /// @param[in] fluidSample Environmental fluid sample at vehicle position.
+    /// @param[in] properties Vehicle aerodynamic geometric properties.
+    /// @param[in] downforceCoeff Dimensionless downforce coefficient CL * Area (m^2).
+    /// @return ExtendedAeroForces struct with decomposed forces, moments, and airspeed.
+    [[nodiscard]] static ExtendedAeroForces computeAeroForces(
+        const math::Vec2& bodyVelocity, double bodyOrientation,
+        const FluidSample2D& fluidSample, const FluidDragProperties& properties,
+        double downforceCoeff = 0.0) noexcept;
 };
 
 } // namespace vehicle_sim::physics

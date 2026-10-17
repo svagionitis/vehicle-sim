@@ -64,6 +64,10 @@ math::Vec2 FluidField2D::getVelocity(const math::Vec2& position, double time) co
         gustVelocity += harmonic.amplitude * sinVal;
     }
 
+    if (!isSubmerged(position) && mTurbulenceConfig.enableTurbulence) {
+        gustVelocity += sampleTurbulence(position, time);
+    }
+
     return baseVelocity + gustVelocity;
 }
 
@@ -126,6 +130,59 @@ std::size_t FluidField2D::getDiscreteGustCount() const noexcept
 std::size_t FluidField2D::getHarmonicGustCount() const noexcept
 {
     return mHarmonicGusts.size();
+}
+
+void FluidField2D::setTurbulence(const DynamicGustConfig& config) noexcept
+{
+    mTurbulenceConfig = config;
+    terrain::FractalConfig fractalCfg { };
+    fractalCfg.octaves = 4U;
+    fractalCfg.frequency = 1.0;
+    fractalCfg.amplitude = 1.0;
+    fractalCfg.lacunarity = 2.0;
+    fractalCfg.persistence = 0.5;
+    fractalCfg.seed = config.randomSeed;
+    fractalCfg.type = terrain::FractalType::Fbm;
+    mTurbulenceNoise = terrain::FractalNoise { fractalCfg };
+}
+
+const DynamicGustConfig& FluidField2D::getTurbulenceConfig() const noexcept
+{
+    return mTurbulenceConfig;
+}
+
+math::Vec2 FluidField2D::sampleTurbulence(const math::Vec2& position, double time) const noexcept
+{
+    if (!mTurbulenceConfig.enableTurbulence) {
+        return math::Vec2 { 0.0, 0.0 };
+    }
+    const double ambientSpeed { mConfig.ambientWind.length() };
+    const double sigma { mTurbulenceConfig.turbulenceIntensity * std::max(ambientSpeed, 1.0) };
+    const double lengthScale { std::max(mTurbulenceConfig.integralLengthScale, 1.0) };
+    const double omega { 2.0 * kPi * mTurbulenceConfig.temporalFrequency };
+
+    const double bulkOffsetX { mConfig.ambientWind.x * time };
+    const double bulkOffsetY { mConfig.ambientWind.y * time };
+
+    const double nx { (position.x - bulkOffsetX) / lengthScale };
+    const double ny { (position.y - bulkOffsetY) / lengthScale };
+    const double nt { omega * time };
+
+    const double turbX { mTurbulenceNoise.sample2D(nx + nt * 0.1, ny + nt * 0.05) };
+    const double turbY { mTurbulenceNoise.sample2D(nx + 127.31 + nt * 0.07, ny + 311.77 + nt * 0.12) };
+
+    return math::Vec2 { sigma * turbX, sigma * turbY };
+}
+
+void FluidField2D::triggerGust(
+    const math::Vec2& direction, double amplitude, double duration, double startTime) noexcept
+{
+    DiscreteGust2D gust { };
+    gust.direction = direction;
+    gust.amplitude = amplitude;
+    gust.duration = duration;
+    gust.startTime = startTime;
+    addDiscreteGust(gust);
 }
 
 } // namespace vehicle_sim::physics

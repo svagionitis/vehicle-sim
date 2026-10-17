@@ -38,6 +38,10 @@ add_executable(MotionLab
     SkidpadCoordinator.cpp
     SkidpadRenderer.h
     SkidpadRenderer.cpp
+    WindTurbulenceCoordinator.h
+    WindTurbulenceCoordinator.cpp
+    WindVectorFieldRenderer.h
+    WindVectorFieldRenderer.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -103,6 +107,10 @@ if(BUILD_TESTING)
         SkidpadCoordinator.cpp
         SkidpadRenderer.h
         SkidpadRenderer.cpp
+        WindTurbulenceCoordinator.h
+        WindTurbulenceCoordinator.cpp
+        WindVectorFieldRenderer.h
+        WindVectorFieldRenderer.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

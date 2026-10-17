@@ -1442,7 +1442,7 @@ stateDiagram-v2
 1. **Variable Time Scale**:
    - Hotkeys `[` (slow down) and `]` (speed up) adjust simulation time scaling factor $\lambda \in \{0.1, 0.25, 0.5, 1.0, 2.0, 4.0\}$.
    - Maintains fixed physics timestep $\Delta t = 8.333\,\text{ms}$ while altering accumulator advancement, preserving exact determinism.
-2. **Dynamic Wind & Turbulence Vector**:
+2. **Dynamic Wind & Turbulence Vector** (see dedicated [Dynamic Wind & Turbulence Vector Implementation Plan](MotionLabDynamicWindImplementationPlan.md)):
    - Ambient wind vector $\mathbf{v}_{\text{wind}} = (w_x, w_y) + \mathbf{w}_{\text{gust}}(t)$ where gusts are modeled using Perlin noise from [`FractalNoise`](../libs/VehicleSimCore/terrain/FractalNoise.h).
    - Aerodynamic drag and downforce act on relative velocity:
      $$\mathbf{v}_{\text{rel}} = \mathbf{v}_{\text{body}} - \mathbf{v}_{\text{wind}}$$

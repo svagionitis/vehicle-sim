@@ -57,4 +57,49 @@ CrosswindForces FluidDrag2D::computeCrosswind(
     return result;
 }
 
+ExtendedAeroForces FluidDrag2D::computeAeroForces(
+    const math::Vec2& bodyVelocity, double bodyOrientation,
+    const FluidSample2D& fluidSample, const FluidDragProperties& properties,
+    double downforceCoeff) noexcept
+{
+    const math::Vec2 fwd { std::cos(bodyOrientation), std::sin(bodyOrientation) };
+    const math::Vec2 lat { -std::sin(bodyOrientation), std::cos(bodyOrientation) };
+
+    const math::Vec2 vRel { bodyVelocity - fluidSample.velocity };
+    const double relativeAirspeed { vRel.length() };
+    const double vRelLong { vRel.dot(fwd) };
+    const double vRelLat { vRel.dot(lat) };
+    const double sideslipAngle { std::atan2(vRelLat, vRelLong) };
+
+    const double frontDragMag {
+        0.5 * fluidSample.density * properties.frontalDragCoeff * properties.frontalArea
+        * std::abs(vRelLong) * vRelLong
+    };
+    const double localFx { -frontDragMag };
+
+    const double sideDragMag {
+        0.5 * fluidSample.density * properties.sideDragCoeff * properties.sideArea
+        * std::abs(vRelLat) * vRelLat
+    };
+    const double localFy { -sideDragMag };
+
+    const math::Vec2 worldForce { (fwd * localFx) + (lat * localFy) };
+    const double yawMoment { localFy * properties.cpOffset };
+    const double downforce {
+        (downforceCoeff > 0.0)
+            ? (0.5 * fluidSample.density * downforceCoeff * relativeAirspeed * relativeAirspeed)
+            : 0.0
+    };
+
+    ExtendedAeroForces result { };
+    result.totalForceWorld = worldForce;
+    result.fwdDragForce = localFx;
+    result.latSideForce = localFy;
+    result.downforceLoad = downforce;
+    result.yawMomentAroundCm = yawMoment;
+    result.relativeAirspeed = relativeAirspeed;
+    result.sideslipAngleRad = sideslipAngle;
+    return result;
+}
+
 } // namespace vehicle_sim::physics

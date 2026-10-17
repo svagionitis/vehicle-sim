@@ -1266,3 +1266,235 @@ TEST(MotionLabAppTest, MotionLabAppTelemetryIntegration)
     app.stepPhysics(0.01);
     EXPECT_FALSE(app.getTelemetryCoordinator().getBuffer().isEmpty());
 }
+
+// -----------------------------------------------------------------------------
+// Dynamic Wind & Turbulence Vector Coordinator Tests
+// -----------------------------------------------------------------------------
+
+TEST(MotionLabAppTest, WindCoordinatorPresetsAndCycling)
+{
+    WindTurbulenceCoordinator coordinator { };
+    EXPECT_TRUE(coordinator.isWindActive());
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::Calm);
+    EXPECT_DOUBLE_EQ(coordinator.getSnapshot().trueWindSpeed, 0.0);
+
+    // Cycle through presets sequentially
+    coordinator.cycleNextPreset();
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::LightBreeze);
+
+    coordinator.cycleNextPreset();
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::CrosswindGale);
+
+    coordinator.cycleNextPreset();
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
+
+    coordinator.cycleNextPreset();
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::Microburst);
+
+    coordinator.cycleNextPreset();
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::DynamicStorm);
+
+    coordinator.cycleNextPreset();
+    EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::Calm);
+
+    // Speed adjustment and heading rotation
+    coordinator.setPreset(vehicle_sim::physics::WindEnvironmentPreset::CrosswindGale);
+    const double initialSpeed = coordinator.getSnapshot().trueWindSpeed;
+    coordinator.adjustWindSpeed(1.25);
+    coordinator.rotateWindHeading(15.0);
+
+    vehicle_sim::physics::RigidBody2D body { };
+    coordinator.stepPhysics(body, MotionLabVehicleType::ClassicCar, 0.01);
+    EXPECT_GT(coordinator.getSnapshot().trueWindSpeed, initialSpeed);
+}
+
+TEST(MotionLabAppTest, WindCoordinatorAeroInjectionAcrossFleet)
+{
+    WindTurbulenceCoordinator coordinator { };
+    coordinator.setPreset(vehicle_sim::physics::WindEnvironmentPreset::CrosswindGale);
+
+    vehicle_sim::physics::RigidBody2D body { };
+    body.setBodyType(vehicle_sim::physics::BodyType::Dynamic);
+    body.setMass(1200.0);
+
+    // Step physics at standstill with crosswind
+    coordinator.stepPhysics(body, MotionLabVehicleType::ClassicCar, 0.01);
+    EXPECT_NE(coordinator.getSnapshot().lateralAeroForce, 0.0);
+
+    // Test distinct aero properties for different models
+    const auto raceAero = coordinator.getAeroProps(MotionLabVehicleType::RaceCar);
+    const auto semiAero = coordinator.getAeroProps(MotionLabVehicleType::SemiTruck);
+    const auto droneAero = coordinator.getAeroProps(MotionLabVehicleType::QuadcopterDrone);
+
+    EXPECT_LT(raceAero.sideArea, semiAero.sideArea);
+    EXPECT_GT(semiAero.sideArea, 30.0); // Semi-truck trailer broadside
+    EXPECT_LT(droneAero.sideArea, 1.0); // Micro drone silhouette
+
+    EXPECT_GT(coordinator.getDownforceCoeff(MotionLabVehicleType::RaceCar), 2.0);
+    EXPECT_DOUBLE_EQ(coordinator.getDownforceCoeff(MotionLabVehicleType::SemiTruck), 0.0);
+
+    // Toggle active state
+    coordinator.toggleWindActive();
+    EXPECT_FALSE(coordinator.isWindActive());
+    coordinator.stepPhysics(body, MotionLabVehicleType::ClassicCar, 0.01);
+    coordinator.toggleWindActive();
+    EXPECT_TRUE(coordinator.isWindActive());
+}
+
+TEST(MotionLabAppTest, WindVectorFieldRendererParticleLifecycle)
+{
+    WindVectorFieldRenderer renderer { };
+    EXPECT_TRUE(renderer.isOverlayEnabled());
+
+    renderer.toggleOverlay();
+    EXPECT_FALSE(renderer.isOverlayEnabled());
+    renderer.setOverlayEnabled(true);
+    EXPECT_TRUE(renderer.isOverlayEnabled());
+
+    WindTurbulenceCoordinator coordinator { };
+    coordinator.setPreset(vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
+    MotionLabCamera camera { };
+
+    // Advance particle updates across multiple frames
+    for (int i { 0 }; i < 30; ++i) {
+        renderer.updateParticles(coordinator, camera, 0.016);
+    }
+
+    // Advance with moving vehicle body to verify aerodynamic wake emission
+    vehicle_sim::physics::RigidBody2D body { };
+    body.setLinearVelocity({ 25.0, 0.0 });
+    for (int i { 0 }; i < 20; ++i) {
+        renderer.updateParticles(coordinator, camera, 0.016, &body);
+    }
+}
+
+TEST(MotionLabAppTest, MotionLabAppWindIntegration)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    EXPECT_TRUE(app.getWindCoordinator().isWindActive());
+    EXPECT_TRUE(app.getWindRenderer().isOverlayEnabled());
+
+    // Switch to Severe Storm and step physics
+    app.getWindCoordinator().setPreset(vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
+    EXPECT_EQ(app.getWindCoordinator().getSnapshot().activePreset,
+              vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
+
+    // Step physics: crosswind force pushes vehicle from origin
+    for (int i { 0 }; i < 60; ++i) {
+        app.stepPhysics(1.0 / 120.0);
+    }
+
+    // Chassis velocity should be deflected by environmental wind
+    EXPECT_NE(app.getBody().getLinearVelocity().lengthSquared(), 0.0);
+    EXPECT_GT(app.getWindCoordinator().getSnapshot().trueWindSpeed, 10.0);
+}
+
+TEST(MotionLabAppTest, WindHudVisibilityToggle)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    EXPECT_TRUE(app.isWindHudVisible());
+    EXPECT_FALSE(app.toggleWindHud());
+    EXPECT_FALSE(app.isWindHudVisible());
+    EXPECT_TRUE(app.toggleWindHud());
+    EXPECT_TRUE(app.isWindHudVisible());
+
+    app.setWindHudVisible(false);
+    EXPECT_FALSE(app.isWindHudVisible());
+    app.setWindHudVisible(true);
+    EXPECT_TRUE(app.isWindHudVisible());
+}
+
+TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
+{
+    auto intersects = [](int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) noexcept {
+        const bool noOverlap = (x1 + w1 <= x2) || (x2 + w2 <= x1) || (y1 + h1 <= y2) || (y2 + h2 <= y1);
+        return !noOverlap;
+    };
+
+    const std::vector<std::pair<int, int>> testResolutions {
+        { 1280, 720 },
+        { 1920, 1080 },
+        { 1024, 768 },
+        { 800, 600 }
+    };
+
+    for (const auto& [w, h] : testResolutions) {
+        for (const bool circuitActive : { false, true }) {
+            for (const bool advancedHudActive : { false, true }) {
+                const auto pos = WindVectorFieldRenderer::computeHudCardPos(
+                    w, h, circuitActive, advancedHudActive);
+
+                // Ensure HUD card fits inside viewport
+                EXPECT_GE(pos.x, 0);
+                EXPECT_LE(pos.x + WindVectorFieldRenderer::kCardWidth, w);
+                EXPECT_GE(pos.y, 0);
+                EXPECT_LE(pos.y + WindVectorFieldRenderer::kCardHeight, h);
+
+                // 1. Verify no overlap with Advanced Telemetry HUD
+                if (advancedHudActive) {
+                    const int advX { w - 228 - 16 };
+                    const int advY { circuitActive ? 170 : 20 };
+                    constexpr int advW { 228 };
+                    constexpr int advH { 232 };
+
+                    EXPECT_FALSE(intersects(
+                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
+                        advX, advY, advW, advH))
+                        << "Overlap detected with Advanced HUD at res (" << w << "x" << h << "), circuit: "
+                        << circuitActive << ", advanced: " << advancedHudActive;
+                }
+
+                // 2. Verify no overlap with Circuit Radar
+                if (circuitActive) {
+                    const int radarX { w - 170 };
+                    constexpr int radarY { 30 };
+                    constexpr int radarW { 140 };
+                    constexpr int radarH { 140 };
+
+                    EXPECT_FALSE(intersects(
+                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
+                        radarX, radarY, radarW, radarH))
+                        << "Overlap detected with Circuit Radar at res (" << w << "x" << h << ")";
+                }
+
+                // 3. Verify no overlap with Input Indicator HUD
+                {
+                    const int inputX { w - 264 };
+                    const int inputY { h - 64 };
+                    constexpr int inputW { 250 };
+                    constexpr int inputH { 20 };
+
+                    EXPECT_FALSE(intersects(
+                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
+                        inputX, inputY, inputW, inputH))
+                        << "Overlap detected with Input HUD at res (" << w << "x" << h << "), circuit: "
+                        << circuitActive << ", advanced: " << advancedHudActive;
+                }
+
+                // 4. Verify no overlap with Live Telemetry metrics text (top-left)
+                {
+                    constexpr int textX { 24 };
+                    constexpr int textY { 20 };
+                    constexpr int textW { 180 };
+                    constexpr int textH { 180 };
+
+                    EXPECT_FALSE(intersects(
+                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
+                        textX, textY, textW, textH))
+                        << "Overlap detected with Live Metrics text at res (" << w << "x" << h << "), circuit: "
+                        << circuitActive << ", advanced: " << advancedHudActive;
+                }
+            }
+        }
+    }
+}
+
+

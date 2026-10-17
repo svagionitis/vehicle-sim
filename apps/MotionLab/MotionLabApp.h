@@ -18,6 +18,8 @@
 #include "apps/MotionLab/TelemetryCoordinator.h"
 #include "apps/MotionLab/TelemetryHud.h"
 #include "apps/MotionLab/TrailParticleBuffer.h"
+#include "apps/MotionLab/WindTurbulenceCoordinator.h"
+#include "apps/MotionLab/WindVectorFieldRenderer.h"
 #include "apps/MotionLab/WireframeRenderer.h"
 #include "libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h"
 #include "libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h"
@@ -253,6 +255,30 @@ public:
     /// @return Mutable reference to telemetry coordinator.
     [[nodiscard]] TelemetryCoordinator& getTelemetryCoordinator() noexcept;
 
+    /// @brief Gets constant reference to active wind turbulence coordinator.
+    [[nodiscard]] const WindTurbulenceCoordinator& getWindCoordinator() const noexcept;
+
+    /// @brief Gets mutable reference to active wind turbulence coordinator.
+    [[nodiscard]] WindTurbulenceCoordinator& getWindCoordinator() noexcept;
+
+    /// @brief Gets constant reference to active wind vector field renderer.
+    [[nodiscard]] const WindVectorFieldRenderer& getWindRenderer() const noexcept;
+
+    /// @brief Gets mutable reference to active wind vector field renderer.
+    [[nodiscard]] WindVectorFieldRenderer& getWindRenderer() noexcept;
+
+    /// @brief Toggles wind and turbulence HUD card visibility.
+    /// @return Active wind HUD visibility status.
+    bool toggleWindHud() noexcept;
+
+    /// @brief Queries whether wind HUD card is visible.
+    /// @return True if visible, false otherwise.
+    [[nodiscard]] bool isWindHudVisible() const noexcept;
+
+    /// @brief Sets wind HUD card visibility status.
+    /// @param[in] visible New visibility state.
+    void setWindHudVisible(bool visible) noexcept;
+
     /// @brief Gets constant reference to active classic car coordinator.
     [[nodiscard]] const vehicle_sim::dynamics::MotionLabCarDynamics& getCar() const noexcept;
 
@@ -392,6 +418,9 @@ private:
     MooseTestCoordinator mMooseCoordinator { };
     SkidpadCoordinator mSkidpadCoordinator { };
     TelemetryCoordinator mTelemetryCoordinator { };
+    WindTurbulenceCoordinator mWindCoordinator { };
+    WindVectorFieldRenderer mWindRenderer { };
+    bool mWindHudVisible { true };
     bool mAdvancedHudVisible { true };
     bool mAllHudVisible { true };
 
