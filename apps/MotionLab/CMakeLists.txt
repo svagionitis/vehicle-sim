@@ -28,6 +28,10 @@ add_executable(MotionLab
     SlalomCourseCoordinator.cpp
     SlalomCourseRenderer.h
     SlalomCourseRenderer.cpp
+    MooseTestCoordinator.h
+    MooseTestCoordinator.cpp
+    MooseTestRenderer.h
+    MooseTestRenderer.cpp
 )
 
 target_include_directories(MotionLab PRIVATE
@@ -83,6 +87,10 @@ if(BUILD_TESTING)
         SlalomCourseCoordinator.cpp
         SlalomCourseRenderer.h
         SlalomCourseRenderer.cpp
+        MooseTestCoordinator.h
+        MooseTestCoordinator.cpp
+        MooseTestRenderer.h
+        MooseTestRenderer.cpp
     )
 
     target_include_directories(MotionLabTests PRIVATE

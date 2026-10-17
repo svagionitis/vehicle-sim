@@ -580,4 +580,217 @@ TEST(MotionLabAppTest, SlalomAppTogglesAndExclusivity)
     EXPECT_FALSE(app.isCircuitActive());
 }
 
+TEST(MotionLabAppTest, MooseTestDimensionsScaling)
+{
+    MooseTestCoordinator coordinator { };
+    coordinator.setEnabled(true);
+
+    // Default vehicle width: 2.0m
+    EXPECT_DOUBLE_EQ(coordinator.getVehicleWidth(), 2.0);
+    const auto& secDefault = coordinator.getSections();
+    EXPECT_NEAR(secDefault[0].width, 1.1 * 2.0 + 0.25, 1e-6); // 2.45m
+    EXPECT_NEAR(secDefault[2].width, 2.0 + 1.0, 1e-6);        // 3.00m
+    EXPECT_NEAR(secDefault[4].width, 3.0, 1e-6);              // 1.3 * 2.0 + 0.25 = 2.85m -> clamped to 3.0m
+
+    // Verify cone count
+    const auto& cones = coordinator.getCones();
+    EXPECT_EQ(cones.size(), 24U);
+    EXPECT_NEAR(cones[0].position.x, 0.0, 1e-6);
+    EXPECT_NEAR(cones[0].position.y, 2.45 * 0.5 + 0.4, 1e-6);
+    EXPECT_NEAR(cones[1].position.y, -(2.45 * 0.5 + 0.4), 1e-6);
+
+    // Scaled narrow vehicle (e.g. Forklift width: 1.3m)
+    coordinator.updateDimensions(1.3, 2.8);
+    EXPECT_DOUBLE_EQ(coordinator.getVehicleWidth(), 1.3);
+    const auto& secNarrow = coordinator.getSections();
+    EXPECT_NEAR(secNarrow[0].width, 1.1 * 1.3 + 0.25, 1e-6); // 1.68m
+    EXPECT_NEAR(secNarrow[2].width, 1.3 + 1.0, 1e-6);        // 2.30m
+    EXPECT_NEAR(secNarrow[4].width, 3.0, 1e-6);              // clamped to min 3.0m
+
+    // Scaled wide vehicle (e.g. Semi-Truck width: 2.5m)
+    coordinator.updateDimensions(2.5, 12.0);
+    EXPECT_DOUBLE_EQ(coordinator.getVehicleWidth(), 2.5);
+    const auto& secWide = coordinator.getSections();
+    EXPECT_NEAR(secWide[0].width, 1.1 * 2.5 + 0.25, 1e-6); // 3.00m
+    EXPECT_NEAR(secWide[2].width, 2.5 + 1.0, 1e-6);        // 3.50m
+    EXPECT_NEAR(secWide[4].width, 1.3 * 2.5 + 0.25, 1e-6); // 3.50m
+}
+
+TEST(MotionLabAppTest, MooseTestStartGateSensitivity)
+{
+    MooseTestCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Stage behind line at x = -1.0m, creeping forward below 1.0 m/s threshold
+    body.setPosition(vehicle_sim::math::Vec2 { -1.0, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.2, 0.0, 0.05);
+    EXPECT_EQ(coordinator.getState(), MooseTestState::IdleAtStaging);
+
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.2, 0.0, 0.05);
+    EXPECT_EQ(coordinator.getState(), MooseTestState::IdleAtStaging);
+
+    // Restage and approach with sufficient speed (e.g. 60 km/h = 16.67 m/s)
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 16.6667, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+
+    EXPECT_EQ(coordinator.getState(), MooseTestState::InManeuver);
+    EXPECT_NEAR(coordinator.getMetrics().entrySpeed, 60.0, 0.1);
+}
+
+TEST(MotionLabAppTest, MooseTestPylonCollisionAndSingleHitLatching)
+{
+    MooseTestCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Trigger start at 60 km/h
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 16.6667, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    ASSERT_EQ(coordinator.getState(), MooseTestState::InManeuver);
+
+    // Drive into Cone 2 at x = 6.0m, y = +w1/2 + 0.4 = 1.625m
+    const double targetY { coordinator.getSections()[0].width * 0.5 + 0.4 };
+    body.setPosition(vehicle_sim::math::Vec2 { 6.0, targetY });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+
+    const auto& cones = coordinator.getCones();
+    EXPECT_TRUE(cones[2].wasHit);
+    EXPECT_GT(cones[2].toppleAngle, 1.0);
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 1U);
+    EXPECT_EQ(coordinator.getMetrics().result, MooseRunResult::FailedConeHit);
+
+    // Stay in contact for 30 steps; ensure single hit latching
+    for (int step { 0 }; step < 30; ++step) {
+        coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    }
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 1U);
+}
+
+TEST(MotionLabAppTest, MooseTestThrottleAndBrakeViolations)
+{
+    MooseTestCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Trigger start
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 18.0, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    ASSERT_EQ(coordinator.getState(), MooseTestState::InManeuver);
+
+    // Advance past Section 1 (x > 12.0m) into Section 2 with throttle applied
+    body.setPosition(vehicle_sim::math::Vec2 { 15.0, 1.0 });
+    coordinator.stepPhysics(body, 0.50, 0.0, 0.05); // 50% throttle applied!
+
+    EXPECT_TRUE(coordinator.getMetrics().throttleFault);
+    EXPECT_EQ(coordinator.getMetrics().result, MooseRunResult::Disqualified);
+}
+
+TEST(MotionLabAppTest, MooseTestCleanPassAndBestSpeedRecord)
+{
+    MooseTestCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Start run at 70 km/h (19.444 m/s)
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 19.4444, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 0.5, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    ASSERT_EQ(coordinator.getState(), MooseTestState::InManeuver);
+
+    // Cross Evasion midpoint at x = 31.0m, y = 3.5m at 64 km/h (17.778 m/s)
+    body.setPosition(vehicle_sim::math::Vec2 { 30.0, 3.5 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 17.7778, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 32.0, 3.5 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    EXPECT_NEAR(coordinator.getMetrics().evasionSpeed, 64.0, 0.1);
+
+    // Cross Finish line at x = 61.0m, y = 0.0m at 58 km/h (16.111 m/s)
+    body.setPosition(vehicle_sim::math::Vec2 { 60.0, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 16.1111, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 62.0, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+
+    EXPECT_EQ(coordinator.getState(), MooseTestState::Completed);
+    EXPECT_EQ(coordinator.getMetrics().result, MooseRunResult::CleanPass);
+    EXPECT_NEAR(coordinator.getMetrics().exitSpeed, 58.0, 0.1);
+    EXPECT_NEAR(coordinator.getMetrics().speedDrop, 12.0, 0.2);
+    EXPECT_TRUE(coordinator.getMetrics().hasValidBest);
+    EXPECT_NEAR(coordinator.getMetrics().bestPassSpeed, 70.0, 0.1);
+}
+
+TEST(MotionLabAppTest, MooseTestResetIntegrity)
+{
+    MooseTestCoordinator coordinator { };
+    coordinator.setEnabled(true);
+    vehicle_sim::physics::RigidBody2D body { };
+
+    // Trigger start and hit a cone
+    body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 15.0, 0.0 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    body.setPosition(vehicle_sim::math::Vec2 { 6.0, 1.625 });
+    coordinator.stepPhysics(body, 0.0, 0.0, 0.05);
+    ASSERT_EQ(coordinator.getMetrics().hitCount, 1U);
+
+    // Reset course
+    coordinator.resetCourse(body);
+    EXPECT_EQ(coordinator.getState(), MooseTestState::IdleAtStaging);
+    EXPECT_NEAR(body.getPosition().x, -30.0, 1e-6);
+    EXPECT_NEAR(body.getPosition().y, 0.0, 1e-6);
+    EXPECT_EQ(coordinator.getMetrics().hitCount, 0U);
+    EXPECT_FALSE(coordinator.getMetrics().throttleFault);
+    EXPECT_FALSE(coordinator.getMetrics().brakeFault);
+
+    for (const auto& cone : coordinator.getCones()) {
+        EXPECT_FALSE(cone.wasHit);
+        EXPECT_NEAR(cone.toppleAngle, 0.0, 1e-6);
+    }
+}
+
+TEST(MotionLabAppTest, MooseTestAppTogglesAndExclusivity)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+
+    EXPECT_FALSE(app.isMooseTestActive());
+    app.toggleMooseTest();
+    EXPECT_TRUE(app.isMooseTestActive());
+    EXPECT_FALSE(app.isCircuitActive());
+    EXPECT_FALSE(app.isSlalomActive());
+
+    // Activating slalom should deactivate Moose Test
+    app.toggleSlalom();
+    EXPECT_TRUE(app.isSlalomActive());
+    EXPECT_FALSE(app.isMooseTestActive());
+
+    // Activating Moose Test should deactivate Slalom
+    app.toggleMooseTest();
+    EXPECT_TRUE(app.isMooseTestActive());
+    EXPECT_FALSE(app.isSlalomActive());
+
+    // Activating circuit should deactivate Moose Test
+    app.toggleCircuit();
+    EXPECT_TRUE(app.isCircuitActive());
+    EXPECT_FALSE(app.isMooseTestActive());
+}
+
+
 

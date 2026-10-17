@@ -141,6 +141,18 @@ void MotionLabApp::applyVehicleProperties() noexcept
         mTank.setSurfaceFriction(getSurfaceMaterial().friction);
         break;
     }
+
+    double vehWidth { 2.0 };
+    double vehLength { 4.0 };
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar: vehWidth = 2.0; vehLength = 4.0; break;
+    case MotionLabVehicleType::RaceCar:    vehWidth = 1.8; vehLength = 4.5; break;
+    case MotionLabVehicleType::Rocket:     vehWidth = 1.6; vehLength = 6.0; break;
+    case MotionLabVehicleType::Helicopter: vehWidth = 2.4; vehLength = 6.0; break;
+    case MotionLabVehicleType::Hovercraft: vehWidth = 2.2; vehLength = 4.0; break;
+    case MotionLabVehicleType::TrackedTank:vehWidth = 2.4; vehLength = 5.0; break;
+    }
+    mMooseCoordinator.updateDimensions(vehWidth, vehLength);
 }
 
 void MotionLabApp::resetSimulation() noexcept
@@ -149,6 +161,8 @@ void MotionLabApp::resetSimulation() noexcept
         mCircuitCoordinator.resetToGrid(mBody);
     } else if (mSlalomCoordinator.isEnabled()) {
         mSlalomCoordinator.resetCourse(mBody);
+    } else if (mMooseCoordinator.isEnabled()) {
+        mMooseCoordinator.resetCourse(mBody);
     } else {
         mBody.setPosition(vehicle_sim::math::Vec2::zero());
         mBody.setLinearVelocity(vehicle_sim::math::Vec2::zero());
@@ -233,6 +247,9 @@ void MotionLabApp::toggleCircuit() noexcept
         if (mSlalomCoordinator.isEnabled()) {
             mSlalomCoordinator.setEnabled(false);
         }
+        if (mMooseCoordinator.isEnabled()) {
+            mMooseCoordinator.setEnabled(false);
+        }
         mCircuitCoordinator.resetToGrid(mBody);
         mCamera.reset(mBody.getPosition());
     }
@@ -270,6 +287,9 @@ void MotionLabApp::toggleSlalom() noexcept
         if (mCircuitCoordinator.isEnabled()) {
             mCircuitCoordinator.setEnabled(false);
         }
+        if (mMooseCoordinator.isEnabled()) {
+            mMooseCoordinator.setEnabled(false);
+        }
         mSlalomCoordinator.resetCourse(mBody);
         mCamera.reset(mBody.getPosition());
     }
@@ -281,6 +301,9 @@ void MotionLabApp::setSlalom(bool enabled) noexcept
     if (mSlalomCoordinator.isEnabled()) {
         if (mCircuitCoordinator.isEnabled()) {
             mCircuitCoordinator.setEnabled(false);
+        }
+        if (mMooseCoordinator.isEnabled()) {
+            mMooseCoordinator.setEnabled(false);
         }
         mSlalomCoordinator.resetCourse(mBody);
         mCamera.reset(mBody.getPosition());
@@ -300,6 +323,51 @@ const SlalomCourseCoordinator& MotionLabApp::getSlalom() const noexcept
 SlalomCourseCoordinator& MotionLabApp::getSlalom() noexcept
 {
     return mSlalomCoordinator;
+}
+
+void MotionLabApp::toggleMooseTest() noexcept
+{
+    mMooseCoordinator.toggleEnabled();
+    if (mMooseCoordinator.isEnabled()) {
+        if (mCircuitCoordinator.isEnabled()) {
+            mCircuitCoordinator.setEnabled(false);
+        }
+        if (mSlalomCoordinator.isEnabled()) {
+            mSlalomCoordinator.setEnabled(false);
+        }
+        mMooseCoordinator.resetCourse(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+void MotionLabApp::setMooseTest(bool enabled) noexcept
+{
+    mMooseCoordinator.setEnabled(enabled);
+    if (mMooseCoordinator.isEnabled()) {
+        if (mCircuitCoordinator.isEnabled()) {
+            mCircuitCoordinator.setEnabled(false);
+        }
+        if (mSlalomCoordinator.isEnabled()) {
+            mSlalomCoordinator.setEnabled(false);
+        }
+        mMooseCoordinator.resetCourse(mBody);
+        mCamera.reset(mBody.getPosition());
+    }
+}
+
+bool MotionLabApp::isMooseTestActive() const noexcept
+{
+    return mMooseCoordinator.isEnabled();
+}
+
+const MooseTestCoordinator& MotionLabApp::getMooseTest() const noexcept
+{
+    return mMooseCoordinator;
+}
+
+MooseTestCoordinator& MotionLabApp::getMooseTest() noexcept
+{
+    return mMooseCoordinator;
 }
 
 void MotionLabApp::cycleTerrain() noexcept
@@ -478,6 +546,9 @@ void MotionLabApp::processEvents() noexcept
                     break;
                 case SDLK_l:
                     toggleSlalom();
+                    break;
+                case SDLK_m:
+                    toggleMooseTest();
                     break;
                 case SDLK_n:
                     regenerateCircuit();
@@ -733,6 +804,12 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         mSlalomCoordinator.stepPhysics(mBody, dt);
     }
 
+    if (mMooseCoordinator.isEnabled()) {
+        const double throttleInput = (mKeyW && !mKeyS) ? 1.0 : 0.0;
+        const double brakeInput = mKeyS ? 1.0 : 0.0;
+        mMooseCoordinator.stepPhysics(mBody, throttleInput, brakeInput, dt);
+    }
+
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
@@ -781,6 +858,10 @@ void MotionLabApp::renderFrame() noexcept
 
     if (mSlalomCoordinator.isEnabled()) {
         SlalomCourseRenderer::renderCourse(mRenderer, mCamera, mSlalomCoordinator);
+    }
+
+    if (mMooseCoordinator.isEnabled()) {
+        MooseTestRenderer::renderCourse(mRenderer, mCamera, mMooseCoordinator);
     }
 
     const auto v = mBody.getLinearVelocity();
@@ -856,6 +937,11 @@ void MotionLabApp::renderFrame() noexcept
     if (mSlalomCoordinator.isEnabled()) {
         SlalomCourseRenderer::renderHud(
             mRenderer, mSlalomCoordinator, 10, mConfig.windowHeight - 145);
+    }
+
+    if (mMooseCoordinator.isEnabled()) {
+        MooseTestRenderer::renderHud(
+            mRenderer, mMooseCoordinator, 10, mConfig.windowHeight - 155);
     }
 
     SDL_RenderPresent(mRenderer);

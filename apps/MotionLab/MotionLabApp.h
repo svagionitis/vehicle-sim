@@ -8,6 +8,8 @@
 #include "apps/MotionLab/CircuitTrackRenderer.h"
 #include "apps/MotionLab/SlalomCourseCoordinator.h"
 #include "apps/MotionLab/SlalomCourseRenderer.h"
+#include "apps/MotionLab/MooseTestCoordinator.h"
+#include "apps/MotionLab/MooseTestRenderer.h"
 #include "apps/MotionLab/MotionLabCamera.h"
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
@@ -127,6 +129,22 @@ public:
 
     /// @brief Gets mutable reference to slalom course coordinator.
     [[nodiscard]] SlalomCourseCoordinator& getSlalom() noexcept;
+
+    /// @brief Toggles ISO 3888-2 Moose Test course mode.
+    void toggleMooseTest() noexcept;
+
+    /// @brief Sets ISO 3888-2 Moose Test course mode state.
+    /// @param[in] enabled Desired enabled state.
+    void setMooseTest(bool enabled) noexcept;
+
+    /// @brief Queries whether ISO 3888-2 Moose Test course is actively enabled.
+    [[nodiscard]] bool isMooseTestActive() const noexcept;
+
+    /// @brief Gets constant reference to Moose Test coordinator.
+    [[nodiscard]] const MooseTestCoordinator& getMooseTest() const noexcept;
+
+    /// @brief Gets mutable reference to Moose Test coordinator.
+    [[nodiscard]] MooseTestCoordinator& getMooseTest() noexcept;
 
     /// @brief Cycles to the next available terrain surface preset.
     void cycleTerrain() noexcept;
@@ -264,6 +282,7 @@ private:
     CircuitTrackCoordinator mCircuitCoordinator { };
     std::uint32_t mCircuitSeed { 2024U };
     SlalomCourseCoordinator mSlalomCoordinator { };
+    MooseTestCoordinator mMooseCoordinator { };
 
     // Keyboard inputs
     bool mKeyW { false };
