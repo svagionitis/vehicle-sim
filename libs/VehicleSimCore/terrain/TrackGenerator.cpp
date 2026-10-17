@@ -86,6 +86,16 @@ void HillClimbCourse::populateSideViewCar(
     terrain.populateSideViewCar(car, config, clearExisting);
 }
 
+std::size_t CircuitTrack2D::getHazardCount() const noexcept
+{
+    return hazards.size();
+}
+
+void CircuitTrack2D::clearHazards() noexcept
+{
+    hazards.clear();
+}
+
 bool CircuitTrack2D::isPointOnTrack(const math::Vec2& point) const noexcept
 {
     return getDistanceToCenter(point) <= (trackWidth * 0.5);
@@ -658,6 +668,11 @@ CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& co
     // Add material zones along track checkpoints for roadway and shoulders
     for (const auto& cp : track.checkpoints) {
         track.surfaceMap.addCircleZone(cp, track.trackWidth * 0.5, config.roadMaterial);
+    }
+
+    if (config.enableHazards) {
+        track.hazards = HazardScattering::scatterOnTrack(track, config.hazardConfig);
+        HazardScattering::stampSurfaceMaterials(track.surfaceMap, track.hazards);
     }
 
     return track;

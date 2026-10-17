@@ -33,6 +33,7 @@ add_executable(VehicleSimCoreTests
     AudioDspTest.cpp
     VehicleSoundDesignTest.cpp
     ShallowWaterWaveTest.cpp
+    HazardScatteringTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

@@ -51,6 +51,10 @@ private:
     static void drawGates(SDL_Renderer* renderer,
                           const MotionLabCamera& camera,
                           const vehicle_sim::terrain::CircuitTrack2D& track) noexcept;
+
+    static void drawHazards(SDL_Renderer* renderer,
+                            const MotionLabCamera& camera,
+                            const vehicle_sim::terrain::CircuitTrack2D& track) noexcept;
 };
 
 } // namespace motion_lab

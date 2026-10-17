@@ -245,6 +245,13 @@ public:
     /// @param[in] materialType Target material preset type.
     void addCircleZone(const math::Vec2& center, double radius, MaterialType materialType);
 
+    /// @brief Stamps a circular material patch into the surface map.
+    /// @param[in] center World coordinates of circle center in meters.
+    /// @param[in] radius Circular footprint radius in meters.
+    /// @param[in] material Material properties applied within circle.
+    void stampMaterialDisc(
+        const math::Vec2& center, double radius, const SurfaceMaterial& material);
+
     /// @brief Removes all registered material zone overrides.
     void clearMaterialZones() noexcept;
 

@@ -20,6 +20,7 @@ void CircuitTrackRenderer::renderTrack(SDL_Renderer* renderer,
     drawRibbon(renderer, camera, track);
     drawKerbs(renderer, camera, track);
     drawGates(renderer, camera, track);
+    drawHazards(renderer, camera, track);
 }
 
 void CircuitTrackRenderer::drawRibbon(SDL_Renderer* renderer,
@@ -236,6 +237,98 @@ void CircuitTrackRenderer::renderRadar(SDL_Renderer* renderer,
     const SDL_Rect vehBox { vehPt.x - 2, vehPt.y - 2, 5, 5 };
     SDL_SetRenderDrawColor(renderer, 50, 255, 80, 255);
     SDL_RenderFillRect(renderer, &vehBox);
+
+    // Draw hazards on radar
+    const SDL_Color radarHazardColor { 255, 180, 50, 220 };
+    for (const auto& h : track.hazards) {
+        const SDL_Point hp { worldToRadar(h.position) };
+        const SDL_Rect hBox { hp.x - 1, hp.y - 1, 3, 3 };
+        SDL_SetRenderDrawColor(renderer, radarHazardColor.r, radarHazardColor.g, radarHazardColor.b, radarHazardColor.a);
+        SDL_RenderFillRect(renderer, &hBox);
+    }
+}
+
+void CircuitTrackRenderer::drawHazards(SDL_Renderer* renderer,
+                                       const MotionLabCamera& camera,
+                                       const vehicle_sim::terrain::CircuitTrack2D& track) noexcept
+{
+    if (track.hazards.empty()) {
+        return;
+    }
+
+    const double zoom { camera.getZoom() };
+
+    const auto& camCfg = camera.getConfig();
+
+    for (const auto& h : track.hazards) {
+        const vehicle_sim::math::Vec2 scr { camera.worldToScreen(h.position) };
+        const int px { static_cast<int>(std::round(scr.x)) };
+        const int py { static_cast<int>(std::round(scr.y)) };
+
+        if (px < -50 || px > (camCfg.viewportWidth + 50) ||
+            py < -50 || py > (camCfg.viewportHeight + 50)) {
+            continue;
+        }
+
+        const double scrR { std::max(2.0, h.boundingRadius * zoom) };
+        const int r { static_cast<int>(std::round(scrR)) };
+
+        switch (h.type) {
+        case vehicle_sim::terrain::HazardType::TrafficCone: {
+            const SDL_Color coneOrange { 255, 120, 20, 255 };
+            const SDL_Color coneWhite { 255, 255, 255, 255 };
+            WireframeRenderer::drawLine(renderer, px - r, py, px + r, py, coneOrange);
+            WireframeRenderer::drawLine(renderer, px, py - r, px, py + r, coneOrange);
+            WireframeRenderer::drawLine(renderer, px - r / 2, py - r / 2, px + r / 2, py + r / 2, coneOrange);
+            WireframeRenderer::drawLine(renderer, px - r / 2, py + r / 2, px + r / 2, py - r / 2, coneOrange);
+            const SDL_Rect core { px - 1, py - 1, 3, 3 };
+            SDL_SetRenderDrawColor(renderer, coneWhite.r, coneWhite.g, coneWhite.b, coneWhite.a);
+            SDL_RenderFillRect(renderer, &core);
+            break;
+        }
+        case vehicle_sim::terrain::HazardType::OilSlick: {
+            const SDL_Color oilColor { 150, 60, 180, 220 };
+            const int rx { static_cast<int>(std::round(scrR * 1.2)) };
+            const int ry { static_cast<int>(std::round(scrR * 0.8)) };
+            WireframeRenderer::drawLine(renderer, px - rx, py, px, py - ry, oilColor);
+            WireframeRenderer::drawLine(renderer, px, py - ry, px + rx, py, oilColor);
+            WireframeRenderer::drawLine(renderer, px + rx, py, px, py + ry, oilColor);
+            WireframeRenderer::drawLine(renderer, px, py + ry, px - rx, py, oilColor);
+            break;
+        }
+        case vehicle_sim::terrain::HazardType::StandingPuddle: {
+            const SDL_Color puddleColor { 40, 200, 255, 200 };
+            WireframeRenderer::drawLine(renderer, px - r, py, px + r, py, puddleColor);
+            WireframeRenderer::drawLine(renderer, px, py - r, px, py + r, puddleColor);
+            WireframeRenderer::drawLine(renderer, px - r * 7 / 10, py - r * 7 / 10, px + r * 7 / 10, py + r * 7 / 10, puddleColor);
+            WireframeRenderer::drawLine(renderer, px - r * 7 / 10, py + r * 7 / 10, px + r * 7 / 10, py - r * 7 / 10, puddleColor);
+            break;
+        }
+        case vehicle_sim::terrain::HazardType::Rock: {
+            const SDL_Color rockColor { 190, 190, 200, 255 };
+            const int h1 { r * 8 / 10 };
+            const int w1 { r * 6 / 10 };
+            WireframeRenderer::drawLine(renderer, px - w1, py - h1, px + w1, py - h1, rockColor);
+            WireframeRenderer::drawLine(renderer, px + w1, py - h1, px + r, py, rockColor);
+            WireframeRenderer::drawLine(renderer, px + r, py, px + w1, py + h1, rockColor);
+            WireframeRenderer::drawLine(renderer, px + w1, py + h1, px - w1, py + h1, rockColor);
+            WireframeRenderer::drawLine(renderer, px - w1, py + h1, px - r, py, rockColor);
+            WireframeRenderer::drawLine(renderer, px - r, py, px - w1, py - h1, rockColor);
+            break;
+        }
+        case vehicle_sim::terrain::HazardType::BoostPad: {
+            const SDL_Color boostColor { 50, 255, 140, 255 };
+            const double dirX { std::cos(h.orientation) };
+            const double dirY { std::sin(h.orientation) };
+            const vehicle_sim::math::Vec2 tip { static_cast<double>(px) + dirX * scrR * 1.2, static_cast<double>(py) - dirY * scrR * 1.2 };
+            const vehicle_sim::math::Vec2 tail { static_cast<double>(px) - dirX * scrR * 1.2, static_cast<double>(py) + dirY * scrR * 1.2 };
+            WireframeRenderer::drawArrow(renderer, tail, tip, boostColor);
+            break;
+        }
+        default:
+            break;
+        }
+    }
 }
 
 } // namespace motion_lab

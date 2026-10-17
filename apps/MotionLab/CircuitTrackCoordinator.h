@@ -90,6 +90,22 @@ public:
     /// @return Vehicle length in meters.
     [[nodiscard]] double getVehicleLength() const noexcept;
 
+    /// @brief Enables or disables procedural hazard scattering on circuit track.
+    /// @param[in] enabled Desired hazard generation state.
+    void setHazardsEnabled(bool enabled) noexcept;
+
+    /// @brief Queries whether procedural hazard scattering is enabled.
+    /// @return True if hazards are enabled.
+    [[nodiscard]] bool isHazardsEnabled() const noexcept;
+
+    /// @brief Sets hazard scattering configuration parameters.
+    /// @param[in] config Hazard generation rules and probabilities.
+    void setHazardConfig(const vehicle_sim::terrain::HazardScatteringConfig& config) noexcept;
+
+    /// @brief Gets active hazard scattering configuration.
+    /// @return Const reference to configuration.
+    [[nodiscard]] const vehicle_sim::terrain::HazardScatteringConfig& getHazardConfig() const noexcept;
+
 private:
     void evaluateSurface(vehicle_sim::physics::RigidBody2D& body) noexcept;
     void evaluateBanking(vehicle_sim::physics::RigidBody2D& body) noexcept;
@@ -111,6 +127,8 @@ private:
     std::uint32_t mSeed { 2024U };
     bool mEnabled { false };
     bool mHasStartedLap { false };
+    bool mEnableHazards { true };
+    vehicle_sim::terrain::HazardScatteringConfig mHazardConfig { };
 };
 
 } // namespace motion_lab

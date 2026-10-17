@@ -42,6 +42,9 @@ void CircuitTrackCoordinator::regenerate(std::uint32_t seed) noexcept
     config.designSpeed = 25.0;
     config.maxBankAngle = 0.35;
     config.seed = seed;
+    config.enableHazards = mEnableHazards;
+    config.hazardConfig = mHazardConfig;
+    config.hazardConfig.seed = seed + 500U;
 
     mTrack = vehicle_sim::terrain::TrackGenerator::generateCircuitTrack(config);
     mMetrics = CircuitLapMetrics { };
@@ -59,6 +62,17 @@ void CircuitTrackCoordinator::stepPhysics(vehicle_sim::physics::RigidBody2D& bod
 
     evaluateSurface(body);
     evaluateBanking(body);
+
+    // Dynamic hazard triggers (e.g. Boost Pad speed impulse)
+    for (const auto& h : mTrack.hazards) {
+        if (h.type == vehicle_sim::terrain::HazardType::BoostPad) {
+            const double distSq { (currPos - h.position).lengthSquared() };
+            if (distSq < (h.boundingRadius * h.boundingRadius)) {
+                const vehicle_sim::math::Vec2 boostDir { std::cos(h.orientation), std::sin(h.orientation) };
+                body.applyLinearImpulse(boostDir * (body.getMass() * h.severity * dt * 2.0));
+            }
+        }
+    }
 
     if (mHasStartedLap) {
         mMetrics.currentLapTime += dt;
@@ -271,6 +285,30 @@ double CircuitTrackCoordinator::getVehicleWidth() const noexcept
 double CircuitTrackCoordinator::getVehicleLength() const noexcept
 {
     return mVehicleLength;
+}
+
+void CircuitTrackCoordinator::setHazardsEnabled(bool enabled) noexcept
+{
+    mEnableHazards = enabled;
+    regenerate(mSeed);
+}
+
+bool CircuitTrackCoordinator::isHazardsEnabled() const noexcept
+{
+    return mEnableHazards;
+}
+
+void CircuitTrackCoordinator::setHazardConfig(const vehicle_sim::terrain::HazardScatteringConfig& config) noexcept
+{
+    mHazardConfig = config;
+    if (mEnableHazards) {
+        regenerate(mSeed);
+    }
+}
+
+const vehicle_sim::terrain::HazardScatteringConfig& CircuitTrackCoordinator::getHazardConfig() const noexcept
+{
+    return mHazardConfig;
 }
 
 } // namespace motion_lab

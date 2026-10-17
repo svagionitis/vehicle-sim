@@ -191,6 +191,12 @@ void SurfaceMap2D::addCircleZone(const math::Vec2& center, double radius, Materi
     addCircleZone(center, radius, SurfaceMaterial::getPreset(materialType));
 }
 
+void SurfaceMap2D::stampMaterialDisc(
+    const math::Vec2& center, double radius, const SurfaceMaterial& material)
+{
+    addCircleZone(center, radius, material);
+}
+
 void SurfaceMap2D::clearMaterialZones() noexcept
 {
     mMaterialZones.clear();

@@ -8,6 +8,7 @@
 #include "libs/VehicleSimCore/dynamics/SideViewCarDynamics.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 #include "libs/VehicleSimCore/terrain/BankedTrack.h"
+#include "libs/VehicleSimCore/terrain/HazardScattering.h"
 #include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMap2D.h"
 #include "libs/VehicleSimCore/terrain/SurfaceMaterial.h"
@@ -141,6 +142,8 @@ struct CircuitTrackConfig {
     SurfaceMaterial shoulderMaterial { SurfaceMaterial::getPreset(MaterialType::Gravel) };
     SurfaceMaterial offtrackMaterial { SurfaceMaterial::getPreset(MaterialType::Grass) };
     std::uint32_t seed { 2024U }; ///< Deterministic pseudorandom seed.
+    bool enableHazards { false }; ///< True to scatter procedural obstacles along track corridor.
+    HazardScatteringConfig hazardConfig { }; ///< Configuration for scattered hazards.
 };
 
 /// @struct CircuitTrack2D
@@ -159,6 +162,14 @@ struct CircuitTrack2D {
     double shoulderWidth { 4.0 }; ///< Runoff shoulder width in meters.
     bool isClosed { true }; ///< True if circuit forms closed loop.
     BankedTrackProfile camberProfile { }; ///< Active camber and banking evaluator.
+    std::vector<ScatteredHazard> hazards { }; ///< Procedural scattered hazards along track.
+
+    /// @brief Gets total number of active scattered hazards.
+    /// @return Count of hazards.
+    [[nodiscard]] std::size_t getHazardCount() const noexcept;
+
+    /// @brief Clears all scattered hazards from track.
+    void clearHazards() noexcept;
 
     /// @brief Tests if world coordinate lies within drivable roadway ribbon.
     /// @param[in] point World query position in meters.

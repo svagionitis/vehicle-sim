@@ -202,7 +202,7 @@ graph TD
 ### 2.4 Deterministic Object and Hazard Scattering (Blue-Noise / Poisson Disk)
 
 #### Objective
-Deterministically seed track hazards (rocks, oil patches, boost pads, puddles, cones) along course segments without spatial collisions or unnatural clustering.
+Deterministically seed track hazards (rocks, oil patches, boost pads, puddles, cones) along course segments without spatial collisions or unnatural clustering. Detailed architectural and procedural design specification: [Deterministic Hazard Scattering Plan](DeterministicHazardScatteringImplementationPlan.md).
 
 #### Technical Formulation
 - **Bridson Poisson-Disk Algorithm**:

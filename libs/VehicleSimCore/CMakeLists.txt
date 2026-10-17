@@ -138,6 +138,10 @@ add_library(VehicleSimCore STATIC
     terrain/ElevationMap2D.h
     terrain/BankedTrack.h
     terrain/BankedTrack.cpp
+    terrain/PoissonDiskSampler.h
+    terrain/PoissonDiskSampler.cpp
+    terrain/HazardScattering.h
+    terrain/HazardScattering.cpp
     terrain/TrackGenerator.h
     terrain/TrackGenerator.cpp
     terrain/WaveGrid1D.h
