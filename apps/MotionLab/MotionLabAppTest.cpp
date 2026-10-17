@@ -322,20 +322,11 @@ TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
     EXPECT_TRUE(app.initialize());
 
     constexpr double dt { 1.0 / 120.0 };
-    const std::array<MotionLabVehicleType, 12> vehicles {{
-        MotionLabVehicleType::ClassicCar,
-        MotionLabVehicleType::RaceCar,
-        MotionLabVehicleType::Rocket,
-        MotionLabVehicleType::Helicopter,
-        MotionLabVehicleType::Hovercraft,
-        MotionLabVehicleType::TrackedTank,
-        MotionLabVehicleType::AntiGravity,
-        MotionLabVehicleType::DriftCar,
-        MotionLabVehicleType::MonsterTruck,
-        MotionLabVehicleType::SemiTruck,
-        MotionLabVehicleType::Forklift,
-        MotionLabVehicleType::QuadcopterDrone
-    }};
+    const std::array<MotionLabVehicleType, 12> vehicles { { MotionLabVehicleType::ClassicCar,
+        MotionLabVehicleType::RaceCar, MotionLabVehicleType::Rocket, MotionLabVehicleType::Helicopter,
+        MotionLabVehicleType::Hovercraft, MotionLabVehicleType::TrackedTank, MotionLabVehicleType::AntiGravity,
+        MotionLabVehicleType::DriftCar, MotionLabVehicleType::MonsterTruck, MotionLabVehicleType::SemiTruck,
+        MotionLabVehicleType::Forklift, MotionLabVehicleType::QuadcopterDrone } };
 
     for (const auto vType : vehicles) {
         app.setVehicleType(vType);
@@ -373,9 +364,7 @@ TEST(MotionLabAppTest, CircuitTrackResetPositionsVehicleOnGrid)
     CircuitTrackCoordinator coordinator { };
     coordinator.toggleEnabled();
 
-    vehicle_sim::physics::RigidBody2D body {
-        vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 }
-    };
+    vehicle_sim::physics::RigidBody2D body { vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 } };
     coordinator.resetToGrid(body);
 
     const auto& track = coordinator.getTrack();
@@ -391,9 +380,7 @@ TEST(MotionLabAppTest, CircuitTrackSurfaceMaterialTransitions)
     CircuitTrackCoordinator coordinator { };
     coordinator.toggleEnabled();
 
-    vehicle_sim::physics::RigidBody2D body {
-        vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 }
-    };
+    vehicle_sim::physics::RigidBody2D body { vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 } };
     coordinator.resetToGrid(body);
 
     // On start grid -> roadway ribbon tarmac (friction = 1.0)
@@ -450,9 +437,7 @@ TEST(MotionLabAppTest, CircuitTrackTimingGatesTraverseLap)
     CircuitTrackCoordinator coordinator { };
     coordinator.toggleEnabled();
 
-    vehicle_sim::physics::RigidBody2D body {
-        vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 }
-    };
+    vehicle_sim::physics::RigidBody2D body { vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 } };
     coordinator.resetToGrid(body);
 
     const auto& track = coordinator.getTrack();
@@ -675,8 +660,8 @@ TEST(MotionLabAppTest, MooseTestDimensionsScaling)
     EXPECT_DOUBLE_EQ(coordinator.getVehicleWidth(), 2.0);
     const auto& secDefault = coordinator.getSections();
     EXPECT_NEAR(secDefault[0].width, 1.1 * 2.0 + 0.25, 1e-6); // 2.45m
-    EXPECT_NEAR(secDefault[2].width, 2.0 + 1.0, 1e-6);        // 3.00m
-    EXPECT_NEAR(secDefault[4].width, 3.0, 1e-6);              // 1.3 * 2.0 + 0.25 = 2.85m -> clamped to 3.0m
+    EXPECT_NEAR(secDefault[2].width, 2.0 + 1.0, 1e-6); // 3.00m
+    EXPECT_NEAR(secDefault[4].width, 3.0, 1e-6); // 1.3 * 2.0 + 0.25 = 2.85m -> clamped to 3.0m
 
     // Verify cone count
     const auto& cones = coordinator.getCones();
@@ -690,15 +675,15 @@ TEST(MotionLabAppTest, MooseTestDimensionsScaling)
     EXPECT_DOUBLE_EQ(coordinator.getVehicleWidth(), 1.3);
     const auto& secNarrow = coordinator.getSections();
     EXPECT_NEAR(secNarrow[0].width, 1.1 * 1.3 + 0.25, 1e-6); // 1.68m
-    EXPECT_NEAR(secNarrow[2].width, 1.3 + 1.0, 1e-6);        // 2.30m
-    EXPECT_NEAR(secNarrow[4].width, 3.0, 1e-6);              // clamped to min 3.0m
+    EXPECT_NEAR(secNarrow[2].width, 1.3 + 1.0, 1e-6); // 2.30m
+    EXPECT_NEAR(secNarrow[4].width, 3.0, 1e-6); // clamped to min 3.0m
 
     // Scaled wide vehicle (e.g. Semi-Truck width: 2.5m)
     coordinator.updateDimensions(2.5, 12.0);
     EXPECT_DOUBLE_EQ(coordinator.getVehicleWidth(), 2.5);
     const auto& secWide = coordinator.getSections();
     EXPECT_NEAR(secWide[0].width, 1.1 * 2.5 + 0.25, 1e-6); // 3.00m
-    EXPECT_NEAR(secWide[2].width, 2.5 + 1.0, 1e-6);        // 3.50m
+    EXPECT_NEAR(secWide[2].width, 2.5 + 1.0, 1e-6); // 3.50m
     EXPECT_NEAR(secWide[4].width, 1.3 * 2.5 + 0.25, 1e-6); // 3.50m
 }
 
@@ -1093,20 +1078,11 @@ TEST(MotionLabAppTest, FleetExpansionDistinctModelProperties)
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
 
-    constexpr std::array<MotionLabVehicleType, 12> allVehicles {{
-        MotionLabVehicleType::ClassicCar,
-        MotionLabVehicleType::RaceCar,
-        MotionLabVehicleType::Rocket,
-        MotionLabVehicleType::Helicopter,
-        MotionLabVehicleType::Hovercraft,
-        MotionLabVehicleType::TrackedTank,
-        MotionLabVehicleType::AntiGravity,
-        MotionLabVehicleType::DriftCar,
-        MotionLabVehicleType::MonsterTruck,
-        MotionLabVehicleType::SemiTruck,
-        MotionLabVehicleType::Forklift,
-        MotionLabVehicleType::QuadcopterDrone
-    }};
+    constexpr std::array<MotionLabVehicleType, 12> allVehicles { { MotionLabVehicleType::ClassicCar,
+        MotionLabVehicleType::RaceCar, MotionLabVehicleType::Rocket, MotionLabVehicleType::Helicopter,
+        MotionLabVehicleType::Hovercraft, MotionLabVehicleType::TrackedTank, MotionLabVehicleType::AntiGravity,
+        MotionLabVehicleType::DriftCar, MotionLabVehicleType::MonsterTruck, MotionLabVehicleType::SemiTruck,
+        MotionLabVehicleType::Forklift, MotionLabVehicleType::QuadcopterDrone } };
 
     for (const auto vType : allVehicles) {
         app.setVehicleType(vType);
@@ -1209,4 +1185,84 @@ TEST(MotionLabAppTest, VehicleCyclingPropagatesDimensionsToAllCoordinators)
     EXPECT_DOUBLE_EQ(app.getSlalom().getPylonSpacing(), 30.0);
     EXPECT_NEAR(app.getSkidpad().getCorridorWidth(), 5.05, 1e-4);
     EXPECT_DOUBLE_EQ(app.getCircuit().getTrackWidth(), 12.0);
+}
+
+TEST(MotionLabAppTest, TelemetryCoordinatorBasicOperations)
+{
+    TelemetryCoordinator coordinator { };
+    EXPECT_TRUE(coordinator.getBuffer().isEmpty());
+    EXPECT_FALSE(coordinator.isRecording());
+
+    vehicle_sim::physics::RigidBody2D body { };
+    body.setPosition({ 10.0, 20.0 });
+    body.setLinearVelocity({ 15.0, 0.0 });
+
+    coordinator.update(body, 1200.0, 2.6, 1.5, 0.45, 1.0, 0.05, 0.02, 1.0, 0.01);
+    EXPECT_FALSE(coordinator.getBuffer().isEmpty());
+    EXPECT_EQ(coordinator.getBuffer().getCount(), 1U);
+
+    ExtendedTelemetrySnapshot snapshot { };
+    coordinator.populateSnapshot(snapshot);
+    EXPECT_NEAR(snapshot.speedMps, 15.0, 1e-3);
+    EXPECT_GT(snapshot.wheelLoads.frontLeftLoad, 0.0);
+    EXPECT_GT(snapshot.wheelLoads.rearRightLoad, 0.0);
+    EXPECT_EQ(snapshot.ggTrailCount, 1U);
+}
+
+TEST(MotionLabAppTest, TelemetryCoordinatorRecordingSession)
+{
+    TelemetryCoordinator coordinator { };
+    EXPECT_FALSE(coordinator.isRecording());
+
+    // Start recording
+    EXPECT_TRUE(coordinator.toggleRecording());
+    EXPECT_TRUE(coordinator.isRecording());
+    EXPECT_FALSE(coordinator.getRecordFile().empty());
+
+    vehicle_sim::physics::RigidBody2D body { };
+    body.setPosition({ 0.0, 0.0 });
+    body.setLinearVelocity({ 20.0, 0.0 });
+
+    for (int i { 0 }; i < 5; ++i) {
+        coordinator.update(body, 1000.0, 2.5, 1.5, 0.4, 1.0, 0.0, 0.0, i * 0.01, 0.01);
+    }
+    EXPECT_EQ(coordinator.getRecordFrames(), 5U);
+
+    // Stop recording
+    EXPECT_FALSE(coordinator.toggleRecording());
+    EXPECT_FALSE(coordinator.isRecording());
+}
+
+TEST(MotionLabAppTest, MotionLabAppTelemetryIntegration)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    EXPECT_TRUE(app.isAdvancedHudVisible());
+    EXPECT_FALSE(app.toggleAdvancedHud());
+    EXPECT_FALSE(app.isAdvancedHudVisible());
+    EXPECT_TRUE(app.toggleAdvancedHud());
+    EXPECT_TRUE(app.isAdvancedHudVisible());
+
+    EXPECT_TRUE(app.isAllHudVisible());
+    EXPECT_FALSE(app.toggleAllHud());
+    EXPECT_FALSE(app.isAllHudVisible());
+    EXPECT_TRUE(app.toggleAllHud());
+    EXPECT_TRUE(app.isAllHudVisible());
+    app.setAllHudVisible(false);
+    EXPECT_FALSE(app.isAllHudVisible());
+    app.setAllHudVisible(true);
+    EXPECT_TRUE(app.isAllHudVisible());
+
+    EXPECT_FALSE(app.getTelemetryCoordinator().isRecording());
+    EXPECT_TRUE(app.toggleRecording());
+    EXPECT_TRUE(app.getTelemetryCoordinator().isRecording());
+    EXPECT_FALSE(app.toggleRecording());
+    EXPECT_FALSE(app.getTelemetryCoordinator().isRecording());
+
+    // Advance physics and check buffer fills
+    app.stepPhysics(0.01);
+    EXPECT_FALSE(app.getTelemetryCoordinator().getBuffer().isEmpty());
 }

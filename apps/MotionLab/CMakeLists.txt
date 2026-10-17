@@ -20,6 +20,8 @@ add_executable(MotionLab
     WireframeRenderer.cpp
     TelemetryHud.h
     TelemetryHud.cpp
+    TelemetryCoordinator.h
+    TelemetryCoordinator.cpp
     CircuitTrackCoordinator.h
     CircuitTrackCoordinator.cpp
     CircuitTrackRenderer.h
@@ -83,6 +85,8 @@ if(BUILD_TESTING)
         WireframeRenderer.cpp
         TelemetryHud.h
         TelemetryHud.cpp
+        TelemetryCoordinator.h
+        TelemetryCoordinator.cpp
         CircuitTrackCoordinator.h
         CircuitTrackCoordinator.cpp
         CircuitTrackRenderer.h

@@ -1327,7 +1327,7 @@ graph TD
 
 ### 9.4 Advanced Telemetry HUD & Engineering Analytics
 
-The telemetry HUD is expanded from basic numeric text into a professional automotive telemetry suite.
+The telemetry HUD is expanded from basic numeric text into a professional automotive telemetry suite (see dedicated [Advanced Telemetry HUD & Engineering Analytics Implementation Plan](MotionLabTelemetryHudImplementationPlan.md)).
 
 #### 9.4.1 Analytical Components
 

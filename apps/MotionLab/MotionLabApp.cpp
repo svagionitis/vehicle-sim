@@ -10,30 +10,18 @@
 namespace motion_lab {
 
 namespace {
-constexpr std::array<vehicle_sim::terrain::MaterialType, 7> kAvailableTerrains {{
-    vehicle_sim::terrain::MaterialType::Tarmac,
-    vehicle_sim::terrain::MaterialType::Ice,
-    vehicle_sim::terrain::MaterialType::Sand,
-    vehicle_sim::terrain::MaterialType::Mud,
-    vehicle_sim::terrain::MaterialType::Grass,
-    vehicle_sim::terrain::MaterialType::Gravel,
-    vehicle_sim::terrain::MaterialType::Snow
-}};
+    constexpr std::array<vehicle_sim::terrain::MaterialType, 7> kAvailableTerrains {
+        { vehicle_sim::terrain::MaterialType::Tarmac, vehicle_sim::terrain::MaterialType::Ice,
+            vehicle_sim::terrain::MaterialType::Sand, vehicle_sim::terrain::MaterialType::Mud,
+            vehicle_sim::terrain::MaterialType::Grass, vehicle_sim::terrain::MaterialType::Gravel,
+            vehicle_sim::terrain::MaterialType::Snow }
+    };
 
-constexpr std::array<MotionLabVehicleType, 12> kAvailableVehicles {{
-    MotionLabVehicleType::ClassicCar,
-    MotionLabVehicleType::RaceCar,
-    MotionLabVehicleType::Rocket,
-    MotionLabVehicleType::Helicopter,
-    MotionLabVehicleType::Hovercraft,
-    MotionLabVehicleType::TrackedTank,
-    MotionLabVehicleType::AntiGravity,
-    MotionLabVehicleType::DriftCar,
-    MotionLabVehicleType::MonsterTruck,
-    MotionLabVehicleType::SemiTruck,
-    MotionLabVehicleType::Forklift,
-    MotionLabVehicleType::QuadcopterDrone
-}};
+    constexpr std::array<MotionLabVehicleType, 12> kAvailableVehicles { { MotionLabVehicleType::ClassicCar,
+        MotionLabVehicleType::RaceCar, MotionLabVehicleType::Rocket, MotionLabVehicleType::Helicopter,
+        MotionLabVehicleType::Hovercraft, MotionLabVehicleType::TrackedTank, MotionLabVehicleType::AntiGravity,
+        MotionLabVehicleType::DriftCar, MotionLabVehicleType::MonsterTruck, MotionLabVehicleType::SemiTruck,
+        MotionLabVehicleType::Forklift, MotionLabVehicleType::QuadcopterDrone } };
 } // namespace
 
 MotionLabApp::MotionLabApp()
@@ -88,24 +76,14 @@ bool MotionLabApp::initialize()
         return false;
     }
 
-    mWindow = SDL_CreateWindow(
-        mConfig.windowTitle.c_str(),
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        mConfig.windowWidth,
-        mConfig.windowHeight,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
-    );
+    mWindow = SDL_CreateWindow(mConfig.windowTitle.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        mConfig.windowWidth, mConfig.windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     if (mWindow == nullptr) {
         return false;
     }
 
-    mRenderer = SDL_CreateRenderer(
-        mWindow,
-        -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
-    );
+    mRenderer = SDL_CreateRenderer(mWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     if (mRenderer == nullptr) {
         return false;
@@ -175,18 +153,54 @@ void MotionLabApp::applyVehicleProperties() noexcept
     double vehWidth { 2.0 };
     double vehLength { 4.0 };
     switch (mVehicleType) {
-    case MotionLabVehicleType::ClassicCar:     vehWidth = 2.00; vehLength = 4.0;  break;
-    case MotionLabVehicleType::RaceCar:        vehWidth = 1.80; vehLength = 4.5;  break;
-    case MotionLabVehicleType::Rocket:         vehWidth = 1.60; vehLength = 6.0;  break;
-    case MotionLabVehicleType::Helicopter:     vehWidth = 2.40; vehLength = 6.0;  break;
-    case MotionLabVehicleType::Hovercraft:     vehWidth = 2.20; vehLength = 4.0;  break;
-    case MotionLabVehicleType::TrackedTank:    vehWidth = 2.40; vehLength = 5.0;  break;
-    case MotionLabVehicleType::AntiGravity:    vehWidth = 2.40; vehLength = 4.8;  break;
-    case MotionLabVehicleType::DriftCar:       vehWidth = 1.85; vehLength = 4.4;  break;
-    case MotionLabVehicleType::MonsterTruck:   vehWidth = 3.00; vehLength = 5.2;  break;
-    case MotionLabVehicleType::SemiTruck:      vehWidth = 2.50; vehLength = 12.0; break;
-    case MotionLabVehicleType::Forklift:       vehWidth = 1.30; vehLength = 2.8;  break;
-    case MotionLabVehicleType::QuadcopterDrone:vehWidth = 1.20; vehLength = 1.2;  break;
+    case MotionLabVehicleType::ClassicCar:
+        vehWidth = 2.00;
+        vehLength = 4.0;
+        break;
+    case MotionLabVehicleType::RaceCar:
+        vehWidth = 1.80;
+        vehLength = 4.5;
+        break;
+    case MotionLabVehicleType::Rocket:
+        vehWidth = 1.60;
+        vehLength = 6.0;
+        break;
+    case MotionLabVehicleType::Helicopter:
+        vehWidth = 2.40;
+        vehLength = 6.0;
+        break;
+    case MotionLabVehicleType::Hovercraft:
+        vehWidth = 2.20;
+        vehLength = 4.0;
+        break;
+    case MotionLabVehicleType::TrackedTank:
+        vehWidth = 2.40;
+        vehLength = 5.0;
+        break;
+    case MotionLabVehicleType::AntiGravity:
+        vehWidth = 2.40;
+        vehLength = 4.8;
+        break;
+    case MotionLabVehicleType::DriftCar:
+        vehWidth = 1.85;
+        vehLength = 4.4;
+        break;
+    case MotionLabVehicleType::MonsterTruck:
+        vehWidth = 3.00;
+        vehLength = 5.2;
+        break;
+    case MotionLabVehicleType::SemiTruck:
+        vehWidth = 2.50;
+        vehLength = 12.0;
+        break;
+    case MotionLabVehicleType::Forklift:
+        vehWidth = 1.30;
+        vehLength = 2.8;
+        break;
+    case MotionLabVehicleType::QuadcopterDrone:
+        vehWidth = 1.20;
+        vehLength = 1.2;
+        break;
     }
 
     mMooseCoordinator.updateDimensions(vehWidth, vehLength);
@@ -607,12 +621,11 @@ vehicle_sim::math::Vec2 MotionLabApp::computeSupportPoint(const vehicle_sim::mat
         break;
     }
 
-    const std::array<vehicle_sim::math::Vec2, 4> points {{
-        mBody.toWorldPoint(vehicle_sim::math::Vec2 { -halfLen, -halfWid }),
-        mBody.toWorldPoint(vehicle_sim::math::Vec2 {  halfLen, -halfWid }),
-        mBody.toWorldPoint(vehicle_sim::math::Vec2 {  halfLen,  halfWid }),
-        mBody.toWorldPoint(vehicle_sim::math::Vec2 { -halfLen,  halfWid })
-    }};
+    const std::array<vehicle_sim::math::Vec2, 4> points { { mBody.toWorldPoint(
+                                                                vehicle_sim::math::Vec2 { -halfLen, -halfWid }),
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 { halfLen, -halfWid }),
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 { halfLen, halfWid }),
+        mBody.toWorldPoint(vehicle_sim::math::Vec2 { -halfLen, halfWid }) } };
 
     double minProj { points[0].dot(normal) };
     for (std::size_t i { 1 }; i < points.size(); ++i) {
@@ -637,8 +650,7 @@ void MotionLabApp::processEvents() noexcept
         if (event.type == SDL_QUIT) {
             mRunning = false;
         } else if (event.type == SDL_WINDOWEVENT) {
-            if (event.window.event == SDL_WINDOWEVENT_RESIZED ||
-                event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            if (event.window.event == SDL_WINDOWEVENT_RESIZED || event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
                 mConfig.windowWidth = event.window.data1;
                 mConfig.windowHeight = event.window.data2;
                 mCamera.resize(mConfig.windowWidth, mConfig.windowHeight);
@@ -685,6 +697,12 @@ void MotionLabApp::processEvents() noexcept
                     toggleSpeedZoom();
                     break;
                 case SDLK_h:
+                    toggleAdvancedHud();
+                    break;
+                case SDLK_TAB:
+                    toggleAllHud();
+                    break;
+                case SDLK_i:
                     toggleInputHud();
                     break;
                 case SDLK_f:
@@ -715,7 +733,11 @@ void MotionLabApp::processEvents() noexcept
                     mKeyQ = true;
                     break;
                 case SDLK_e:
-                    mKeyE = true;
+                    if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        toggleRecording();
+                    } else {
+                        mKeyE = true;
+                    }
                     break;
                 case SDLK_F1:
                     setVehicleType(MotionLabVehicleType::ClassicCar);
@@ -742,7 +764,11 @@ void MotionLabApp::processEvents() noexcept
                     setVehicleType(MotionLabVehicleType::DriftCar);
                     break;
                 case SDLK_F9:
-                    setVehicleType(MotionLabVehicleType::MonsterTruck);
+                    if ((event.key.keysym.mod & KMOD_CTRL) != 0) {
+                        toggleRecording();
+                    } else {
+                        setVehicleType(MotionLabVehicleType::MonsterTruck);
+                    }
                     break;
                 case SDLK_F10:
                     setVehicleType(MotionLabVehicleType::SemiTruck);
@@ -922,7 +948,8 @@ void MotionLabApp::updateTireSkidmarks(double dt) noexcept
     } else if (mVehicleType == MotionLabVehicleType::SemiTruck) {
         const auto worldRL = mBody.toWorldPoint({ -2.0, 1.25 });
         const auto worldRR = mBody.toWorldPoint({ -2.0, -1.25 });
-        const bool skidding { mArticulatedTruck.getTelemetry().isJackknifed || std::abs(mBody.getAngularVelocity()) > 0.30 };
+        const bool skidding { mArticulatedTruck.getTelemetry().isJackknifed
+            || std::abs(mBody.getAngularVelocity()) > 0.30 };
 
         if (skidding && mRearLeftState.skidding) {
             mSkids.addSegment(mRearLeftState.position, worldRL);
@@ -1109,10 +1136,7 @@ void MotionLabApp::stepPhysics(double dt) noexcept
         const double dragCoeff { (mBody.getMass() * kGravityAcc) / kTerminalSpeed };
         const auto v = mBody.getLinearVelocity();
 
-        const vehicle_sim::math::Vec2 gravForce {
-            -dragCoeff * v.x,
-            -mBody.getMass() * kGravityAcc - dragCoeff * v.y
-        };
+        const vehicle_sim::math::Vec2 gravForce { -dragCoeff * v.x, -mBody.getMass() * kGravityAcc - dragCoeff * v.y };
         mBody.applyForce(gravForce);
     }
 
@@ -1193,16 +1217,92 @@ void MotionLabApp::stepPhysics(double dt) noexcept
     vehicle_sim::physics::Integrator2D::integrate(mBody, dt);
 
     if (mBarrier) {
-        vehicle_sim::physics::BarrierSolver2D::solveInside(
-            mBody,
-            mCamera.getBounds(),
-            [this](const vehicle_sim::math::Vec2& normal) noexcept {
-                return computeSupportPoint(normal);
-            });
+        vehicle_sim::physics::BarrierSolver2D::solveInside(mBody, mCamera.getBounds(),
+            [this](const vehicle_sim::math::Vec2& normal) noexcept { return computeSupportPoint(normal); });
     }
 
     mTrail.update(mBody.getPosition(), dt);
     updateTireSkidmarks(dt);
+
+    double wheelbase { 2.6 };
+    double trackWidth { 1.5 };
+    double cgHeight { 0.45 };
+    double frontSlip { 0.0 };
+    double rearSlip { 0.0 };
+
+    switch (mVehicleType) {
+    case MotionLabVehicleType::ClassicCar: {
+        wheelbase = 2.6;
+        trackWidth = 1.5;
+        cgHeight = 0.45;
+        const auto& flTire = mCar.getTires()[vehicle_sim::dynamics::MotionLabCarDynamics::kFrontLeft];
+        const auto& rlTire = mCar.getTires()[vehicle_sim::dynamics::MotionLabCarDynamics::kRearLeft];
+        frontSlip = std::atan2(flTire.lateralSpeed, std::max(0.1, std::abs(flTire.rollingSpeed)));
+        rearSlip = std::atan2(rlTire.lateralSpeed, std::max(0.1, std::abs(rlTire.rollingSpeed)));
+        break;
+    }
+    case MotionLabVehicleType::RaceCar:
+        wheelbase = 2.8;
+        trackWidth = 1.6;
+        cgHeight = 0.32;
+        break;
+    case MotionLabVehicleType::Rocket:
+        wheelbase = 3.0;
+        trackWidth = 1.0;
+        cgHeight = 0.50;
+        break;
+    case MotionLabVehicleType::Helicopter:
+        wheelbase = 2.0;
+        trackWidth = 1.4;
+        cgHeight = 0.60;
+        break;
+    case MotionLabVehicleType::Hovercraft:
+        wheelbase = 2.2;
+        trackWidth = 1.5;
+        cgHeight = 0.40;
+        break;
+    case MotionLabVehicleType::TrackedTank:
+        wheelbase = 3.2;
+        trackWidth = 2.2;
+        cgHeight = 0.70;
+        break;
+    case MotionLabVehicleType::AntiGravity:
+        wheelbase = 2.8;
+        trackWidth = 1.6;
+        cgHeight = 0.35;
+        break;
+    case MotionLabVehicleType::DriftCar:
+        wheelbase = 2.55;
+        trackWidth = 1.55;
+        cgHeight = 0.42;
+        frontSlip = mDriftCar.getWheelStates()[0].slipAngle;
+        rearSlip = mDriftCar.getWheelStates()[2].slipAngle;
+        break;
+    case MotionLabVehicleType::MonsterTruck:
+        wheelbase = 2.5;
+        trackWidth = 2.1;
+        cgHeight = 0.85;
+        break;
+    case MotionLabVehicleType::SemiTruck:
+        wheelbase = 3.8;
+        trackWidth = 2.0;
+        cgHeight = 0.95;
+        break;
+    case MotionLabVehicleType::Forklift:
+        wheelbase = 1.8;
+        trackWidth = 1.1;
+        cgHeight = mForklift.getCompositeCogHeight();
+        break;
+    case MotionLabVehicleType::QuadcopterDrone:
+        wheelbase = 1.0;
+        trackWidth = 1.0;
+        cgHeight = 0.25;
+        break;
+    }
+
+    const double surfaceMu { getSurfaceMaterial().friction };
+    mTelemetryCoordinator.update(
+        mBody, mBody.getMass(), wheelbase, trackWidth, cgHeight, surfaceMu, frontSlip, rearSlip, mAnimTimer, dt);
 }
 
 void MotionLabApp::renderFrame() noexcept
@@ -1228,15 +1328,7 @@ void MotionLabApp::renderFrame() noexcept
     context.quadcopter = &mDrone;
     context.animTimer = mAnimTimer;
 
-    mWireframe.renderScene(
-        mRenderer,
-        mCamera,
-        context,
-        mBody,
-        mSkids,
-        mTrail,
-        mBarrier
-    );
+    mWireframe.renderScene(mRenderer, mCamera, context, mBody, mSkids, mTrail, mBarrier);
 
     if (mCircuitCoordinator.isEnabled()) {
         CircuitTrackRenderer::renderTrack(mRenderer, mCamera, mCircuitCoordinator);
@@ -1270,6 +1362,7 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.deadZoneOn = mCamera.isDeadZoneEnabled();
     snapshot.speedZoomOn = mCamera.isSpeedZoomEnabled();
     snapshot.inputHudVisible = mInputHudVisible;
+    snapshot.allHudVisible = mAllHudVisible;
     snapshot.steerLeft = mKeyA;
     snapshot.steerRight = mKeyD;
     snapshot.throttleForward = mKeyW;
@@ -1292,7 +1385,8 @@ void MotionLabApp::renderFrame() noexcept
         snapshot.lastLapTime = metrics.lastLapTime;
         snapshot.currentSector = metrics.currentSector;
         snapshot.completedLaps = metrics.completedLaps;
-        snapshot.terrainName = std::string(vehicle_sim::terrain::SurfaceMaterial::getName(mCircuitCoordinator.getActiveMaterial().type));
+        snapshot.terrainName
+            = std::string(vehicle_sim::terrain::SurfaceMaterial::getName(mCircuitCoordinator.getActiveMaterial().type));
         snapshot.terrainFriction = mCircuitCoordinator.getActiveMaterial().friction;
         snapshot.terrainRollingDrag = mCircuitCoordinator.getActiveMaterial().rollingDrag;
     }
@@ -1305,10 +1399,13 @@ void MotionLabApp::renderFrame() noexcept
         snapshot.vehicleDetails = mRaceCar.getDrsAngleDeg() > 1.0 ? "DRS ACTIVE (LOW DRAG)" : "AERO DOWNFORCE ENGAGED";
         break;
     case MotionLabVehicleType::Rocket:
-        snapshot.vehicleDetails = std::string("FUEL ") + std::to_string(static_cast<int>(mRocket.getFuelRatio() * 100.0)) + "% / THRUST " + std::to_string(static_cast<int>(mRocket.getThrustForce() / 1000.0)) + " KN";
+        snapshot.vehicleDetails = std::string("FUEL ")
+            + std::to_string(static_cast<int>(mRocket.getFuelRatio() * 100.0)) + "% / THRUST "
+            + std::to_string(static_cast<int>(mRocket.getThrustForce() / 1000.0)) + " KN";
         break;
     case MotionLabVehicleType::Helicopter:
-        snapshot.vehicleDetails = std::string("ROTOR ") + std::to_string(static_cast<int>(mHelicopter.getRotorSpeed())) + " RPM / " + (mHelicopter.isAirborne() ? "AIRBORNE" : "SURFACE");
+        snapshot.vehicleDetails = std::string("ROTOR ") + std::to_string(static_cast<int>(mHelicopter.getRotorSpeed()))
+            + " RPM / " + (mHelicopter.isAirborne() ? "AIRBORNE" : "SURFACE");
         break;
     case MotionLabVehicleType::Hovercraft:
         snapshot.vehicleDetails = mHovercraft.isHovering() ? "AIR CUSHION ACTIVE" : "SKIRT BRAKING";
@@ -1317,46 +1414,60 @@ void MotionLabApp::renderFrame() noexcept
         snapshot.vehicleDetails = mTank.getTelemetry().isRecoiling ? "CANNON FIRING RECOIL" : "DUAL TRACK READY";
         break;
     case MotionLabVehicleType::AntiGravity:
-        snapshot.vehicleDetails = std::string("ALT: ") + std::to_string(mAntiGravity.getTelemetry().rideHeight).substr(0, 4) + "m | BOOST: " + std::to_string(static_cast<int>(mAntiGravity.getTelemetry().boostEnergy / 3.5 * 100.0)) + "% | " + (mAntiGravity.getTelemetry().isDrifting ? "MAGLEV DRIFT" : "MAG-LOCKED");
+        snapshot.vehicleDetails = std::string("ALT: ")
+            + std::to_string(mAntiGravity.getTelemetry().rideHeight).substr(0, 4)
+            + "m | BOOST: " + std::to_string(static_cast<int>(mAntiGravity.getTelemetry().boostEnergy / 3.5 * 100.0))
+            + "% | " + (mAntiGravity.getTelemetry().isDrifting ? "MAGLEV DRIFT" : "MAG-LOCKED");
         break;
     case MotionLabVehicleType::DriftCar:
-        snapshot.vehicleDetails = std::string("DRIFT: ") + std::to_string(static_cast<int>(std::abs(mDriftCar.getDriftAngle() * 57.2958))) + " DEG | " + (mDriftCar.isDrifting() ? "DRIFT SUSTAINED" : "GRIP OK");
+        snapshot.vehicleDetails = std::string("DRIFT: ")
+            + std::to_string(static_cast<int>(std::abs(mDriftCar.getDriftAngle() * 57.2958))) + " DEG | "
+            + (mDriftCar.isDrifting() ? "DRIFT SUSTAINED" : "GRIP OK");
         break;
     case MotionLabVehicleType::MonsterTruck:
-        snapshot.vehicleDetails = std::string("GEAR: ") + std::to_string(mMonsterCar.getGear()) + " | 4WD MONSTER TRUCK ACTIVE";
+        snapshot.vehicleDetails
+            = std::string("GEAR: ") + std::to_string(mMonsterCar.getGear()) + " | 4WD MONSTER TRUCK ACTIVE";
         break;
     case MotionLabVehicleType::SemiTruck:
-        snapshot.vehicleDetails = mArticulatedTruck.getTelemetry().isJackknifed ? "JACKKNIFE WARNING! TROLLEY BRAKE" : std::string("HITCH: ") + std::to_string(static_cast<int>(mArticulatedTruck.getTelemetry().hitchAngle * 57.2958)) + " DEG";
+        snapshot.vehicleDetails = mArticulatedTruck.getTelemetry().isJackknifed ? "JACKKNIFE WARNING! TROLLEY BRAKE"
+                                                                                : std::string("HITCH: ")
+                + std::to_string(static_cast<int>(mArticulatedTruck.getTelemetry().hitchAngle * 57.2958)) + " DEG";
         break;
     case MotionLabVehicleType::Forklift:
-        snapshot.vehicleDetails = mForklift.isTippedOver() ? "TIP-OVER DETECTED!" : (std::string("ROLLOVER: ") + std::to_string(static_cast<int>(mForklift.getRolloverIndex() * 100.0)) + "% | REAR STEER");
+        snapshot.vehicleDetails = mForklift.isTippedOver()
+            ? "TIP-OVER DETECTED!"
+            : (std::string("ROLLOVER: ") + std::to_string(static_cast<int>(mForklift.getRolloverIndex() * 100.0))
+                  + "% | REAR STEER");
         break;
     case MotionLabVehicleType::QuadcopterDrone:
-        snapshot.vehicleDetails = std::string("THRUST: ") + std::to_string(static_cast<int>(mDrone.getTotalThrust())) + " N | 4-ROTOR UAV FLIGHT";
+        snapshot.vehicleDetails = std::string("THRUST: ") + std::to_string(static_cast<int>(mDrone.getTotalThrust()))
+            + " N | 4-ROTOR UAV FLIGHT";
         break;
     }
 
-    TelemetryHud::render(mRenderer, snapshot, mConfig.windowWidth, mConfig.windowHeight);
+    ExtendedTelemetrySnapshot extendedSnapshot { };
+    mTelemetryCoordinator.populateSnapshot(extendedSnapshot);
+    extendedSnapshot.advancedHudVisible = mAdvancedHudVisible && mAllHudVisible;
 
-    if (mCircuitCoordinator.isEnabled()) {
-        CircuitTrackRenderer::renderRadar(
-            mRenderer, mCircuitCoordinator, mBody.getPosition(),
-            mConfig.windowWidth - 170, 30, 140, 140);
-    }
+    TelemetryHud::render(mRenderer, snapshot, extendedSnapshot, mConfig.windowWidth, mConfig.windowHeight);
 
-    if (mSlalomCoordinator.isEnabled()) {
-        SlalomCourseRenderer::renderHud(
-            mRenderer, mSlalomCoordinator, 10, mConfig.windowHeight - 145);
-    }
+    if (mAllHudVisible) {
+        if (mCircuitCoordinator.isEnabled()) {
+            CircuitTrackRenderer::renderRadar(
+                mRenderer, mCircuitCoordinator, mBody.getPosition(), mConfig.windowWidth - 170, 30, 140, 140);
+        }
 
-    if (mMooseCoordinator.isEnabled()) {
-        MooseTestRenderer::renderHud(
-            mRenderer, mMooseCoordinator, 10, mConfig.windowHeight - 155);
-    }
+        if (mSlalomCoordinator.isEnabled()) {
+            SlalomCourseRenderer::renderHud(mRenderer, mSlalomCoordinator, 10, mConfig.windowHeight - 145);
+        }
 
-    if (mSkidpadCoordinator.isEnabled()) {
-        SkidpadRenderer::renderHud(
-            mRenderer, mSkidpadCoordinator, 10, mConfig.windowHeight - 155);
+        if (mMooseCoordinator.isEnabled()) {
+            MooseTestRenderer::renderHud(mRenderer, mMooseCoordinator, 10, mConfig.windowHeight - 155);
+        }
+
+        if (mSkidpadCoordinator.isEnabled()) {
+            SkidpadRenderer::renderHud(mRenderer, mSkidpadCoordinator, 10, mConfig.windowHeight - 155);
+        }
     }
 
     SDL_RenderPresent(mRenderer);
@@ -1571,6 +1682,53 @@ MotionLabCamera& MotionLabApp::getCamera() noexcept
 const MotionLabAppConfig& MotionLabApp::getConfig() const noexcept
 {
     return mConfig;
+}
+
+bool MotionLabApp::toggleAdvancedHud() noexcept
+{
+    mAdvancedHudVisible = !mAdvancedHudVisible;
+    return mAdvancedHudVisible;
+}
+
+bool MotionLabApp::isAdvancedHudVisible() const noexcept
+{
+    return mAdvancedHudVisible;
+}
+
+void MotionLabApp::setAdvancedHudVisible(bool visible) noexcept
+{
+    mAdvancedHudVisible = visible;
+}
+
+bool MotionLabApp::toggleAllHud() noexcept
+{
+    mAllHudVisible = !mAllHudVisible;
+    return mAllHudVisible;
+}
+
+bool MotionLabApp::isAllHudVisible() const noexcept
+{
+    return mAllHudVisible;
+}
+
+void MotionLabApp::setAllHudVisible(bool visible) noexcept
+{
+    mAllHudVisible = visible;
+}
+
+bool MotionLabApp::toggleRecording() noexcept
+{
+    return mTelemetryCoordinator.toggleRecording();
+}
+
+const TelemetryCoordinator& MotionLabApp::getTelemetryCoordinator() const noexcept
+{
+    return mTelemetryCoordinator;
+}
+
+TelemetryCoordinator& MotionLabApp::getTelemetryCoordinator() noexcept
+{
+    return mTelemetryCoordinator;
 }
 
 } // namespace motion_lab

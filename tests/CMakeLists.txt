@@ -15,6 +15,7 @@ add_executable(VehicleSimCoreTests
     SpeedProfilerTest.cpp
     TrajectoryTrackerTest.cpp
     TelemetryTest.cpp
+    ExtendedTelemetryTest.cpp
     GroundEffectAeroTest.cpp
     RaceCarDynamicsTest.cpp
     ForkliftDynamicsTest.cpp

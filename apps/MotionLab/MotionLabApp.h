@@ -1,20 +1,21 @@
 #pragma once
 
+#include <SDL2/SDL.h>
 #include <string>
 #include <string_view>
-#include <SDL2/SDL.h>
 
 #include "apps/MotionLab/CircuitTrackCoordinator.h"
 #include "apps/MotionLab/CircuitTrackRenderer.h"
-#include "apps/MotionLab/SlalomCourseCoordinator.h"
-#include "apps/MotionLab/SlalomCourseRenderer.h"
 #include "apps/MotionLab/MooseTestCoordinator.h"
 #include "apps/MotionLab/MooseTestRenderer.h"
-#include "apps/MotionLab/SkidpadCoordinator.h"
-#include "apps/MotionLab/SkidpadRenderer.h"
 #include "apps/MotionLab/MotionLabCamera.h"
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
+#include "apps/MotionLab/SkidpadCoordinator.h"
+#include "apps/MotionLab/SkidpadRenderer.h"
+#include "apps/MotionLab/SlalomCourseCoordinator.h"
+#include "apps/MotionLab/SlalomCourseRenderer.h"
+#include "apps/MotionLab/TelemetryCoordinator.h"
 #include "apps/MotionLab/TelemetryHud.h"
 #include "apps/MotionLab/TrailParticleBuffer.h"
 #include "apps/MotionLab/WireframeRenderer.h"
@@ -39,12 +40,12 @@ namespace motion_lab {
 /// @struct MotionLabAppConfig
 /// @brief Configuration settings for the Motion Lab desktop application.
 struct MotionLabAppConfig {
-    int windowWidth { 1280 };                              ///< Viewport width in pixels.
-    int windowHeight { 720 };                             ///< Viewport height in pixels.
+    int windowWidth { 1280 }; ///< Viewport width in pixels.
+    int windowHeight { 720 }; ///< Viewport height in pixels.
     std::string windowTitle { "Motion Lab 2D (1996 Remaster)" }; ///< Window title string.
-    double fixedDt { 1.0 / 120.0 };                       ///< 120 Hz fixed physics step (8.333 ms).
-    bool headless { false };                              ///< Run in headless test mode without window.
-    double targetFps { 60.0 };                            ///< Target display frame rate.
+    double fixedDt { 1.0 / 120.0 }; ///< 120 Hz fixed physics step (8.333 ms).
+    bool headless { false }; ///< Run in headless test mode without window.
+    double targetFps { 60.0 }; ///< Target display frame rate.
 };
 
 /// @class MotionLabApp
@@ -216,6 +217,42 @@ public:
     /// @brief Queries whether gravity is active.
     [[nodiscard]] bool isGravityActive() const noexcept;
 
+    /// @brief Toggles advanced engineering telemetry HUD visibility.
+    /// @return Active advanced HUD visibility status.
+    bool toggleAdvancedHud() noexcept;
+
+    /// @brief Queries whether advanced engineering telemetry HUD is visible.
+    /// @return True if visible, false otherwise.
+    [[nodiscard]] bool isAdvancedHudVisible() const noexcept;
+
+    /// @brief Sets advanced engineering telemetry HUD visibility.
+    /// @param[in] visible New visibility state.
+    void setAdvancedHudVisible(bool visible) noexcept;
+
+    /// @brief Toggles all HUD elements visibility for clean screen driving view.
+    /// @return Active clean screen HUD visibility status.
+    bool toggleAllHud() noexcept;
+
+    /// @brief Queries whether all HUD elements are visible.
+    /// @return True if all HUD is visible, false if clean view is active.
+    [[nodiscard]] bool isAllHudVisible() const noexcept;
+
+    /// @brief Sets all HUD elements visibility status.
+    /// @param[in] visible True to display HUD overlays, false for clean view.
+    void setAllHudVisible(bool visible) noexcept;
+
+    /// @brief Toggles on-demand CSV disk telemetry logging session.
+    /// @return True if recording was started, false if stopped.
+    bool toggleRecording() noexcept;
+
+    /// @brief Gets constant reference to active telemetry coordinator.
+    /// @return Const reference to telemetry coordinator.
+    [[nodiscard]] const TelemetryCoordinator& getTelemetryCoordinator() const noexcept;
+
+    /// @brief Gets mutable reference to active telemetry coordinator.
+    /// @return Mutable reference to telemetry coordinator.
+    [[nodiscard]] TelemetryCoordinator& getTelemetryCoordinator() noexcept;
+
     /// @brief Gets constant reference to active classic car coordinator.
     [[nodiscard]] const vehicle_sim::dynamics::MotionLabCarDynamics& getCar() const noexcept;
 
@@ -354,6 +391,9 @@ private:
     SlalomCourseCoordinator mSlalomCoordinator { };
     MooseTestCoordinator mMooseCoordinator { };
     SkidpadCoordinator mSkidpadCoordinator { };
+    TelemetryCoordinator mTelemetryCoordinator { };
+    bool mAdvancedHudVisible { true };
+    bool mAllHudVisible { true };
 
     // Keyboard inputs
     bool mKeyW { false };
