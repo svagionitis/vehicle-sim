@@ -95,12 +95,26 @@ public:
     /// @brief Computes world space Polygon representation (if type is Polygon).
     [[nodiscard]] math::Polygon2D toWorldPolygon() const noexcept;
 
+    /// @brief Performs a raycast against this collider in world space.
+    /// @param[in] ray 2D ray query in world space.
+    /// @return RayHit2D if hit, or std::nullopt.
+    [[nodiscard]] std::optional<math::RayHit2D> raycast(const math::Ray2D& ray) const noexcept;
+
+    /// @brief Sets the broadphase proxy ID associated with this collider.
+    /// @param[in] proxyId Proxy identifier in DynamicBVH2D.
+    void setBroadphaseProxyId(std::int32_t proxyId) noexcept;
+
+    /// @brief Gets the broadphase proxy ID associated with this collider.
+    /// @return Proxy identifier or -1 if unregistered.
+    [[nodiscard]] std::int32_t getBroadphaseProxyId() const noexcept;
+
 private:
     ShapeVariant mShape { math::Circle2D { { 0.0, 0.0 }, 0.5 } };
     RigidBody2D* mBody { nullptr };
     ColliderMaterial mMaterial {};
     std::uint16_t mCategoryBits { 0x0001 };
     std::uint16_t mMaskBits { 0xFFFF };
+    std::int32_t mBroadphaseProxyId { -1 };
     bool mIsSensor { false };
 };
 

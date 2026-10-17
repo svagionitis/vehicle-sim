@@ -624,10 +624,10 @@ Implemented via [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h) 
 
 ---
 
-### 4.5 Dynamic Bounding Volume Hierarchy Broadphase (`DynamicBVH2D`)
+### 4.5 Dynamic Bounding Volume Hierarchy Broadphase (`DynamicBVH2D`) (Implemented)
 
 #### Objective
-Accelerate collision pair generation in [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) from $O(N^2)$ brute force to $O(N \log N)$ or $O(N)$, allowing high-density simulation with hundreds of rigid bodies, track debris, and obstacle colliders.
+Accelerate collision pair generation in [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) from $O(N^2)$ brute force to $O(N \log N)$ or $O(N)$, allowing high-density simulation with hundreds of rigid bodies, track debris, and obstacle colliders. Detailed architectural and broadphase design specification: [DynamicBVH Plan](DynamicBVHImplementationPlan.md).
 
 #### Technical Formulation
 - **Self-Balancing AABB Tree**:
@@ -1410,7 +1410,7 @@ graph TD
 | **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | Planes, rockets, trucks, boats, subs ([FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h)) |
 | **Earth Patrol (3-Axle Rover & SDL Game) (Implemented)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [Earth Patrol Plan](EarthPatrolImplementationPlan.md) - Moon Patrol style side-scroller on Earth ([apps/EarthPatrol](../apps/EarthPatrol)) |
 | **Stanley Path Following & Speed Profiler (Implemented)** | Math / Dynamics | Low-Med | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [PIDController](../libs/VehicleSimCore/math/PIDController.h) | [Stanley Path Plan](StanleyPathFollowingImplementationPlan.md) - Racing AI, trajectory navigation, autopilot ([StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h)) |
-| **DynamicBVH2D Broadphase** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | Multi-car collision, scaling to 100+ bodies & obstacles |
+| **DynamicBVH2D Broadphase (Implemented)** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | [DynamicBVH Plan](DynamicBVHImplementationPlan.md) - Multi-car collision, scaling to 100+ bodies & obstacles ([DynamicBVH2D.h](../libs/VehicleSimCore/physics/DynamicBVH2D.h)) |
 | **Extended Joints (`Wheel`, `Prismatic`, `Weld`)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Suspension struts, breakable parts, hydraulic linkages |
 | **Modular Powertrain & Differentials** | Dynamics | High | [MathUtils](../libs/VehicleSimCore/math/MathUtils.h), [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | Realistic engine RPM, gearboxes, LSD / Torsen handling |
 | **Poisson-Disk Object Scattering** | Terrain | Medium | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) | Procedural track hazards, cones, obstacles |

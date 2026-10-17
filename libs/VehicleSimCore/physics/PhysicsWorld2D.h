@@ -3,10 +3,13 @@
 #include <cstddef>
 #include <vector>
 
+#include "BroadphasePair2D.h"
 #include "ContactSolver2D.h"
+#include "DynamicBVH2D.h"
 #include "Integrator2D.h"
 #include "Joint2D.h"
 #include "RigidBody2D.h"
+#include "libs/VehicleSimCore/math/Ray2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 
 namespace vehicle_sim::terrain {
@@ -136,11 +139,29 @@ public:
     /// @return Pointer to Heightfield1D or nullptr.
     [[nodiscard]] const terrain::Heightfield1D* getTerrain() const noexcept;
 
+    /// @brief Performs a fast broadphase-accelerated raycast against all registered colliders.
+    /// @param[in] ray 2D world space ray query.
+    /// @param[out] outHit RayHit2D containing hit distance, point, and normal.
+    /// @param[out] outCollider Reference receiving pointer to struck Collider2D or nullptr.
+    /// @return True if a collider was struck within the ray's maximum distance.
+    [[nodiscard]] bool raycast(
+        const math::Ray2D& ray, math::RayHit2D& outHit, Collider2D*& outCollider) const noexcept;
+
+    /// @brief Gets active broadphase dynamic bounding volume hierarchy tree.
+    /// @return Const reference to internal DynamicBVH2D instance.
+    [[nodiscard]] const DynamicBVH2D& getBroadphaseTree() const noexcept;
+
+    /// @brief Gets active broadphase dynamic bounding volume hierarchy tree.
+    /// @return Mutable reference to internal DynamicBVH2D instance.
+    [[nodiscard]] DynamicBVH2D& getBroadphaseTree() noexcept;
+
 private:
     math::Vec2 mGravity { 0.0, -9.81 };
     std::vector<RigidBody2D*> mBodies {};
     std::vector<Joint2D*> mJoints {};
     std::vector<Collider2D*> mColliders {};
+    DynamicBVH2D mBroadphaseTree {};
+    mutable std::vector<BroadphasePair2D> mPairBuffer {};
     std::size_t mVelocityIterations { 8 };
     std::size_t mPositionIterations { 3 };
     const FluidField2D* mFluidField { nullptr };

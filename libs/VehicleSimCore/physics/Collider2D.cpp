@@ -165,4 +165,75 @@ math::Polygon2D Collider2D::toWorldPolygon() const noexcept
     return math::Polygon2D {};
 }
 
+std::optional<math::RayHit2D> Collider2D::raycast(const math::Ray2D& ray) const noexcept
+{
+    const math::Transform2D tf { (mBody != nullptr) ? mBody->getTransform() : math::Transform2D::identity() };
+
+    return std::visit(
+        [&](const auto& s) -> std::optional<math::RayHit2D> {
+            using T = std::decay_t<decltype(s)>;
+            if constexpr (std::is_same_v<T, math::Circle2D>) {
+                const math::Circle2D worldCircle { tf.transformPoint(s.center), s.radius };
+                return worldCircle.raycast(ray);
+            } else if constexpr (std::is_same_v<T, math::OBB2D>) {
+                const math::OBB2D worldOBB { tf.transformPoint(s.center), s.halfExtents, tf.getAngle() + s.rotation };
+                return worldOBB.raycast(ray);
+            } else if constexpr (std::is_same_v<T, math::Capsule2D>) {
+                const math::Capsule2D worldCap { tf.transformPoint(s.p1), tf.transformPoint(s.p2), s.radius };
+                return worldCap.raycast(ray);
+            } else if constexpr (std::is_same_v<T, math::Polygon2D>) {
+                const std::size_t count { s.vertexCount() };
+                std::array<math::Vec2, math::Polygon2D::kMaxVertices> worldVerts {};
+                for (std::size_t i { 0 }; i < count; ++i) {
+                    worldVerts[i] = tf.transformPoint(s.getVertex(i));
+                }
+                const math::Polygon2D worldPoly { worldVerts.data(), count };
+                return worldPoly.raycast(ray);
+            } else if constexpr (std::is_same_v<T, CompoundShape2D>) {
+                std::optional<math::RayHit2D> closestHit { std::nullopt };
+                const std::size_t count { s.getChildCount() };
+                for (std::size_t i { 0 }; i < count; ++i) {
+                    const auto& child { s.getChild(i) };
+                    const math::Transform2D childTf { tf.combine(child.localTransform) };
+                    const auto childHit { std::visit(
+                        [&](const auto& cs) -> std::optional<math::RayHit2D> {
+                            using CT = std::decay_t<decltype(cs)>;
+                            if constexpr (std::is_same_v<CT, math::Circle2D>) {
+                                return math::Circle2D { childTf.transformPoint(cs.center), cs.radius }.raycast(ray);
+                            } else if constexpr (std::is_same_v<CT, math::OBB2D>) {
+                                return math::OBB2D { childTf.transformPoint(cs.center), cs.halfExtents, childTf.getAngle() + cs.rotation }.raycast(ray);
+                            } else if constexpr (std::is_same_v<CT, math::Capsule2D>) {
+                                return math::Capsule2D { childTf.transformPoint(cs.p1), childTf.transformPoint(cs.p2), cs.radius }.raycast(ray);
+                            } else if constexpr (std::is_same_v<CT, math::Polygon2D>) {
+                                const std::size_t pCount { cs.vertexCount() };
+                                std::array<math::Vec2, math::Polygon2D::kMaxVertices> pVerts {};
+                                for (std::size_t j { 0 }; j < pCount; ++j) {
+                                    pVerts[j] = childTf.transformPoint(cs.getVertex(j));
+                                }
+                                return math::Polygon2D { pVerts.data(), pCount }.raycast(ray);
+                            }
+                        },
+                        child.shape) };
+                    if (childHit.has_value()) {
+                        if (!closestHit.has_value() || childHit->distance < closestHit->distance) {
+                            closestHit = childHit;
+                        }
+                    }
+                }
+                return closestHit;
+            }
+        },
+        mShape);
+}
+
+void Collider2D::setBroadphaseProxyId(std::int32_t proxyId) noexcept
+{
+    mBroadphaseProxyId = proxyId;
+}
+
+std::int32_t Collider2D::getBroadphaseProxyId() const noexcept
+{
+    return mBroadphaseProxyId;
+}
+
 } // namespace vehicle_sim::physics

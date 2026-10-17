@@ -159,45 +159,54 @@ void PhysicsWorld2D::step(double dt) noexcept
 
     // 4. Narrowphase collision detection & contact impulse resolution
     if (!mColliders.empty()) {
-        const std::size_t numColliders { mColliders.size() };
-        ContactManifold2D manifold {};
+        // 4a. Synchronize broadphase proxies with predictive displacement
+        for (auto* col : mColliders) {
+            if (col == nullptr) {
+                continue;
+            }
+            const math::AABB2D tightAABB { col->computeWorldAABB() };
+            if (col->getBroadphaseProxyId() == kNullBVHNode) {
+                const std::int32_t proxyId { mBroadphaseTree.createProxy(tightAABB, col) };
+                col->setBroadphaseProxyId(proxyId);
+            } else {
+                math::Vec2 displacement { 0.0, 0.0 };
+                if (col->getBody() != nullptr && !col->getBody()->isStatic()) {
+                    displacement = col->getBody()->getLinearVelocity() * dt;
+                }
+                static_cast<void>(mBroadphaseTree.moveProxy(col->getBroadphaseProxyId(), tightAABB, displacement));
+            }
+        }
 
-        for (std::size_t i { 0 }; i < numColliders; ++i) {
-            Collider2D* colA { mColliders[i] };
-            if (colA == nullptr) {
+        // 4b. Discover candidate overlapping collider pairs via DynamicBVH2D
+        mPairBuffer.clear();
+        mBroadphaseTree.queryPairs(mPairBuffer);
+
+        ContactManifold2D manifold {};
+        for (const auto& pair : mPairBuffer) {
+            Collider2D* colA { pair.colliderA };
+            Collider2D* colB { pair.colliderB };
+            if (colA == nullptr || colB == nullptr) {
                 continue;
             }
 
-            const math::AABB2D aabbA { colA->computeWorldAABB() };
-
-            for (std::size_t j { i + 1 }; j < numColliders; ++j) {
-                Collider2D* colB { mColliders[j] };
-                if (colB == nullptr) {
-                    continue;
-                }
-
-                if (colA->getBody() != nullptr && colA->getBody() == colB->getBody()) {
-                    continue;
-                }
-
-                if (aabbA.intersects(colB->computeWorldAABB())) {
-                    if (Narrowphase2D::detectColliders(*colA, *colB, manifold)) {
-                        if (!colA->isSensor() && !colB->isSensor()) {
-                            if (manifold.bodyA != nullptr) {
-                                for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
-                                    static_cast<void>(ContactSolver2D::resolve(
-                                        *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
-                                }
-                            }
-                        }
+            if (Narrowphase2D::detectColliders(*colA, *colB, manifold)) {
+                if (!colA->isSensor() && !colB->isSensor() && manifold.bodyA != nullptr) {
+                    for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
+                        static_cast<void>(ContactSolver2D::resolve(
+                            *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
                     }
                 }
             }
+        }
 
-            if (mTerrain != nullptr && colA->getBody() != nullptr && !colA->isSensor()) {
-                if (Narrowphase2D::detectTerrain(*colA, *mTerrain, manifold)) {
-                    for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
-                        static_cast<void>(ContactSolver2D::resolve(*manifold.bodyA, nullptr, manifold.contacts[c]));
+        // 4c. Continuous terrain collisions
+        if (mTerrain != nullptr) {
+            for (auto* colA : mColliders) {
+                if (colA != nullptr && colA->getBody() != nullptr && !colA->isSensor()) {
+                    if (Narrowphase2D::detectTerrain(*colA, *mTerrain, manifold)) {
+                        for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
+                            static_cast<void>(ContactSolver2D::resolve(*manifold.bodyA, nullptr, manifold.contacts[c]));
+                        }
                     }
                 }
             }
@@ -258,17 +267,33 @@ void PhysicsWorld2D::addCollider(Collider2D& collider)
     const auto it = std::find(mColliders.begin(), mColliders.end(), &collider);
     if (it == mColliders.end()) {
         mColliders.push_back(&collider);
+        const math::AABB2D aabb { collider.computeWorldAABB() };
+        const std::int32_t proxyId { mBroadphaseTree.createProxy(aabb, &collider) };
+        collider.setBroadphaseProxyId(proxyId);
     }
 }
 
 void PhysicsWorld2D::removeCollider(Collider2D& collider) noexcept
 {
     const auto it = std::remove(mColliders.begin(), mColliders.end(), &collider);
-    mColliders.erase(it, mColliders.end());
+    if (it != mColliders.end()) {
+        const std::int32_t proxyId { collider.getBroadphaseProxyId() };
+        if (proxyId != kNullBVHNode) {
+            mBroadphaseTree.destroyProxy(proxyId);
+            collider.setBroadphaseProxyId(kNullBVHNode);
+        }
+        mColliders.erase(it, mColliders.end());
+    }
 }
 
 void PhysicsWorld2D::clearColliders() noexcept
 {
+    for (auto* col : mColliders) {
+        if (col != nullptr) {
+            col->setBroadphaseProxyId(kNullBVHNode);
+        }
+    }
+    mBroadphaseTree.clear();
     mColliders.clear();
 }
 
@@ -285,6 +310,54 @@ void PhysicsWorld2D::setTerrain(const terrain::Heightfield1D* terrain) noexcept
 const terrain::Heightfield1D* PhysicsWorld2D::getTerrain() const noexcept
 {
     return mTerrain;
+}
+
+bool PhysicsWorld2D::raycast(
+    const math::Ray2D& ray, math::RayHit2D& outHit, Collider2D*& outCollider) const noexcept
+{
+    outCollider = nullptr;
+    if (mColliders.empty()) {
+        return false;
+    }
+
+    bool hitFound { false };
+    double closestDistance { ray.maxDistance };
+    math::RayHit2D bestHit {};
+
+    mBroadphaseTree.raycast(ray, [&](const math::Ray2D& r, std::int32_t proxyId) -> double {
+        auto* col { static_cast<Collider2D*>(mBroadphaseTree.getUserData(proxyId)) };
+        if (col == nullptr) {
+            return 1.0;
+        }
+
+        const auto shapeHit { col->raycast(r) };
+        if (shapeHit.has_value() && shapeHit->distance < closestDistance) {
+            hitFound = true;
+            closestDistance = shapeHit->distance;
+            bestHit = *shapeHit;
+            outCollider = col;
+            return (ray.maxDistance > 0.0) ? (closestDistance / ray.maxDistance) : 0.0;
+        }
+
+        return (ray.maxDistance > 0.0) ? (closestDistance / ray.maxDistance) : 1.0;
+    });
+
+    if (hitFound) {
+        outHit = bestHit;
+        return true;
+    }
+
+    return false;
+}
+
+const DynamicBVH2D& PhysicsWorld2D::getBroadphaseTree() const noexcept
+{
+    return mBroadphaseTree;
+}
+
+DynamicBVH2D& PhysicsWorld2D::getBroadphaseTree() noexcept
+{
+    return mBroadphaseTree;
 }
 
 } // namespace vehicle_sim::physics

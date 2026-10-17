@@ -48,6 +48,10 @@ add_library(VehicleSimCore STATIC
     physics/CompoundShape2D.cpp
     physics/Collider2D.h
     physics/Collider2D.cpp
+    physics/BroadphasePair2D.h
+    physics/BroadphasePair2D.cpp
+    physics/DynamicBVH2D.h
+    physics/DynamicBVH2D.cpp
     physics/Narrowphase2D.h
     physics/Narrowphase2D.cpp
     physics/PhysicsWorld2D.h
