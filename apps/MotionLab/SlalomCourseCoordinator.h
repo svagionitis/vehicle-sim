@@ -49,16 +49,18 @@ struct SlalomMetrics {
 class SlalomCourseCoordinator {
 public:
     static constexpr std::size_t kPylonCount { 10U };
-    static constexpr double kPylonSpacing { 10.0 };
+    static constexpr double kDefaultSpacing { 10.0 };
     static constexpr double kStartX { 0.0 };
-    static constexpr double kFinishX { 110.0 };
-    static constexpr double kSector1X { 35.0 };
-    static constexpr double kSector2X { 75.0 };
     static constexpr double kPenaltyPerHit { 2.0 };
     static constexpr double kArmingSpeed { 0.5 };
 
     /// @brief Default constructor initializing 10-cone layout.
     SlalomCourseCoordinator() noexcept;
+
+    /// @brief Updates slalom course geometry and pylon positions based on vehicle dimensions.
+    /// @param[in] vehicleWidth Width of active vehicle chassis in meters.
+    /// @param[in] vehicleLength Length of active vehicle chassis in meters.
+    void updateDimensions(double vehicleWidth, double vehicleLength) noexcept;
 
     /// @brief Advances simulation, checks collisions, updates splits, and manages gates.
     /// @param[in,out] body Active vehicle chassis rigid body.
@@ -100,7 +102,44 @@ public:
     /// @return 1-based cone index.
     [[nodiscard]] std::uint32_t getNextConeIndex() const noexcept;
 
+    /// @brief Gets active longitudinal pylon separation in meters.
+    /// @return Pylon spacing in meters.
+    [[nodiscard]] double getPylonSpacing() const noexcept;
+
+    /// @brief Gets width of active vehicle chassis in meters.
+    /// @return Vehicle width in meters.
+    [[nodiscard]] double getVehicleWidth() const noexcept;
+
+    /// @brief Gets length of active vehicle chassis in meters.
+    /// @return Vehicle length in meters.
+    [[nodiscard]] double getVehicleLength() const noexcept;
+
+    /// @brief Gets longitudinal coordinate of finish timing gate in meters.
+    /// @return Finish X coordinate in meters.
+    [[nodiscard]] double getFinishX() const noexcept;
+
+    /// @brief Gets longitudinal coordinate of sector 1 split in meters.
+    /// @return Sector 1 X coordinate in meters.
+    [[nodiscard]] double getSector1X() const noexcept;
+
+    /// @brief Gets longitudinal coordinate of sector 2 split in meters.
+    /// @return Sector 2 X coordinate in meters.
+    [[nodiscard]] double getSector2X() const noexcept;
+
+    /// @brief Gets longitudinal coordinate of staging starting position in meters.
+    /// @return Staging start X coordinate in meters.
+    [[nodiscard]] double getStagingX() const noexcept;
+
+    /// @brief Gets transversal gate width in meters.
+    /// @return Gate width in meters.
+    [[nodiscard]] double getGateWidth() const noexcept;
+
+    /// @brief Gets lateral clipping apex offset in meters.
+    /// @return Apex Y offset in meters.
+    [[nodiscard]] double getApexOffset() const noexcept;
+
 private:
+    void recomputeLayout() noexcept;
     void updateIdle(const vehicle_sim::physics::RigidBody2D& body) noexcept;
     void updateRunning(vehicle_sim::physics::RigidBody2D& body, double dt) noexcept;
     void checkCollisions(const vehicle_sim::physics::RigidBody2D& body) noexcept;
@@ -110,6 +149,9 @@ private:
     std::array<SlalomPylon, kPylonCount> mPylons {{ }};
     SlalomMetrics mMetrics { };
     SlalomState mState { SlalomState::IdleAtStart };
+    double mVehicleWidth { 2.0 };
+    double mVehicleLength { 4.0 };
+    double mPylonSpacing { 10.0 };
     vehicle_sim::math::Vec2 mLastPos { -15.0, 0.0 };
     std::size_t mNextConeIdx { 0U };
     bool mEnabled { false };

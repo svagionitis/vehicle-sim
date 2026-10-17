@@ -188,7 +188,11 @@ void MotionLabApp::applyVehicleProperties() noexcept
     case MotionLabVehicleType::Forklift:       vehWidth = 1.30; vehLength = 2.8;  break;
     case MotionLabVehicleType::QuadcopterDrone:vehWidth = 1.20; vehLength = 1.2;  break;
     }
+
     mMooseCoordinator.updateDimensions(vehWidth, vehLength);
+    mSlalomCoordinator.updateDimensions(vehWidth, vehLength);
+    mSkidpadCoordinator.updateDimensions(vehWidth, vehLength);
+    mCircuitCoordinator.updateDimensions(vehWidth, vehLength);
 }
 
 void MotionLabApp::resetSimulation() noexcept

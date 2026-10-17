@@ -194,37 +194,42 @@ void SlalomCourseRenderer::drawGates(SDL_Renderer* renderer,
     const vehicle_sim::math::Vec2 startLblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { 0.0, 5.6 }) };
     TelemetryHud::drawText(renderer, "START", static_cast<int>(startLblPos.x) - 18, static_cast<int>(startLblPos.y), 1, startColor);
 
-    // Finish Gate (x = 110.0m) - Double Golden Yellow Checkered line
+    // Finish Gate - Double Golden Yellow Checkered line
+    const double finX { coordinator.getFinishX() };
+    const double s1X { coordinator.getSector1X() };
+    const double s2X { coordinator.getSector2X() };
+    const double halfGateW { coordinator.getGateWidth() * 0.5 };
+
     const SDL_Color finishColor { 255, 220, 40, 255 };
-    const vehicle_sim::math::Vec2 finTop { camera.worldToScreen(vehicle_sim::math::Vec2 { 110.0, 5.0 }) };
-    const vehicle_sim::math::Vec2 finBot { camera.worldToScreen(vehicle_sim::math::Vec2 { 110.0, -5.0 }) };
+    const vehicle_sim::math::Vec2 finTop { camera.worldToScreen(vehicle_sim::math::Vec2 { finX, halfGateW }) };
+    const vehicle_sim::math::Vec2 finBot { camera.worldToScreen(vehicle_sim::math::Vec2 { finX, -halfGateW }) };
     WireframeRenderer::drawLine(renderer, static_cast<int>(finTop.x), static_cast<int>(finTop.y),
                                 static_cast<int>(finBot.x), static_cast<int>(finBot.y), finishColor);
     WireframeRenderer::drawLine(renderer, static_cast<int>(finTop.x) + 1, static_cast<int>(finTop.y),
                                 static_cast<int>(finBot.x) + 1, static_cast<int>(finBot.y), finishColor);
 
     // Finish Gate banner label
-    const vehicle_sim::math::Vec2 finLblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { 110.0, 5.6 }) };
+    const vehicle_sim::math::Vec2 finLblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { finX, halfGateW + 0.6 }) };
     TelemetryHud::drawText(renderer, "FINISH", static_cast<int>(finLblPos.x) - 20, static_cast<int>(finLblPos.y), 1, finishColor);
 
-    // Sector 1 Split (x = 35.0m) and Sector 2 Split (x = 75.0m)
+    // Sector 1 Split and Sector 2 Split
     const SDL_Color splitColor { 80, 180, 255, 180 };
-    for (double y { -5.0 }; y < 5.0; y += 1.0) {
-        const vehicle_sim::math::Vec2 sec1P1 { camera.worldToScreen(vehicle_sim::math::Vec2 { 35.0, y }) };
-        const vehicle_sim::math::Vec2 sec1P2 { camera.worldToScreen(vehicle_sim::math::Vec2 { 35.0, y + 0.6 }) };
-        WireframeRenderer::drawLine(renderer, static_cast<int>(sec1P1.x), static_cast<int>(sec1P1.y),
-                                    static_cast<int>(sec1P2.x), static_cast<int>(sec1P2.y), splitColor);
+    for (double y { -halfGateW }; y < halfGateW; y += 1.0) {
+        const vehicle_sim::math::Vec2 sec1P1 { camera.worldToScreen(vehicle_sim::math::Vec2 { s1X, y }) };
+        const vehicle_sim::math::Vec2 sec1P2 { camera.worldToScreen(vehicle_sim::math::Vec2 { s1X, y + 0.6 }) };
+        WireframeRenderer::drawLine(renderer, static_cast<int>(sec1P1.x), static_cast<int>(sec1P2.x),
+                                    static_cast<int>(sec1P2.y), static_cast<int>(sec1P2.y), splitColor);
 
-        const vehicle_sim::math::Vec2 sec2P1 { camera.worldToScreen(vehicle_sim::math::Vec2 { 75.0, y }) };
-        const vehicle_sim::math::Vec2 sec2P2 { camera.worldToScreen(vehicle_sim::math::Vec2 { 75.0, y + 0.6 }) };
+        const vehicle_sim::math::Vec2 sec2P1 { camera.worldToScreen(vehicle_sim::math::Vec2 { s2X, y }) };
+        const vehicle_sim::math::Vec2 sec2P2 { camera.worldToScreen(vehicle_sim::math::Vec2 { s2X, y + 0.6 }) };
         WireframeRenderer::drawLine(renderer, static_cast<int>(sec2P1.x), static_cast<int>(sec2P1.y),
                                     static_cast<int>(sec2P2.x), static_cast<int>(sec2P2.y), splitColor);
     }
 
-    const vehicle_sim::math::Vec2 s1LblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { 35.0, 5.4 }) };
+    const vehicle_sim::math::Vec2 s1LblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { s1X, halfGateW + 0.4 }) };
     TelemetryHud::drawText(renderer, "S1", static_cast<int>(s1LblPos.x) - 8, static_cast<int>(s1LblPos.y), 1, splitColor);
 
-    const vehicle_sim::math::Vec2 s2LblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { 75.0, 5.4 }) };
+    const vehicle_sim::math::Vec2 s2LblPos { camera.worldToScreen(vehicle_sim::math::Vec2 { s2X, halfGateW + 0.4 }) };
     TelemetryHud::drawText(renderer, "S2", static_cast<int>(s2LblPos.x) - 8, static_cast<int>(s2LblPos.y), 1, splitColor);
 }
 
@@ -279,41 +284,42 @@ void SlalomCourseRenderer::drawWeaveGuides(SDL_Renderer* renderer,
 void SlalomCourseRenderer::drawTrajectoryRoute(SDL_Renderer* renderer,
                                               const MotionLabCamera& camera,
                                               const SlalomCourseCoordinator& coordinator) noexcept {
-    (void)coordinator;
-
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    constexpr double kApexClearance { 1.55 }; // Shortest route apex clearance: 0.4m cone + 1.0m half-width + 0.15m margin
-    constexpr double kStartX { -15.0 };       // Staging spawn coordinate
-    constexpr double kEndX { 120.0 };         // Finish roll-out coordinate
+    const double spacing { coordinator.getPylonSpacing() };
+    const double apexClearance { coordinator.getApexOffset() };
+    const double startX { coordinator.getStagingX() };
+    const double finishX { coordinator.getFinishX() };
+    const double lastPylonX { 10.0 * spacing };
+    const double endX { finishX + spacing };
     constexpr double kDashLength { 1.2 };
     constexpr double kGapLength { 0.6 };
-    constexpr double kCycleLength { kDashLength + kGapLength };
+    const double cycleLength { kDashLength + kGapLength };
     constexpr double kSubStep { 0.2 };
 
-    auto computeWeaveY = [](double x) noexcept -> double {
+    auto computeWeaveY = [spacing, apexClearance, lastPylonX, finishX](double x) noexcept -> double {
         if (x <= 0.0) {
             // Staging approach line straight into Start gate along centerline
             return 0.0;
         }
-        if (x < 10.0) {
-            // Shortest direct chord from (0, 0) to Apex 1 clipping point (10, +1.55m)
-            const double t { x / 10.0 };
-            return kApexClearance * (3.0 * t * t - 2.0 * t * t * t);
+        if (x < spacing) {
+            // Shortest direct chord from (0, 0) to Apex 1 clipping point (spacing, +apexClearance)
+            const double t { x / spacing };
+            return apexClearance * (3.0 * t * t - 2.0 * t * t * t);
         }
-        if (x <= 100.0) {
+        if (x <= lastPylonX) {
             // Shortest straight-chord transitions between consecutive pylon clipping apexes
-            const std::size_t k { static_cast<std::size_t>((x - 10.0) / 10.0) };
-            const double x0 { 10.0 + static_cast<double>(k) * 10.0 };
-            const double t { (x - x0) / 10.0 };
-            const double y0 { (k % 2U == 0U) ? kApexClearance : -kApexClearance };
+            const std::size_t k { static_cast<std::size_t>((x - spacing) / spacing) };
+            const double x0 { spacing + static_cast<double>(k) * spacing };
+            const double t { (x - x0) / spacing };
+            const double y0 { (k % 2U == 0U) ? apexClearance : -apexClearance };
             const double y1 { -y0 };
             return y0 * (2.0 * t * t * t - 3.0 * t * t + 1.0) + y1 * (-2.0 * t * t * t + 3.0 * t * t);
         }
-        if (x < 110.0) {
-            // Shortest direct exit chord from Apex 10 (100, -1.55m) to Finish gate (110, 0)
-            const double t { (x - 100.0) / 10.0 };
-            return -kApexClearance * (1.0 - 3.0 * t * t + 2.0 * t * t * t);
+        if (x < finishX) {
+            // Shortest direct exit chord from Apex 10 (lastPylonX, -apexClearance) to Finish gate (finishX, 0)
+            const double t { (x - lastPylonX) / (finishX - lastPylonX) };
+            return -apexClearance * (1.0 - 3.0 * t * t + 2.0 * t * t * t);
         }
         // Roll-out zone past finish line
         return 0.0;
@@ -332,8 +338,8 @@ void SlalomCourseRenderer::drawTrajectoryRoute(SDL_Renderer* renderer,
     const SDL_Color beadCoreColor { 255, 255, 200, 255 };
 
     // 1. Draw bold 3-pixel-wide dashed sinusoidal trajectory line and waypoint beads
-    for (double dashStart { kStartX }; dashStart < kEndX; dashStart += kCycleLength) {
-        const double dashEnd { std::min(dashStart + kDashLength, kEndX) };
+    for (double dashStart { startX }; dashStart < endX; dashStart += cycleLength) {
+        const double dashEnd { std::min(dashStart + kDashLength, endX) };
 
         double currX { dashStart };
         while (currX < dashEnd) {
@@ -367,7 +373,7 @@ void SlalomCourseRenderer::drawTrajectoryRoute(SDL_Renderer* renderer,
 
     // 2. Bold directional flow chevrons along the trajectory between pylons
     const SDL_Color chevronColor { 255, 250, 80, 255 };
-    for (double chevronX { -7.5 }; chevronX <= 115.0; chevronX += 10.0) {
+    for (double chevronX { startX + 0.5 * spacing }; chevronX <= finishX + 0.5 * spacing; chevronX += spacing) {
         const double yPos { computeWeaveY(chevronX) };
         const double yPosAhead { computeWeaveY(chevronX + 0.6) };
 
@@ -430,7 +436,7 @@ void SlalomCourseRenderer::renderHud(SDL_Renderer* renderer,
     } else if (coordinator.getState() == SlalomState::Finished) {
         stateStr = "FINISHED";
     }
-    std::snprintf(buf, sizeof(buf), "100M SLALOM [%s]", stateStr);
+    std::snprintf(buf, sizeof(buf), "%.0fM SLALOM [%s]", coordinator.getPylonSpacing() * 10.0, stateStr);
     TelemetryHud::drawText(renderer, buf, screenX + 10, screenY + 10, 1, borderColor);
 
     // Elapsed & Adjusted Time

@@ -140,6 +140,27 @@ public:
     /// @return Number of active cones.
     [[nodiscard]] std::size_t getActivePylonCount() const noexcept;
 
+    /// @brief Updates vehicle dimensions and dynamically scales skidpad corridor and staging.
+    /// @param[in] vehicleWidth Width of active vehicle in meters.
+    /// @param[in] vehicleLength Overall length of active vehicle in meters.
+    void updateDimensions(double vehicleWidth, double vehicleLength) noexcept;
+
+    /// @brief Gets dynamic corridor lane width in meters.
+    /// @return Active lane width in meters.
+    [[nodiscard]] double getCorridorWidth() const noexcept;
+
+    /// @brief Gets dynamic staging chute length in meters.
+    /// @return Active staging length in meters.
+    [[nodiscard]] double getStagingLength() const noexcept;
+
+    /// @brief Gets active vehicle width in meters.
+    /// @return Vehicle width in meters.
+    [[nodiscard]] double getVehicleWidth() const noexcept;
+
+    /// @brief Gets active vehicle length in meters.
+    /// @return Vehicle length in meters.
+    [[nodiscard]] double getVehicleLength() const noexcept;
+
 private:
     void rebuildCourseGeometry() noexcept;
     void evaluateOrbitGate(double prevTheta, double currTheta, double dt) noexcept;
@@ -151,6 +172,11 @@ private:
     SkidpadMetrics mMetrics { };
     std::array<SkidpadPylon, kMaxPylons> mPylons { };
     std::size_t mActivePylonCount { 68U };
+
+    double mVehicleWidth { 2.0 };
+    double mVehicleLength { 4.0 };
+    double mCorridorWidth { 3.5 };
+    double mStagingLength { 40.0 };
 
     vehicle_sim::math::Vec2 mLastPos { 0.0, 0.0 };
     double mLastTheta { 0.0 };

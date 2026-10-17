@@ -1118,3 +1118,95 @@ TEST(MotionLabAppTest, FleetExpansionDistinctModelProperties)
         EXPECT_GT(app.getMooseTest().getVehicleWidth(), 0.5);
     }
 }
+
+TEST(MotionLabAppTest, SlalomDimensionsDynamicScaling)
+{
+    SlalomCourseCoordinator coordinator { };
+    EXPECT_DOUBLE_EQ(coordinator.getPylonSpacing(), 10.0);
+    EXPECT_NEAR(coordinator.getApexOffset(), 1.55, 1e-4);
+    EXPECT_DOUBLE_EQ(coordinator.getStagingX(), -15.0);
+    EXPECT_DOUBLE_EQ(coordinator.getFinishX(), 110.0);
+
+    // Scale for Semi-Truck (W = 2.5, L = 12.0)
+    coordinator.updateDimensions(2.5, 12.0);
+    // Spacing: max(10.0, 2.5 * 12.0) = 30.0m
+    EXPECT_DOUBLE_EQ(coordinator.getPylonSpacing(), 30.0);
+    // Apex offset: 0.40 + 2.5/2 + 0.15 = 1.80m
+    EXPECT_NEAR(coordinator.getApexOffset(), 1.80, 1e-4);
+    // Staging: -1.5 * 30.0 = -45.0m
+    EXPECT_DOUBLE_EQ(coordinator.getStagingX(), -45.0);
+    // Finish: 11.0 * 30.0 = 330.0m
+    EXPECT_DOUBLE_EQ(coordinator.getFinishX(), 330.0);
+
+    const auto& pylons = coordinator.getPylons();
+    EXPECT_EQ(pylons.size(), 10U);
+    for (std::size_t i { 0U }; i < pylons.size(); ++i) {
+        EXPECT_NEAR(pylons[i].position.x, static_cast<double>(i + 1U) * 30.0, 1e-6);
+        EXPECT_NEAR(pylons[i].position.y, 0.0, 1e-6);
+    }
+
+    // Scale for Forklift (W = 1.3, L = 2.8)
+    coordinator.updateDimensions(1.3, 2.8);
+    // Spacing: max(10.0, 2.5 * 2.8 = 7.0) = 10.0m
+    EXPECT_DOUBLE_EQ(coordinator.getPylonSpacing(), 10.0);
+    // Apex offset: 0.40 + 1.3/2 + 0.15 = 1.20m
+    EXPECT_NEAR(coordinator.getApexOffset(), 1.20, 1e-4);
+}
+
+TEST(MotionLabAppTest, SkidpadDimensionsDynamicScaling)
+{
+    SkidpadCoordinator coordinator { };
+    // Default Car (W = 2.0, L = 4.0) at 30m preset
+    EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 30.0);
+    EXPECT_DOUBLE_EQ(coordinator.getCorridorWidth(), 3.5);
+    EXPECT_DOUBLE_EQ(coordinator.getStagingLength(), 40.0);
+
+    // Scale for Semi-Truck (W = 2.5, L = 12.0) at 15m preset
+    coordinator.setRadiusPreset(SkidpadRadiusPreset::Radius15m);
+    coordinator.updateDimensions(2.5, 12.0);
+    EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 15.0);
+    // Swept path at R=15: (0.75 * 12)^2 / 30 = 81 / 30 = 2.70m
+    // Corridor: max(3.50, 2.5 + 2.70 + 1.20) = 6.40m
+    EXPECT_NEAR(coordinator.getCorridorWidth(), 6.40, 1e-4);
+    // Staging: max(40.0, 5.0 * 12.0) = 60.0m
+    EXPECT_DOUBLE_EQ(coordinator.getStagingLength(), 60.0);
+
+    // Verify pylon positions conform to 6.4m corridor (inner: 15 - 3.2 = 11.8, outer: 15 + 3.2 = 18.2)
+    const auto& pylons = coordinator.getPylons();
+    for (std::size_t i { 0U }; i < 16U; ++i) {
+        EXPECT_NEAR(pylons[i].position.length(), 11.80, 1e-4);
+    }
+    for (std::size_t i { 16U }; i < 36U; ++i) {
+        EXPECT_NEAR(pylons[i].position.length(), 18.20, 1e-4);
+    }
+}
+
+TEST(MotionLabAppTest, CircuitTrackDimensionsDynamicScaling)
+{
+    CircuitTrackCoordinator coordinator { };
+    EXPECT_DOUBLE_EQ(coordinator.getTrackWidth(), 10.0);
+
+    // Scale for Semi-Truck (W = 2.5, L = 12.0)
+    coordinator.updateDimensions(2.5, 12.0);
+    // Width: max(10.0, 3.5 * 2.5 + 1.0 = 9.75, 12.0) = 12.0m
+    EXPECT_DOUBLE_EQ(coordinator.getTrackWidth(), 12.0);
+}
+
+TEST(MotionLabAppTest, VehicleCyclingPropagatesDimensionsToAllCoordinators)
+{
+    MotionLabAppConfig config { };
+    config.headless = true;
+    MotionLabApp app { config };
+    EXPECT_TRUE(app.initialize());
+
+    // Default vehicle is ClassicCar (W=2.0, L=4.0)
+    EXPECT_DOUBLE_EQ(app.getSlalom().getPylonSpacing(), 10.0);
+    EXPECT_DOUBLE_EQ(app.getSkidpad().getCorridorWidth(), 3.5);
+    EXPECT_DOUBLE_EQ(app.getCircuit().getTrackWidth(), 10.0);
+
+    // Switch to Semi-Truck (W=2.5, L=12.0)
+    app.setVehicleType(MotionLabVehicleType::SemiTruck);
+    EXPECT_DOUBLE_EQ(app.getSlalom().getPylonSpacing(), 30.0);
+    EXPECT_NEAR(app.getSkidpad().getCorridorWidth(), 5.05, 1e-4);
+    EXPECT_DOUBLE_EQ(app.getCircuit().getTrackWidth(), 12.0);
+}

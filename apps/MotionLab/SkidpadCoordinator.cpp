@@ -18,6 +18,9 @@ SkidpadCoordinator::SkidpadCoordinator() noexcept {
 
 void SkidpadCoordinator::setRadiusPreset(SkidpadRadiusPreset preset) noexcept {
     mPreset = preset;
+    const double targetR { getTargetRadius() };
+    const double swept { std::pow(0.75 * mVehicleLength, 2.0) / (2.0 * targetR) };
+    mCorridorWidth = std::max(3.50, mVehicleWidth + swept + 1.20);
     rebuildCourseGeometry();
 }
 
@@ -48,19 +51,19 @@ void SkidpadCoordinator::stepPhysics(vehicle_sim::physics::RigidBody2D& body,
 
     // Update operational state
     if (mState == SkidpadState::Staging) {
-        if (speed > 0.5 && currPos.x > (-kStagingLength * 0.5)) {
+        if (speed > 0.5 && currPos.x > (-mStagingLength * 0.5)) {
             mState = SkidpadState::Entering;
         }
     } else if (mState == SkidpadState::Entering) {
-        if (std::abs(radiusErr) <= (kCorridorWidth * 0.5 + 0.5)) {
+        if (std::abs(radiusErr) <= (mCorridorWidth * 0.5 + 0.5)) {
             mState = SkidpadState::TrackingOrbit;
         }
     } else if (mState == SkidpadState::TrackingOrbit) {
-        if (std::abs(radiusErr) > (kCorridorWidth * 0.5 + 1.5)) {
+        if (std::abs(radiusErr) > (mCorridorWidth * 0.5 + 1.5)) {
             mState = SkidpadState::OffCourse;
         }
     } else if (mState == SkidpadState::OffCourse) {
-        if (std::abs(radiusErr) <= (kCorridorWidth * 0.5)) {
+        if (std::abs(radiusErr) <= (mCorridorWidth * 0.5)) {
             mState = SkidpadState::TrackingOrbit;
         }
     }
@@ -196,8 +199,8 @@ void SkidpadCoordinator::checkPylonCollisions(vehicle_sim::physics::RigidBody2D&
     const double cosA { std::cos(angle) };
     const double sinA { std::sin(angle) };
 
-    constexpr double hx { 2.0 };
-    constexpr double hy { 1.0 };
+    const double hx { mVehicleLength * 0.5 };
+    const double hy { mVehicleWidth * 0.5 };
     const vehicle_sim::math::Vec2 vel { body.getLinearVelocity() };
 
     for (std::size_t i { 0U }; i < mActivePylonCount; ++i) {
@@ -228,7 +231,7 @@ void SkidpadCoordinator::checkPylonCollisions(vehicle_sim::physics::RigidBody2D&
 
 void SkidpadCoordinator::resetToStaging(vehicle_sim::physics::RigidBody2D& body) noexcept {
     const double targetR { getTargetRadius() };
-    const vehicle_sim::math::Vec2 stagingPos { -kStagingLength, -targetR };
+    const vehicle_sim::math::Vec2 stagingPos { -mStagingLength, -targetR };
 
     body.setPosition(stagingPos);
     body.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
@@ -237,7 +240,7 @@ void SkidpadCoordinator::resetToStaging(vehicle_sim::physics::RigidBody2D& body)
 
     mState = SkidpadState::Staging;
     mLastPos = stagingPos;
-    mLastTheta = std::atan2(-targetR, -kStagingLength);
+    mLastTheta = std::atan2(-targetR, -mStagingLength);
     mAccumulatedAngle = 0.0;
     mSteadyStateTimer = 0.0;
     mLastSpeed = 0.0;
@@ -293,7 +296,7 @@ std::size_t SkidpadCoordinator::getActivePylonCount() const noexcept {
 
 void SkidpadCoordinator::rebuildCourseGeometry() noexcept {
     const double targetR { getTargetRadius() };
-    const double halfW { kCorridorWidth * 0.5 };
+    const double halfW { mCorridorWidth * 0.5 };
     const double rInner { targetR - halfW };
     const double rOuter { targetR + halfW };
 
@@ -342,6 +345,34 @@ void SkidpadCoordinator::rebuildCourseGeometry() noexcept {
         };
         coneIdx++;
     }
+}
+
+void SkidpadCoordinator::updateDimensions(double vehicleWidth, double vehicleLength) noexcept {
+    mVehicleWidth = std::max(0.5, vehicleWidth);
+    mVehicleLength = std::max(1.0, vehicleLength);
+
+    const double targetR { getTargetRadius() };
+    const double swept { std::pow(0.75 * mVehicleLength, 2.0) / (2.0 * targetR) };
+    mCorridorWidth = std::max(3.50, mVehicleWidth + swept + 1.20);
+    mStagingLength = std::max(40.0, 5.0 * mVehicleLength);
+
+    rebuildCourseGeometry();
+}
+
+double SkidpadCoordinator::getCorridorWidth() const noexcept {
+    return mCorridorWidth;
+}
+
+double SkidpadCoordinator::getStagingLength() const noexcept {
+    return mStagingLength;
+}
+
+double SkidpadCoordinator::getVehicleWidth() const noexcept {
+    return mVehicleWidth;
+}
+
+double SkidpadCoordinator::getVehicleLength() const noexcept {
+    return mVehicleLength;
 }
 
 } // namespace motion_lab

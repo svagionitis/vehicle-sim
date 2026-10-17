@@ -27,12 +27,16 @@ CircuitTrackCoordinator::CircuitTrackCoordinator() noexcept
 void CircuitTrackCoordinator::regenerate(std::uint32_t seed) noexcept
 {
     mSeed = seed;
+    const double trackW { std::max({ 10.0, 3.5 * mVehicleWidth + 1.0, (mVehicleLength >= 10.0) ? 12.0 : 10.0 }) };
+    const double shoulderW { std::max(4.0, 1.5 * mVehicleWidth) };
+    const double scaleFactor { std::max(1.0, mVehicleLength / 6.0) };
+
     vehicle_sim::terrain::CircuitTrackConfig config { };
-    config.radiusX = 100.0;
-    config.radiusY = 70.0;
+    config.radiusX = 100.0 * scaleFactor;
+    config.radiusY = 70.0 * scaleFactor;
     config.waypointCount = 24U;
-    config.trackWidth = 10.0;
-    config.shoulderWidth = 4.0;
+    config.trackWidth = trackW;
+    config.shoulderWidth = shoulderW;
     config.perturbation = 0.25;
     config.enableBanking = true;
     config.designSpeed = 25.0;
@@ -245,6 +249,28 @@ bool CircuitTrackCoordinator::checkSegmentCross(const vehicle_sim::math::Vec2& a
     const bool straddlesB { (cp3 * cp4) <= 0.0 };
 
     return straddlesA && straddlesB;
+}
+
+void CircuitTrackCoordinator::updateDimensions(double vehicleWidth, double vehicleLength) noexcept
+{
+    mVehicleWidth = std::max(0.5, vehicleWidth);
+    mVehicleLength = std::max(1.0, vehicleLength);
+    regenerate(mSeed);
+}
+
+double CircuitTrackCoordinator::getTrackWidth() const noexcept
+{
+    return mTrack.trackWidth;
+}
+
+double CircuitTrackCoordinator::getVehicleWidth() const noexcept
+{
+    return mVehicleWidth;
+}
+
+double CircuitTrackCoordinator::getVehicleLength() const noexcept
+{
+    return mVehicleLength;
 }
 
 } // namespace motion_lab

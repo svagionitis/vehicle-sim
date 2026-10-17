@@ -94,41 +94,45 @@ graph TD
 
 ### 3.1 Course Layout & Coordinate Parameterization
 
-The 100-meter slalom course is oriented along the longitudinal Cartesian $x$-axis with the centerline placed at $y = 0.0\,\text{m}$.
+The slalom course is oriented along the longitudinal Cartesian $x$-axis with the centerline placed at $y = 0.0\,\text{m}$. To accommodate vehicles ranging from compact models ($L_{\text{veh}} = 1.2\,\text{m}$ to $4.0\,\text{m}$) to extended commercial vehicles (e.g. $12.0\,\text{m}$ Semi-Truck), cone spacing scales dynamically:
 
-* **Staging Position**: $\mathbf{x}_{\text{start}} = (-15.0\,\text{m}, \; 0.0\,\text{m})$, heading $\theta = 0.0\,\text{rad}$ ($+x$ direction).
-* **Start Timing Gate**: Transversal gate segment at $x = 0.0\,\text{m}$ extending from $y = -5.0\,\text{m}$ to $y = +5.0\,\text{m}$.
-* **Pylon Array**: Exactly 10 cones positioned at fixed $10.0\,\text{m}$ longitudinal intervals:
-  $$\mathbf{p}_k = (x_k, y_k) = (10.0 \cdot k, \; 0.0)\,\text{m}, \quad k \in \{1, 2, \dots, 10\}$$
+$$\Delta x(L_{\text{veh}}) = \max\left(10.0\,\text{m}, \; 2.5 \cdot L_{\text{veh}}\right)$$
+
+* **Staging Position**: $\mathbf{x}_{\text{start}} = (-1.5 \cdot \Delta x(L_{\text{veh}}), \; 0.0\,\text{m})$, heading $\theta = 0.0\,\text{rad}$ ($+x$ direction).
+* **Start Timing Gate**: Transversal gate segment at $x = 0.0\,\text{m}$ of width $W_{\text{gate}}(W_{\text{veh}}) = \max(10.0\,\text{m}, \; 4.0 \cdot W_{\text{veh}})$.
+* **Pylon Array**: Exactly 10 cones positioned along centerline $y = 0.0\,\text{m}$:
+  $$\mathbf{p}_k = (x_k, y_k) = (k \cdot \Delta x(L_{\text{veh}}), \; 0.0)\,\text{m}, \quad k \in \{1, 2, \dots, 10\}$$
 * **Sector Split Gates**:
-  * **Sector 1 Split**: Located at $x = 35.0\,\text{m}$ (midway between Cone 3 and Cone 4).
-  * **Sector 2 Split**: Located at $x = 75.0\,\text{m}$ (midway between Cone 7 and Cone 8).
-* **Finish Timing Gate**: Transversal gate segment at $x = 110.0\,\text{m}$ extending from $y = -5.0\,\text{m}$ to $y = +5.0\,\text{m}$ (placed $10.0\,\text{m}$ after the final pylon).
+  * **Sector 1 Split**: Located at $x = 3.5 \cdot \Delta x(L_{\text{veh}})$ (midway between Cone 3 and Cone 4).
+  * **Sector 2 Split**: Located at $x = 7.5 \cdot \Delta x(L_{\text{veh}})$ (midway between Cone 7 and Cone 8).
+* **Finish Timing Gate**: Transversal gate segment at $x = 11.0 \cdot \Delta x(L_{\text{veh}})$ extending across $W_{\text{gate}}$.
 
-### 3.2 100-Meter Slalom Course Layout ASCII Diagram
+### 3.2 Vehicle-Adaptive Slalom Course Layout ASCII Diagram
 
 ```
 +-------------------------------------------------------------------------------------------------------------------+
-|                                            100-Meter Slalom Course Layout                                         |
+|                                        Vehicle-Adaptive Slalom Course Layout                                      |
 +-------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                   |
-| y=+5m  + + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - + +  |
-|        |                                                                                                     |    |
-|        |           ^                   ^                   ^                   ^                   ^         |    |
-|        |         /   \               /   \               /   \               /   \               /   \       |    |
-|        |        /     \             /     \             /     \             /     \             /     \      |    |
-| y=0m   |==>    *   (1) *           *   (3) *           *   (5) *           *   (7) *           *   (9) *     |==> |
-|      [START]  /         \         /         \         /         \         /         \         /         \ [FINISH]|
-|      x=0.0m  /           \       /           \       /           \       /           \       /           \x=110m|
-|        |    /             \     /             \     /             \     /             \     /             \    |    |
-|        |   v               \   v               \   v               \   v               \   v               \ |    |
-|        |                    (2)                 (4)                 (6)                 (8)                (10)   |
-|        |                   x=20m               x=40m               x=60m               x=80m              x=100m  |
-| y=-5m  + + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - + +  |
+| y=+W_gate/2 + + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - + + |
+|             |                                                                                                 |   |
+|             |           ^                   ^                   ^                   ^                   ^     |   |
+|             |         /   \               /   \               /   \               /   \               /   \   |   |
+|             |        /     \             /     \             /     \             /     \             /     \  |   |
+| y=0m        |==>    *   (1) *           *   (3) *           *   (5) *           *   (7) *           *   (9) * |==>|
+|           [START]  /         \         /         \         /         \         /         \         /         \[FINISH]
+|           x=0.0m  /           \       /           \       /           \       /           \       /           \x=11*dx
+|             |    /             \     /             \     /             \     /             \     /             \|   |
+|             |   v               \   v               \   v               \   v               \   v               \ |   |
+|             |                    (2)                 (4)                 (6)                 (8)                (10)  |
+|             |                   x=2*dx              x=4*dx              x=6*dx              x=8*dx             x=10*dx|
+| y=-W_gate/2 + + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - + + |
 |                                                                                                                   |
-| Vehicle Entry: x = -15.0m, y = 0.0m                                                                               |
-| Sector 1 Split: x = 35.0m (After Cone 3)                                                                          |
-| Sector 2 Split: x = 75.0m (After Cone 7)                                                                          |
+| Longitudinal Spacing: dx(L_veh) = max(10.0m, 2.5 * L_veh) (10m for Classic Car, 30m for Semi-Truck)               |
+| Vehicle Entry: x = -1.5 * dx, y = 0.0m                                                                            |
+| Sector 1 Split: x = 3.5 * dx (After Cone 3)                                                                       |
+| Sector 2 Split: x = 7.5 * dx (After Cone 7)                                                                       |
+| Lateral Apex: y_apex = +-(0.4m + W_veh/2 + 0.15m)                                                                 |
 | Penalty: +2.0 seconds per pylon contact                                                                           |
 +-------------------------------------------------------------------------------------------------------------------+
 ```

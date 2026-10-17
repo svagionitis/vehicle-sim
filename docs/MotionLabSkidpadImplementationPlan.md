@@ -121,27 +121,38 @@ graph TD
 
 ## 3. Mathematical & Physical Formulation
 
-### 3.1 Concentric Circle Parameterization & Corridor Dimensions
+### 3.1 Concentric Circle Parameterization & Vehicle-Adaptive Corridor Dimensions
 
-The skidpad consists of two concentric circular tracks centered at origin $\mathbf{O} = (0.0\,\text{m}, \; 0.0\,\text{m})$ in the Cartesian ground plane:
-* **Track 1 (Autocross / Formula SAE)**: Centerline radius $R_1 = 15.0\,\text{m}$.
-* **Track 2 (Standard Automotive Skidpad)**: Centerline radius $R_2 = 30.0\,\text{m}$.
+The skidpad consists of concentric circular tracks centered at origin $\mathbf{O} = (0.0\,\text{m}, \; 0.0\,\text{m})$ in the Cartesian ground plane:
+* **Track 0 (Micro / Compact - Drone, Forklift)**: Centerline radius $R_0 = 8.0\,\text{m}$.
+* **Track 1 (Autocross / Formula SAE - Standard Cars)**: Centerline radius $R_1 = 15.0\,\text{m}$.
+* **Track 2 (Standard Automotive Skidpad - Passenger Cars, Tank)**: Centerline radius $R_2 = 30.0\,\text{m}$.
+* **Track 3 & 4 (Heavy Commercial - Semi-Truck, Monster Truck)**: Centerline radii $R_3 = 45.0\,\text{m}, \; R_4 = 60.0\,\text{m}$.
 
-For an active target radius $R \in \{R_1, R_2\}$ and lane corridor width $W_{\text{lane}} = 3.5\,\text{m}$, the concentric boundary radii are defined by:
-$$R_{\text{inner}} = R - \frac{W_{\text{lane}}}{2}, \quad R_{\text{outer}} = R + \frac{W_{\text{lane}}}{2}$$
+#### Vehicle Swept Envelope & Adaptive Lane Corridor Width
+When negotiating a circular turn of radius $R$, a vehicle of effective wheelbase $L_{\text{wb}} \approx 0.75 \cdot L_{\text{veh}}$ and width $W_{\text{veh}}$ exhibits kinematic off-tracking:
+$$\Delta W_{\text{swept}} = \sqrt{R^2 + L_{\text{wb}}^2} - R \approx \frac{(0.75 \cdot L_{\text{veh}})^2}{2R}$$
 
-| Skidpad Preset | Target Radius ($R$) | Inner Boundary ($R_{\text{inner}}$) | Outer Boundary ($R_{\text{outer}}$) | Circumference ($C = 2\pi R$) | Pylon Count (Inner / Outer) |
+To prevent wide vehicles (e.g. $3.0\,\text{m}$ Monster Truck) or long articulated vehicles (e.g. $12.0\,\text{m}$ Semi-Truck with $\Delta W_{\text{swept}} \approx 2.7\,\text{m}$) from striking boundary cones during steady-state circular orbits, the lane corridor width $W_{\text{lane}}$ adapts dynamically:
+$$W_{\text{lane}}(W_{\text{veh}}, L_{\text{veh}}, R) = \max\left(3.50\,\text{m}, \; W_{\text{veh}} + \frac{(0.75 \cdot L_{\text{veh}})^2}{2R} + 1.20\,\text{m}\right)$$
+
+Concentric boundary radii are derived dynamically:
+$$R_{\text{inner}} = R - \frac{W_{\text{lane}}(W_{\text{veh}}, L_{\text{veh}}, R)}{2}, \quad R_{\text{outer}} = R + \frac{W_{\text{lane}}(W_{\text{veh}}, L_{\text{veh}}, R)}{2}$$
+
+| Skidpad Preset | Target Radius ($R$) | Baseline Width ($W_{\text{lane}}$) | Semi-Truck Width ($W_{\text{lane}}$) | Circumference ($C = 2\pi R$) | Pylon Count (Inner / Outer) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Track 1 (Autocross)** | $15.00\,\text{m}$ | $13.25\,\text{m}$ | $16.75\,\text{m}$ | $94.25\,\text{m}$ | 16 inner / 20 outer (36 total) |
-| **Track 2 (Standard)** | $30.00\,\text{m}$ | $28.25\,\text{m}$ | $31.75\,\text{m}$ | $188.50\,\text{m}$ | 32 inner / 36 outer (68 total) |
+| **Track 0 (Micro)** | $8.00\,\text{m}$ | $3.50\,\text{m}$ | N/A (Turning lock) | $50.27\,\text{m}$ | 12 inner / 16 outer (28 total) |
+| **Track 1 (Autocross)** | $15.00\,\text{m}$ | $3.50\,\text{m}$ | $6.40\,\text{m}$ | $94.25\,\text{m}$ | 16 inner / 20 outer (36 total) |
+| **Track 2 (Standard)** | $30.00\,\text{m}$ | $3.50\,\text{m}$ | $5.05\,\text{m}$ | $188.50\,\text{m}$ | 32 inner / 36 outer (68 total) |
+| **Track 3 (Heavy 45m)** | $45.00\,\text{m}$ | $3.50\,\text{m}$ | $4.60\,\text{m}$ | $282.74\,\text{m}$ | 48 inner / 52 outer (100 total)|
 
 Each boundary circle is demarcated by uniformly spaced wireframe pylon cones:
 $$\mathbf{p}_{\text{inner}, k} = \left( R_{\text{inner}} \cos\left(\frac{2\pi k}{N_{\text{inner}}}\right), \; R_{\text{inner}} \sin\left(\frac{2\pi k}{N_{\text{inner}}}\right) \right), \quad k \in \{0, \dots, N_{\text{inner}}-1\}$$
 $$\mathbf{p}_{\text{outer}, k} = \left( R_{\text{outer}} \cos\left(\frac{2\pi k}{N_{\text{outer}}}\right), \; R_{\text{outer}} \sin\left(\frac{2\pi k}{N_{\text{outer}}}\right) \right), \quad k \in \{0, \dots, N_{\text{outer}}-1\}$$
 
-### 3.2 Tangent Entry & Staging Chute Geometry
+### 3.2 Tangent Entry & Vehicle-Scaled Staging Chute Geometry
 
-To prevent disruptive transient yaw disturbances when entering the circular path, a linear staging corridor of length $L_{\text{stage}} = 40.0\,\text{m}$ connects tangentially to the bottom of the outer circle at $(0.0\,\text{m}, -R_{\text{outer}})$:
+To prevent disruptive transient yaw disturbances when entering the circular path, a linear staging corridor of length $L_{\text{stage}}(L_{\text{veh}}) = \max(40.0\,\text{m}, \; 5.0 \cdot L_{\text{veh}})$ connects tangentially to the bottom of the outer circle at $(0.0\,\text{m}, -R_{\text{outer}})$:
 * Staging start point: $\mathbf{x}_{\text{stage}} = (-L_{\text{stage}}, \; -R)$
 * Tangent entry heading: $\psi_{\text{stage}} = 0.0\,\text{rad}$ ($+x$ direction)
 * This geometry allows the vehicle to accelerate smoothly along $y = -R$ and merge directly into a Counter-Clockwise (CCW) orbit, or steer slightly inward to reverse into a Clockwise (CW) orbit.

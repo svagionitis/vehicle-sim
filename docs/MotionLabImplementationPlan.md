@@ -885,144 +885,370 @@ graph TD
 
 ### 9.2 Proving Grounds, Slaloms & Procedural Track Arenas
 
-Instead of only offering an infinite empty grid or a plain rectangular perimeter barrier, Motion Lab introduces structured proving grounds conforming to real-world automotive handling standards.
+Instead of only offering an infinite empty grid or a fixed static perimeter barrier, Motion Lab introduces structured proving grounds conforming to real-world automotive handling standards.
 
-#### 9.2.1 Proving Ground Presets & Mathematical Specifications
+With an expanded fleet spanning from a compact $1.2\,\text{m} \times 1.2\,\text{m}$ Quadcopter Drone and $2.8\,\text{m} \times 1.3\,\text{m}$ Forklift up to a $5.2\,\text{m} \times 3.0\,\text{m}$ Monster Truck and $12.0\,\text{m} \times 2.5\,\text{m}$ Articulated Semi-Truck, static course geometries become physically untenable:
+- A $12.0\,\text{m}$ Semi-Truck cannot negotiate a fixed $10.0\,\text{m}$ slalom without colliding with pylons simultaneously on both sides.
+- An $11.0\,\text{m}$ Moose Test evasion corridor cannot physically contain a $12.0\,\text{m}$ chassis without overlapping adjacent transition sectors.
+- A standard $3.5\,\text{m}$ circular skidpad lane cannot contain the substantial low-speed swept off-tracking envelope ($\Delta W_{\text{swept}} \approx 5.2\,\text{m}$) of an articulated tractor-trailer or heavy vehicle.
+- Tight hairpins on a closed circuit generate steering lockouts and severe jackknifing unless the minimum curvature radius $R_{\text{min}}$ scales with vehicle length.
+- Fixed $100\,\text{m} \times 100\,\text{m}$ arena walls restrict heavy and hypersonic racers while providing excessive empty space for micro-vehicles.
 
-1. **Open Proving Ground (Classic Mode)**:
-   - Infinite 5-meter grid with optional $100\,\text{m} \times 100\,\text{m}$ elastic perimeter barriers ([`BarrierSolver2D`](../libs/VehicleSimCore/physics/BarrierSolver2D.h)).
-2. **100-Meter Slalom Course**:
-   - 10 orange wireframe pylon cones spaced longitudinally at $\Delta x = 10.0\,\text{m}$ along the centerline $y = 0$.
-   - Vehicle enters at $(x = -15\,\text{m}, y = 0\,\text{m})$ and must weave alternatively left and right through the gate markers.
-   - Pylon touch detection computes penalty seconds ($\Delta t_{\text{pen}} = +2.0\,\text{s}$) (see dedicated [100-Meter Slalom Course Implementation Plan](MotionLabSlalomImplementationPlan.md)).
-3. **ISO 3888-2 Severe Lane-Change Maneuver ("Moose Test")** (see dedicated [ISO 3888-2 Severe Lane-Change Maneuver ("Moose Test") Implementation Plan](MotionLabMooseTestImplementationPlan.md)):
-   - Standardized high-speed collision avoidance corridor:
-     - **Section 1 (Entry)**: Length $L_1 = 12.0\,\text{m}$, Width $W_1 = 1.1 \cdot W_{\text{veh}} + 0.25\,\text{m}$.
-     - **Section 2 (Lane Shift Offset)**: Length $L_2 = 13.5\,\text{m}$, Lateral displacement $\Delta y = 3.5\,\text{m}$.
-     - **Section 3 (Evasion Corridor)**: Length $L_3 = 11.0\,\text{m}$, Width $W_3 = W_{\text{veh}} + 1.0\,\text{m}$.
-     - **Section 4 (Return Shift)**: Length $L_4 = 12.5\,\text{m}$, Return displacement $\Delta y = -3.5\,\text{m}$.
-     - **Section 5 (Exit)**: Length $L_5 = 12.0\,\text{m}$, Width $W_5 = 1.3 \cdot W_{\text{veh}} + 0.25\,\text{m}$.
-4. **Skidpad Circles (Steady-State Lateral Grip)** (see dedicated [Skidpad Circles (Steady-State Lateral Grip) Implementation Plan](MotionLabSkidpadImplementationPlan.md)):
-   - Two concentric circular tracks: $R_1 = 15.0\,\text{m}$ (tight autocross) and $R_2 = 30.0\,\text{m}$ (standard automotive skidpad).
-   - Inner and outer circle wireframe boundaries with radial guidance lines.
-   - Calculates steady-state lateral acceleration $a_y = \frac{v^2}{R}$ and understeer gradient $K_{\text{us}} = \frac{d\delta}{da_y}$.
-5. **Procedural Closed-Circuit Race Track**:
-   - Uses [`TrackGenerator`](../libs/VehicleSimCore/terrain/TrackGenerator.h) and [`BankedTrack`](../libs/VehicleSimCore/terrain/BankedTrack.h) to generate a closed-loop ribbon track with apex kerbs, start/finish line, and sector splits (see dedicated [Procedural Closed-Circuit Race Track Implementation Plan](MotionLabCircuitTrackImplementationPlan.md)).
+Therefore, all five proving ground disciplines and arena boundaries scale dynamically and deterministically according to the active vehicle's dimensions: length $L_{\text{veh}}$, width $W_{\text{veh}}$, and effective wheelbase $L_{\text{wb}} \approx 0.75 \cdot L_{\text{veh}}$.
 
-#### 9.2.2 Proving Ground ASCII Course Layout & Shortest Route Trajectory Diagrams
+---
 
+#### 9.2.1 Proving Ground Presets & Vehicle-Adaptive Mathematical Formulations
+
+##### 1. Open Proving Ground & Elastic Barrier Arenas
+* **Dynamic Arena Span**: Side length $S_{\text{arena}}$ scales with vehicle length $L_{\text{veh}}$ and maximum speed category:
+  $$S_{\text{arena}}(L_{\text{veh}}) = \max\left(80.0\,\text{m}, \; 25.0 \cdot L_{\text{veh}}\right)$$
+  With half-span $H_{\text{arena}} = S_{\text{arena}} / 2$, the axis-aligned perimeter boundary $[X_{\text{min}}, X_{\text{max}}] \times [Y_{\text{min}}, Y_{\text{max}}]$ in [`BarrierSolver2D`](../libs/VehicleSimCore/physics/BarrierSolver2D.h) is:
+  $$[-H_{\text{arena}}, \; +H_{\text{arena}}] \times [-H_{\text{arena}}, \; +H_{\text{arena}}]$$
+* **Boundary Clearance Buffer**: To avoid visual clipping of corner vertices against the perimeter wall, the solver applies a bounding radius offset:
+  $$R_{\text{bound}}(L_{\text{veh}}, W_{\text{veh}}) = \sqrt{\left(\frac{L_{\text{veh}}}{2}\right)^2 + \left(\frac{W_{\text{veh}}}{2}\right)^2} + d_{\text{margin}}, \quad d_{\text{margin}} = 0.20\,\text{m}$$
+* **Standard Category Arena Presets**:
+  - *Compact Arena* ($60.0\,\text{m} \times 60.0\,\text{m}$ to $80.0\,\text{m} \times 80.0\,\text{m}$): Drone, Forklift.
+  - *Standard Automotive Arena* ($100.0\,\text{m} \times 100.0\,\text{m}$ to $120.0\,\text{m} \times 120.0\,\text{m}$): Classic Car, Race Car, Drift Car, Hovercraft.
+  - *Heavy Commercial Arena* ($150.0\,\text{m} \times 150.0\,\text{m}$ to $300.0\,\text{m} \times 300\,\text{m}$): Tracked Tank, Monster Truck, Semi-Truck.
+  - *Hypersonic Vector Field* ($400.0\,\text{m} \times 400.0\,\text{m}$): Space Rocket, Anti-Gravity Racer.
+
+##### 2. Adaptive 100-Meter Slalom Course
+* **Longitudinal Pylon Spacing**: Pylon separation $\Delta x$ adapts to vehicle length to preserve achievable yaw transfer dynamics (see dedicated [100-Meter Slalom Course Implementation Plan](MotionLabSlalomImplementationPlan.md)):
+  $$\Delta x(L_{\text{veh}}) = \max\left(10.0\,\text{m}, \; 2.5 \cdot L_{\text{veh}}\right)$$
+  - Classic Car ($L = 4.0\,\text{m}$): $\Delta x = 10.0\,\text{m}$ (standard 100m span across 10 pylons).
+  - Monster Truck ($L = 5.2\,\text{m}$): $\Delta x = 13.0\,\text{m}$ ($117\,\text{m}$ pylon span).
+  - Articulated Semi-Truck ($L = 12.0\,\text{m}$): $\Delta x = 30.0\,\text{m}$ ($270\,\text{m}$ pylon span).
+* **Pylon Coordinates**: 10 pylon markers positioned along centerline $y = 0.0\,\text{m}$:
+  $$\mathbf{p}_k = (k \cdot \Delta x(L_{\text{veh}}), \; 0.0)\,\text{m}, \quad k \in \{1, 2, \dots, 10\}$$
+* **Course Geometry & Gates**:
+  - Staging starting position: $\mathbf{x}_{\text{start}} = (-1.5 \cdot \Delta x(L_{\text{veh}}), \; 0.0\,\text{m})$.
+  - Start timing gate: Transversal line at $x = 0.0\,\text{m}$ of width $W_{\text{gate}}(W_{\text{veh}}) = \max(10.0\,\text{m}, \; 4.0 \cdot W_{\text{veh}})$.
+  - Sector 1 Split: Located at $x = 3.5 \cdot \Delta x(L_{\text{veh}})$ (between Cone 3 and Cone 4).
+  - Sector 2 Split: Located at $x = 7.5 \cdot \Delta x(L_{\text{veh}})$ (between Cone 7 and Cone 8).
+  - Finish timing gate: Located at $x = 11.0 \cdot \Delta x(L_{\text{veh}})$.
+* **Lateral Apex Clearance & Shortest Route Offset**:
+  $$y_{\text{apex}}(W_{\text{veh}}) = \pm \left( R_{\text{cone}} + \frac{W_{\text{veh}}}{2} + \delta_{\text{margin}} \right)$$
+  where $R_{\text{cone}} = 0.40\,\text{m}$ and safety margin $\delta_{\text{margin}} = 0.15\,\text{m}$.
+* **Shortest Chord Transition Length**:
+  $$L_{\text{chord}} = \sqrt{\Delta x(L_{\text{veh}})^2 + \left(2 \cdot |y_{\text{apex}}(W_{\text{veh}})|\right)^2}$$
+
+##### 3. ISO 3888-2 Severe Lane-Change Maneuver ("Moose Test")
+Conforming to international standard **ISO 3888-2:2011** with extensions for long-wheelbase commercial vehicles (see dedicated [Moose Test Implementation Plan](MotionLabMooseTestImplementationPlan.md)):
+* **Corridor Widths (Function of Vehicle Width $W_{\text{veh}}$)**:
+  $$\begin{aligned}
+  W_1(W_{\text{veh}}) &= 1.1 \cdot W_{\text{veh}} + 0.25\,\text{m} \\
+  W_3(W_{\text{veh}}) &= W_{\text{veh}} + 1.00\,\text{m} \\
+  W_5(W_{\text{veh}}) &= \max\left(1.3 \cdot W_{\text{veh}} + 0.25\,\text{m}, \; 3.00\,\text{m}\right)
+  \end{aligned}$$
+* **Section Lengths (Function of Vehicle Length $L_{\text{veh}}$)**:
+  To allow long vehicles (Semi-Truck $12\,\text{m}$, Monster Truck $5.2\,\text{m}$) to completely enter and settle inside the Section 3 evasion lane without straddling transitions:
+  $$\begin{aligned}
+  L_1(L_{\text{veh}}) &= \max\left(12.0\,\text{m}, \; 1.5 \cdot L_{\text{veh}}\right) \\
+  L_2(L_{\text{veh}}) &= \max\left(13.5\,\text{m}, \; 1.8 \cdot L_{\text{veh}}\right) \\
+  L_3(L_{\text{veh}}) &= \max\left(11.0\,\text{m}, \; L_{\text{veh}} + 2.0\,\text{m}\right) \\
+  L_4(L_{\text{veh}}) &= \max\left(12.5\,\text{m}, \; 1.8 \cdot L_{\text{veh}}\right) \\
+  L_5(L_{\text{veh}}) &= \max\left(12.0\,\text{m}, \; 1.5 \cdot L_{\text{veh}}\right)
+  \end{aligned}$$
+  Total course length: $L_{\text{total}} = L_1 + L_2 + L_3 + L_4 + L_5$.
+* **Lateral Displacement $\Delta y$**:
+  $$\Delta y(W_{\text{veh}}) = \max\left(3.50\,\text{m}, \; W_{\text{veh}} + 1.00\,\text{m}\right)$$
+  (Expands from $3.50\,\text{m}$ for passenger cars up to $4.00\,\text{m}$ for the $3.0\,\text{m}$-wide Monster Truck).
+* **Staging & Runoff Zones**:
+  - Staging acceleration distance: $L_{\text{stage}}(L_{\text{veh}}) = \max(35.0\,\text{m}, \; 5.0 \cdot L_{\text{veh}})$.
+  - Runoff braking distance: $L_{\text{runoff}}(L_{\text{veh}}) = \max(24.0\,\text{m}, \; 4.0 \cdot L_{\text{veh}})$.
+
+##### 4. Skidpad Circles (Steady-State Lateral Grip)
+Conforming to SAE J266 / ISO 4138 steady-state circular test standards (see dedicated [Skidpad Implementation Plan](MotionLabSkidpadImplementationPlan.md)):
+* **Swept Path Envelope & Low-Speed Off-Tracking**:
+  When negotiating a circular radius $R$, the vehicle's rear axle tracks inside the steering axle by:
+  $$\Delta W_{\text{swept}} = \sqrt{R^2 + L_{\text{wb}}^2} - R \approx \frac{(0.75 \cdot L_{\text{veh}})^2}{2R}$$
+* **Dynamic Lane Corridor Width $W_{\text{lane}}$**:
+  $$W_{\text{lane}}(W_{\text{veh}}, L_{\text{veh}}, R) = \max\left(3.50\,\text{m}, \; W_{\text{veh}} + \frac{(0.75 \cdot L_{\text{veh}})^2}{2R} + 1.20\,\text{m}\right)$$
+* **Concentric Boundary Radii**:
+  $$R_{\text{inner}} = R - \frac{W_{\text{lane}}(W_{\text{veh}}, L_{\text{veh}}, R)}{2}, \quad R_{\text{outer}} = R + \frac{W_{\text{lane}}(W_{\text{veh}}, L_{\text{veh}}, R)}{2}$$
+* **Radius Presets by Vehicle Category**:
+  - *Micro / Compact Skidpad* ($R_0 = 8.0\,\text{m}$): Quadcopter Drone, Forklift.
+  - *Autocross Track 1* ($R_1 = 15.0\,\text{m}$): Classic Car, Race Car, Drift Car, Hovercraft.
+  - *Standard Skidpad Track 2* ($R_2 = 30.0\,\text{m}$): All passenger cars, Tracked Tank.
+  - *Heavy Commercial Skidpad Track 3 & 4* ($R_3 = 45.0\,\text{m}$, $R_4 = 60.0\,\text{m}$): Semi-Truck, Monster Truck.
+* **Tangent Staging Chute Length**:
+  $$L_{\text{stage}}(L_{\text{veh}}) = \max\left(40.0\,\text{m}, \; 5.0 \cdot L_{\text{veh}}\right)$$
+
+##### 5. Procedural Closed-Circuit Race Track
+Procedurally generated spline circuit via [`TrackGenerator`](../libs/VehicleSimCore/terrain/TrackGenerator.h) and [`BankedTrack`](../libs/VehicleSimCore/terrain/BankedTrack.h) (see dedicated [Procedural Circuit Track Implementation Plan](MotionLabCircuitTrackImplementationPlan.md)):
+* **Asphalt Drivable Ribbon Width**:
+  $$W_{\text{track}}(W_{\text{veh}}, L_{\text{veh}}) = \max\left(10.0\,\text{m}, \; 3.5 \cdot W_{\text{veh}} + 1.0\,\text{m}, \; (L_{\text{veh}} \ge 10.0\,\text{m} \ ? \ 12.0\,\text{m} : 10.0\,\text{m})\right)$$
+  - Classic Car ($W = 2.0\,\text{m}, L = 4.0\,\text{m}$): $W_{\text{track}} = 10.0\,\text{m}$.
+  - Monster Truck ($W = 3.0\,\text{m}, L = 5.2\,\text{m}$): $W_{\text{track}} = 11.5\,\text{m}$.
+  - Articulated Semi-Truck ($W = 2.5\,\text{m}, L = 12.0\,\text{m}$): $W_{\text{track}} = 12.0\,\text{m}$ (expanded for trailer tracking and multi-lane clearance).
+* **Loose Gravel Shoulder Width**:
+  $$W_{\text{shoulder}}(W_{\text{veh}}) = \max\left(2.0\,\text{m}, \; 1.0 \cdot W_{\text{veh}}\right)$$
+* **Apex Kerb Teeth Width**:
+  $$W_{\text{kerb}}(W_{\text{veh}}) = \max\left(0.8\,\text{m}, \; 0.4 \cdot W_{\text{veh}}\right)$$
+* **Minimum Radius of Curvature $R_{\text{min}}$ (Jackknife & Lockout Prevention)**:
+  To prevent articulated semi-trailers from jackknifing and heavy chassis from bottoming out on acute bends:
+  $$R_{\text{min}}(L_{\text{veh}}) = \max\left(15.0\,\text{m}, \; 2.5 \cdot L_{\text{veh}}\right)$$
+  - Passenger Cars ($L \le 4.5\,\text{m}$): $R_{\text{min}} = 15.0\,\text{m}$.
+  - Monster Truck ($L = 5.2\,\text{m}$): $R_{\text{min}} = 15.0\,\text{m}$.
+  - Semi-Truck ($L = 12.0\,\text{m}$): $R_{\text{min}} = 30.0\,\text{m}$.
+* **Overall Circuit Footprint Bounding Radii**:
+  $$R_x(L_{\text{veh}}) = \max\left(120.0\,\text{m}, \; 20.0 \cdot L_{\text{veh}}\right), \quad R_y(L_{\text{veh}}) = \max\left(80.0\,\text{m}, \; 15.0 \cdot L_{\text{veh}}\right)$$
+* **Timing Gate Transversal Span**: $W_{\text{gate}} = W_{\text{track}} + 2 \cdot W_{\text{shoulder}}$.
+
+---
+
+#### 9.2.2 Comprehensive Fleet Dimension & Proving Ground Adaptation Matrix
+
+The following table details the calculated proving ground geometry parameters across all 12 vehicles in the Motion Lab fleet:
+
+| Vehicle Model | Dim ($L \times W$) | Arena Span ($S_{\text{arena}}$) | Slalom Spacing ($\Delta x$) | Slalom Apex ($y_{\text{apex}}$) | Moose Widths ($W_1 / W_3 / W_5$) | Moose Sec 3 ($L_3$) | Skidpad Lane ($W_{\text{lane}} @ 15\text{m}$) | Track Ribbon ($W_{\text{track}}$) | Track Min Turn ($R_{\text{min}}$) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Classic Car** | $4.0\,\text{m} \times 2.0\,\text{m}$ | $100.0\,\text{m}$ | $10.0\,\text{m}$ | $\pm 1.55\,\text{m}$ | $2.45\,\text{m} / 3.00\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Race Car** | $4.5\,\text{m} \times 1.8\,\text{m}$ | $112.5\,\text{m}$ | $11.25\,\text{m}$| $\pm 1.45\,\text{m}$ | $2.23\,\text{m} / 2.80\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Space Rocket**| $6.0\,\text{m} \times 1.6\,\text{m}$ | $400.0\,\text{m}$ | $15.0\,\text{m}$ | $\pm 1.35\,\text{m}$ | $2.01\,\text{m} / 2.60\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Helicopter** | $6.0\,\text{m} \times 2.4\,\text{m}$ | $150.0\,\text{m}$ | $15.0\,\text{m}$ | $\pm 1.75\,\text{m}$ | $2.89\,\text{m} / 3.40\,\text{m} / 3.37\,\text{m}$ | $11.0\,\text{m}$ | $4.28\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Hovercraft** | $4.0\,\text{m} \times 2.2\,\text{m}$ | $100.0\,\text{m}$ | $10.0\,\text{m}$ | $\pm 1.65\,\text{m}$ | $2.67\,\text{m} / 3.20\,\text{m} / 3.11\,\text{m}$ | $11.0\,\text{m}$ | $3.70\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Tracked Tank**| $5.0\,\text{m} \times 2.4\,\text{m}$ | $125.0\,\text{m}$ | $12.5\,\text{m}$ | $\pm 1.75\,\text{m}$ | $2.89\,\text{m} / 3.40\,\text{m} / 3.37\,\text{m}$ | $11.0\,\text{m}$ | $4.07\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Anti-Gravity**| $4.2\,\text{m} \times 1.9\,\text{m}$ | $400.0\,\text{m}$ | $10.5\,\text{m}$ | $\pm 1.50\,\text{m}$ | $2.34\,\text{m} / 2.90\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Drift Car** | $4.4\,\text{m} \times 1.85\,\text{m}$| $110.0\,\text{m}$ | $11.0\,\text{m}$ | $\pm 1.48\,\text{m}$ | $2.29\,\text{m} / 2.85\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Monster Truck**| $5.2\,\text{m} \times 3.0\,\text{m}$| $130.0\,\text{m}$ | $13.0\,\text{m}$ | $\pm 2.05\,\text{m}$ | $3.55\,\text{m} / 4.00\,\text{m} / 4.15\,\text{m}$ | $11.0\,\text{m}$ | $4.71\,\text{m}$ | $11.5\,\text{m}$ | $15.0\,\text{m}$ |
+| **Semi-Truck** | $12.0\,\text{m} \times 2.5\,\text{m}$| $300.0\,\text{m}$| $30.0\,\text{m}$ | $\pm 1.80\,\text{m}$ | $3.00\,\text{m} / 3.50\,\text{m} / 3.50\,\text{m}$ | $14.0\,\text{m}$ | $6.40\,\text{m}$ | $12.0\,\text{m}$ | $30.0\,\text{m}$ |
+| **Forklift** | $2.8\,\text{m} \times 1.3\,\text{m}$ | $80.0\,\text{m}$  | $10.0\,\text{m}$ | $\pm 1.20\,\text{m}$ | $1.68\,\text{m} / 2.30\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+| **Drone (UAV)** | $1.2\,\text{m} \times 1.2\,\text{m}$ | $80.0\,\text{m}$  | $10.0\,\text{m}$ | $\pm 1.15\,\text{m}$ | $1.57\,\text{m} / 2.20\,\text{m} / 3.00\,\text{m}$ | $11.0\,\text{m}$ | $3.50\,\text{m}$ | $10.0\,\text{m}$ | $15.0\,\text{m}$ |
+
+---
+
+#### 9.2.3 Proving Ground ASCII Course Layout & Shortest Route Trajectory Diagrams
+
+##### 1. Vehicle-Adaptive Elastic Barrier Arena Layout
 ```
 +---------------------------------------------------------------------------------------------------+
-|               ISO 3888-2 Severe Lane-Change Layout ("Moose Test") Shortest Route                  |
+|                        Vehicle-Adaptive Elastic Perimeter Barrier Arena                           |
 +---------------------------------------------------------------------------------------------------+
 |                                                                                                   |
-| y=+5.5m                   *====================* (Section 3 Left Boundary: y = +3.5m + W3/2)      |
-|                           |  Section 3 (11.0m)  |                                                 |
-| y=+3.5m             . - - | - - - - - - - - - >| - - . (Lateral Offset: dy = +3.5m)                |
+|    (-H_arena, +H_arena)                                    (+H_arena, +H_arena)                   |
+|    #==========================================================================#                   |
+|    |                                                                          |                   |
+|    |   Side Length S_arena = max(80m, 25 * L_veh)                             |                   |
+|    |     Compact (Forklift / Drone):  80m x 80m                               |                   |
+|    |     Standard Car (L = 4.0m):    100m x 100m                              |                   |
+|    |     Semi-Truck (L = 12.0m):     300m x 300m                              |                   |
+|    |                                                                          |                   |
+|    |                +---------------------------------------+                 |                   |
+|    |                | [FL]                             [FR] |                 |                   |
+|    |                |   \           L_veh/2             /   |                 |                   |
+|    |                |    \ <-------------------------> /    |                 |                   |
+|    |                |     \          CoM (x, y)       /     | <--- Barrier    |                   |
+|    |                |      \             *           /      |      Buffer     |                   |
+|    |                |       \                       /       |      R_bound    |                   |
+|    |                |        \                     /        |                 |                   |
+|    |                |         \                   /         |                 |                   |
+|    |                |        [RL]               [RR]        |                 |                   |
+|    |                +---------------------------------------+                 |                   |
+|    |                |<------------ W_veh/2 ----------->|                      |                   |
+|    |                                                                          |                   |
+|    |   Wall Collision Margin: R_bound = sqrt((L/2)^2 + (W/2)^2) + 0.2m        |                   |
+|    #==========================================================================#                   |
+|    (-H_arena, -H_arena)                                    (+H_arena, -H_arena)                   |
+|                                                                                                   |
++---------------------------------------------------------------------------------------------------+
+```
+
+##### 2. Vehicle-Adaptive ISO 3888-2 Severe Lane-Change Layout ("Moose Test")
+```
++---------------------------------------------------------------------------------------------------+
+|              Vehicle-Adaptive ISO 3888-2 Severe Lane-Change Layout ("Moose Test")                 |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+| y = +dy + W3/2            *====================* (Section 3 Left Cones: y = dy + W3/2)            |
+|                           |  Section 3         |                                                  |
+|                           |  L3 = max(11m,     |                                                  |
+| y = +dy                   |      L_veh + 2.0m) |                                                  |
+|                     . - - | - - - - - - - - - >| - - .  dy = max(3.5m, W_veh + 1.0m)             |
 |                   /       *====================*       \                                          |
-|                  /       (Section 3 Right Boundary)     \  Shortest Diagonal Chord                |
-|   Shortest      /                                        \ Section 4 (L = 12.98m)                 |
+|                  /       (Section 3 Right Cones)        \  Shortest Diagonal Chord                |
+|   Shortest      /                                        \ Section 4 (L4 = max(12.5m, 1.8*L))     |
 |   Diagonal     /                                          \                                       |
 |   Chord       /                                            \                                      |
 |   Section 2  /                                              \                                     |
-|  (L=13.95m) /                                                \                                    |
-|            .                                                   .                                  |
-|           /                                                     \                                 |
+|  (L2 =      /                                                \                                    |
+|   max(13.5m,                                                  .                                   |
+|    1.8*L)) /                                                   \                                  |
+|           .                                                     \                                 |
 |   *======*=====* (Sec 1 Left)                          *======*=====* (Sec 5 Left)                |
 |   | Section 1  |                                       | Section 5  |                             |
 |==>|- - - - - ->.                                       . - - - - - >|==> [FINISH / PASSED]        |
-|   | Entry (12m)| (Throttle Lift: x = 12.0m)            | Exit (12m) |    (x = 61.0m)              |
-|   *======*=====* (Sec 1 Right)                         *======*=====* (Sec 5 Right)               |
+|   | L1 =       | (Throttle Release: x = L1)            | L5 =       |    (x = L_total)            |
+|   | max(12.0m, |                                       | max(12.0m, |                             |
+|   |  1.5*L)    |                                       |  1.5*L)    |                             |
+|   *======*=====* (Sec 1 Right: y = -W1/2)              *======*=====* (Sec 5 Right: y = -W5/2)    |
 |   (Start: x=0m)                                                                                   |
 |                                                                                                   |
-| Route Legend & Shortest Route Geometry:                                                           |
-|   - - - > / .   Dotted / Dashed Shortest Route (Min-distance diagonal chords across Sec 2 & 4)    |
-|   *             Pylon Cones (Fixed 24-cone ISO 3888-2 boundary grid)                              |
-|   ===           Corridor boundary limits                                                          |
-|   Shortest Path: Sec 1 (12.0m) + Sec 2 Chord (13.95m) + Sec 3 (11.0m) + Sec 4 Chord (12.98m)     |
-|                  + Sec 5 (12.0m) = 61.93m total path length (fillet curve: 62.06m)               |
-+---------------------------------------------------------------------------------------------------+
-|                  100-Meter Slalom Course Layout & Shortest Clipping Weave Route                   |
-+---------------------------------------------------------------------------------------------------+
-|                                                                                                   |
-| y=+1.55m     .-.         .-.         .-.         .-.         .-.  <-- Clipping Apex (+1.55m)      |
-|            ./   \.     ./   \.     ./   \.     ./   \.     ./   \.                                |
-|           /  ^    \   /  ^    \   /  ^    \   /  ^    \   /  ^    \   Shortest Chord Transitions  |
-|          / (Clip L)\ / (Clip L)\ / (Clip L)\ / (Clip L)\ / (Clip L)\  (L_chord = 10.47m between   |
-| y=0m  ==>.- -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - ==>     |
-|     [START] (1)          (3)          (5)          (7)          (9)       Finish Gate [FINISH]    |
-|     x=0.0m x=10m        x=30m        x=50m        x=70m        x=90m        x=110m                |
-|                      \ (Clip R)/ \ (Clip R)/ \ (Clip R)/ \ (Clip R)/ \ (Clip R)/                  |
-|                       \  v    /   \  v    /   \  v    /   \  v    /   \  v    /                   |
-|                        '\   /'     '\   /'     '\   /'     '\   /'     '\   /'                    |
-| y=-1.55m                 '-'         '-'         '-'         '-'         '-'  <-- Apex (-1.55m)   |
-|                          (2)         (4)         (6)         (8)         (10)                     |
-|                         x=20m       x=40m       x=60m       x=80m       x=100m                    |
-|                                                                                                   |
-| Route Legend & Shortest Route Formulation:                                                        |
-|   .- - / \ .   Dotted / Dashed Shortest Feasible Route (Minimum-distance pylon-clipping line)     |
-|   *            Pylon Cones (10 pylons centered at y = 0.0m, spaced longitudinally at dx = 10.0m)   |
-|   Apex y_apex  Clearance = R_cone (0.4m) + W_veh/2 (1.0m) + Margin (0.15m) = 1.55m                |
-|   Shortest Path: Total length = 115.28m (saving >7.1m over standard wide weaves of 122.37m)       |
+| Corridor Widths:                                                                                  |
+|   Section 1 Entry : W1 = 1.1 * W_veh + 0.25m                                                      |
+|   Section 3 Evasion: W3 = W_veh + 1.00m                                                           |
+|   Section 5 Exit  : W5 = max(1.3 * W_veh + 0.25m, 3.00m)                                          |
 +---------------------------------------------------------------------------------------------------+
 ```
 
-#### 9.2.3 Proving Ground Trajectory Mermaid Diagrams
+##### 3. Vehicle-Adaptive 100-Meter Slalom Course Layout
+```
++---------------------------------------------------------------------------------------------------+
+|               Vehicle-Adaptive Slalom Course Layout & Shortest Clipping Weave                     |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+| y=+y_apex     .-.         .-.         .-.         .-.         .-.  <-- Clipping Apex (+y_apex)    |
+|             ./   \.     ./   \.     ./   \.     ./   \.     ./   \.                               |
+|            /  ^    \   /  ^    \   /  ^    \   /  ^    \   /  ^    \   Chord Transitions          |
+|           / (Clip L)\ / (Clip L)\ / (Clip L)\ / (Clip L)\ / (Clip L)\  L_chord =                  |
+| y=0m   ==>.- -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - -* - - -.- - ==>    |
+|      [START] (1)          (3)          (5)          (7)          (9)       Finish Gate [FINISH]   |
+|      x=0.0m  x=1*dx       x=3*dx       x=5*dx       x=7*dx       x=9*dx    x=11*dx                |
+|                       \ (Clip R)/ \ (Clip R)/ \ (Clip R)/ \ (Clip R)/ \ (Clip R)/                 |
+|                        \  v    /   \  v    /   \  v    /   \  v    /   \  v    /                  |
+|                         '\   /'     '\   /'     '\   /'     '\   /'     '\   /'                   |
+| y=-y_apex                 '-'         '-'         '-'         '-'         '-'  <-- Apex (-y_apex)  |
+|                           (2)         (4)         (6)         (8)         (10)                    |
+|                          x=2*dx      x=4*dx      x=6*dx      x=8*dx      x=10*dx                  |
+|                                                                                                   |
+| Geometry Formulations:                                                                            |
+|   Pylon Spacing dx(L_veh) = max(10.0m, 2.5 * L_veh)  (e.g. 10m for cars, 30m for Semi-Truck)      |
+|   Apex Offset   y_apex    = R_cone (0.4m) + W_veh/2 + Margin (0.15m)                              |
+|   Gate Width    W_gate    = max(10.0m, 4.0 * W_veh)                                               |
++---------------------------------------------------------------------------------------------------+
+```
 
+##### 4. Vehicle-Adaptive Skidpad Concentric Circles & Swept Envelope
+```
++---------------------------------------------------------------------------------------------------+
+|                     Vehicle-Adaptive Skidpad Concentric Circles & Swept Envelope                  |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|                                              (0, +R_outer)                                        |
+|                                           *  *  *  *  *  *                                        |
+|                                      *                      *                                     |
+|                                  *     (0, +R_inner)            *                                 |
+|                                *     . - - - - - - - .            *                               |
+|                               *    /                   \           *                              |
+|                              *    |      Centerline     |           *                             |
+|                             *     |      Radius R       |            *                            |
+|                             *     |         (0, 0)      |            *                            |
+|                             *     |           *         |            *                            |
+|                             *     |                     |            *                            |
+|                              *    \                    /            *                             |
+|                               *    ' - - - - - - - - '             *                              |
+|                                *                                  *                               |
+|                     [ENTRY]      *                              *                                 |
+|        x_stage =====> .            *  *  *  *  *  *  *  *  *  *                                   |
+|   (-L_stage, -R)     \              |<------- W_lane -------->|                                   |
+|                       ' - - - - - - > Tangent Merge (0, -R)                                       |
+|                                                                                                   |
+| Formulations:                                                                                     |
+|   Swept Envelope Off-Tracking: dW_swept = (0.75 * L_veh)^2 / (2 * R)                              |
+|   Lane Width: W_lane = max(3.5m, W_veh + dW_swept + 1.2m)                                         |
+|   Boundary Radii: R_inner = R - W_lane/2,  R_outer = R + W_lane/2                                 |
+|   Staging Length: L_stage = max(40.0m, 5.0 * L_veh)                                               |
++---------------------------------------------------------------------------------------------------+
+```
+
+##### 5. Vehicle-Adaptive Circuit Track Cross-Section & Curvature
+```
++---------------------------------------------------------------------------------------------------+
+|                       Vehicle-Adaptive Circuit Track Cross-Section & Curvature                    |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|  [Grass: mu=0.35]  | [Gravel: 0.60] |        [Tarmac: mu=1.00]       | [Gravel: 0.60] |  [Grass]  |
+|                    |   (Shoulder)   |         (Drivable Road)        |   (Shoulder)   |           |
+|                    |  W_shoulder    |             W_track            |  W_shoulder    |           |
+|  ..................+----------------+----------------+---------------+----------------+.........  |
+|                    |  Kerbs: W_kerb |   Centerline   | Kerbs: W_kerb |                |           |
+|                    |  (Red / White) |    (Dashed)    | (Red / White) |                |           |
+|                    |<-- max(2m, W)->|<-- max(10m, 3.5*W + 1m) ------>|<-- max(2m, W)->|           |
+|                                                                                                   |
+| Curvature Constraint (Anti-Jackknife & Steering Lockout Prevention):                              |
+|   Minimum Turn Radius: R_min(L_veh) = max(15.0m, 2.5 * L_veh)                                     |
+|   Enforces R_min >= 30.0m for Semi-Truck (L=12m) and R_min >= 15.0m for Cars (L=4m)               |
++---------------------------------------------------------------------------------------------------+
+```
+
+---
+
+#### 9.2.4 Proving Ground Trajectory & Adaptation Mermaid Diagrams
+
+##### 1. Vehicle-Adaptive ISO 3888-2 Severe Lane-Change Trajectory
 ```mermaid
 flowchart LR
-    subgraph MooseRoute ["ISO 3888-2 Moose Test: Shortest Route (Min-Distance Diagonal Chords)"]
+    subgraph MooseRoute ["ISO 3888-2 Moose Test: Vehicle-Adaptive Shortest Route"]
         direction LR
         M_Start["Start Gate<br/>(x = 0.0m, y = 0.0m)"]
-        M_Lift["Throttle Release<br/>(x = 12.0m, y = 0.0m)"]
-        M_Shift["Shortest Diagonal Chord Sec 2<br/>(dx = 13.5m, dy = +3.5m, L = 13.95m)"]
-        M_Apex["Section 3 Evasion Corridor<br/>(x = 25.5m to 36.5m, y = +3.5m)"]
-        M_Return["Shortest Diagonal Chord Sec 4<br/>(dx = 12.5m, dy = -3.5m, L = 12.98m)"]
-        M_Exit["Section 5 Exit Corridor<br/>(x = 49.0m, y = 0.0m)"]
-        M_Finish["Finish Gate<br/>(x = 61.0m, y = 0.0m)"]
+        M_Lift["Throttle Release<br/>(x = L1, y = 0.0m)"]
+        M_Shift["Diagonal Chord Sec 2<br/>(dx = L2, dy = +dy)"]
+        M_Apex["Section 3 Evasion Corridor<br/>(L3 = max(11m, L_veh+2m), y = +dy)"]
+        M_Return["Diagonal Chord Sec 4<br/>(dx = L4, dy = -dy)"]
+        M_Exit["Section 5 Exit Corridor<br/>(L5 = max(12m, 1.5*L), y = 0.0m)"]
+        M_Finish["Finish Gate<br/>(x = L_total, y = 0.0m)"]
 
-        M_Start ==>|Straight Entry (12.0m)| M_Lift
-        M_Lift -.->|Dashed Diagonal Chord +3.5m| M_Shift
-        M_Shift -.->|Dashed Evasion Path (11.0m)| M_Apex
-        M_Apex -.->|Dashed Diagonal Chord -3.5m| M_Return
+        M_Start ==>|Straight Entry L1| M_Lift
+        M_Lift -.->|Dashed Diagonal Shift +dy| M_Shift
+        M_Shift -.->|Dashed Evasion Path L3| M_Apex
+        M_Apex -.->|Dashed Diagonal Return -dy| M_Return
         M_Return -.->|Dashed Re-alignment Path| M_Exit
-        M_Exit ==>|Exit Roll-out (12.0m)| M_Finish
+        M_Exit ==>|Exit Roll-out L5| M_Finish
     end
 ```
 
+##### 2. Vehicle-Adaptive Slalom Course Trajectory
 ```mermaid
 flowchart LR
-    subgraph SlalomRoute ["100-Meter Slalom Course: Shortest Clipping Weave Route (Apex y = ±1.55m)"]
+    subgraph SlalomRoute ["100-Meter Slalom: Vehicle-Adaptive Spacing & Apex Clipping"]
         direction LR
         S_Start["Start Gate<br/>(x = 0m, y = 0m)"]
-        S_C1["Clip Left (+1.55m)<br/>Cone 1 (x = 10m)"]
-        S_C2["Clip Right (-1.55m)<br/>Cone 2 (x = 20m)"]
-        S_C3["Clip Left (+1.55m)<br/>Cone 3 (x = 30m)"]
-        S_C4["Clip Right (-1.55m)<br/>Cone 4 (x = 40m)"]
-        S_C5["Clip Left (+1.55m)<br/>Cone 5 (x = 50m)"]
-        S_C6["Clip Right (-1.55m)<br/>Cone 6 (x = 60m)"]
-        S_C7["Clip Left (+1.55m)<br/>Cone 7 (x = 70m)"]
-        S_C8["Clip Right (-1.55m)<br/>Cone 8 (x = 80m)"]
-        S_C9["Clip Left (+1.55m)<br/>Cone 9 (x = 90m)"]
-        S_C10["Clip Right (-1.55m)<br/>Cone 10 (x = 100m)"]
-        S_Finish["Finish Timing Gate<br/>(x = 110m, y = 0m)"]
+        S_C1["Clip Left (+y_apex)<br/>Cone 1 (x = 1*dx)"]
+        S_C2["Clip Right (-y_apex)<br/>Cone 2 (x = 2*dx)"]
+        S_C3["Clip Left (+y_apex)<br/>Cone 3 (x = 3*dx)"]
+        S_C4["Clip Right (-y_apex)<br/>Cone 4 (x = 4*dx)"]
+        S_C5["Clip Left (+y_apex)<br/>Cone 5 (x = 5*dx)"]
+        S_C6["Clip Right (-y_apex)<br/>Cone 6 (x = 6*dx)"]
+        S_C7["Clip Left (+y_apex)<br/>Cone 7 (x = 7*dx)"]
+        S_C8["Clip Right (-y_apex)<br/>Cone 8 (x = 8*dx)"]
+        S_C9["Clip Left (+y_apex)<br/>Cone 9 (x = 9*dx)"]
+        S_C10["Clip Right (-y_apex)<br/>Cone 10 (x = 10*dx)"]
+        S_Finish["Finish Timing Gate<br/>(x = 11*dx, y = 0m)"]
 
-        S_Start -.->|Dashed Diagonal Chord| S_C1
-        S_C1 -.->|Dashed Diagonal Chord (10.47m)| S_C2
-        S_C2 -.->|Dashed Diagonal Chord (10.47m)| S_C3
-        S_C3 -.->|Dashed Diagonal Chord (10.47m)| S_C4
-        S_C4 -.->|Dashed Diagonal Chord (10.47m)| S_C5
-        S_C5 -.->|Dashed Diagonal Chord (10.47m)| S_C6
-        S_C6 -.->|Dashed Diagonal Chord (10.47m)| S_C7
-        S_C7 -.->|Dashed Diagonal Chord (10.47m)| S_C8
-        S_C8 -.->|Dashed Diagonal Chord (10.47m)| S_C9
-        S_C9 -.->|Dashed Diagonal Chord (10.47m)| S_C10
-        S_C10 -.->|Dashed Exit Sprint| S_Finish
+        S_Start -.->|Entry Chord| S_C1
+        S_C1 -.->|Diagonal Weave L_chord| S_C2
+        S_C2 -.->|Diagonal Weave L_chord| S_C3
+        S_C3 -.->|Diagonal Weave L_chord| S_C4
+        S_C4 -.->|Diagonal Weave L_chord| S_C5
+        S_C5 -.->|Diagonal Weave L_chord| S_C6
+        S_C6 -.->|Diagonal Weave L_chord| S_C7
+        S_C7 -.->|Diagonal Weave L_chord| S_C8
+        S_C8 -.->|Diagonal Weave L_chord| S_C9
+        S_C9 -.->|Diagonal Weave L_chord| S_C10
+        S_C10 -.->|Exit Sprint| S_Finish
     end
 ```
 
-#### 9.2.4 Proving Ground State Flow Mermaid Diagram
+##### 3. Vehicle Size Dispatch to Proving Ground Geometry
+```mermaid
+graph TD
+    VEH["Active Vehicle Selection (F1-F12)<br/>(L_veh, W_veh, L_wb, Mass)"]
 
+    VEH --> ARN["Arena Perimeter Sizing<br/>S_arena = max(80m, 25*L_veh)<br/>R_bound = sqrt((L/2)^2 + (W/2)^2) + 0.2m"]
+    VEH --> SLA["Adaptive Slalom Spacing<br/>dx = max(10m, 2.5*L_veh)<br/>y_apex = 0.4m + W/2 + 0.15m"]
+    VEH --> MOO["Adaptive Moose Test<br/>W1 = 1.1*W + 0.25m<br/>W3 = W + 1.0m<br/>W5 = max(1.3*W + 0.25m, 3.0m)<br/>L3 = max(11m, L_veh + 2m)"]
+    VEH --> SKD["Adaptive Skidpad Corridors<br/>W_lane = max(3.5m, W + (0.75*L)^2/(2R) + 1.2m)<br/>R_inner = R - W_lane/2<br/>R_outer = R + W_lane/2"]
+    VEH --> TRK["Adaptive Circuit Track<br/>W_track = max(10m, 3.5*W + 1m)<br/>R_min = max(15m, 2.5*L_veh)<br/>W_shoulder = max(2m, W)"]
+
+    ARN --> SOL["BarrierSolver2D::solveInside()"]
+    SLA --> PYL["SlalomCourseCoordinator"]
+    MOO --> MST["MooseTestCoordinator"]
+    SKD --> SKC["SkidpadCoordinator"]
+    TRK --> GEN["TrackGenerator::generateCircuitTrack()"]
+```
+
+##### 4. Proving Ground State Flow Mermaid Diagram
 ```mermaid
 stateDiagram-v2
     [*] --> IdleAtStart
@@ -1420,6 +1646,46 @@ public:
     /// @return Active CourseType.
     [[nodiscard]] CourseType getCourse() const noexcept;
 
+    /// @brief Sets vehicle dimensions for dynamic course scaling.
+    /// @param[in] length Vehicle length in meters.
+    /// @param[in] width Vehicle width in meters.
+    void setVehicleDims(double length, double width) noexcept;
+
+    /// @brief Gets active arena perimeter side length.
+    /// @return Span in meters.
+    [[nodiscard]] double getArenaSpan() const noexcept;
+
+    /// @brief Gets adaptive slalom pylon longitudinal separation.
+    /// @return Spacing delta x in meters.
+    [[nodiscard]] double getSlalomSpacing() const noexcept;
+
+    /// @brief Gets lateral apex clipping offset for slalom course.
+    /// @return Lateral apex coordinate in meters.
+    [[nodiscard]] double getSlalomApexOffset() const noexcept;
+
+    /// @brief Gets adaptive Moose Test corridor lane width.
+    /// @param[in] section Corridor section index (1, 3, or 5).
+    /// @return Corridor width in meters.
+    [[nodiscard]] double getMooseWidth(int section) const noexcept;
+
+    /// @brief Gets adaptive Moose Test corridor section length.
+    /// @param[in] section Corridor section index (1 through 5).
+    /// @return Section length in meters.
+    [[nodiscard]] double getMooseLength(int section) const noexcept;
+
+    /// @brief Gets adaptive skidpad lane corridor width.
+    /// @param[in] radius Circular track centerline radius in meters.
+    /// @return Lane width in meters.
+    [[nodiscard]] double getSkidpadLane(double radius) const noexcept;
+
+    /// @brief Gets adaptive procedural track drivable ribbon width.
+    /// @return Ribbon width in meters.
+    [[nodiscard]] double getTrackRibbonWidth() const noexcept;
+
+    /// @brief Gets minimum allowable curve radius of curvature.
+    /// @return Minimum radius in meters.
+    [[nodiscard]] double getTrackMinRadius() const noexcept;
+
     /// @brief Checks vehicle collision against all course pylons.
     /// @param[in,out] body Target vehicle rigid body.
     void checkPylonHits(vehicle_sim::physics::RigidBody2D& body) noexcept;
@@ -1433,6 +1699,8 @@ public:
 
 private:
     CourseType mCourse { CourseType::OpenField };
+    double mVehLength { 4.0 };
+    double mVehWidth { 2.0 };
     std::vector<CoursePylon> mPylons { };
 };
 

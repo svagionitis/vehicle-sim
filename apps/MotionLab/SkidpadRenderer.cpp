@@ -62,7 +62,7 @@ void SkidpadRenderer::drawConcentricRings(SDL_Renderer* renderer,
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     const double targetR { coordinator.getTargetRadius() };
-    constexpr double halfW { SkidpadCoordinator::kCorridorWidth * 0.5 };
+    const double halfW { coordinator.getCorridorWidth() * 0.5 };
     const double rInner { targetR - halfW };
     const double rOuter { targetR + halfW };
 
@@ -142,7 +142,7 @@ void SkidpadRenderer::drawRadialSpokes(SDL_Renderer* renderer,
                                        const MotionLabCamera& camera,
                                        const SkidpadCoordinator& coordinator) noexcept {
     const double targetR { coordinator.getTargetRadius() };
-    constexpr double halfW { SkidpadCoordinator::kCorridorWidth * 0.5 };
+    const double halfW { coordinator.getCorridorWidth() * 0.5 };
     const double rInner { targetR - halfW };
     const double rOuter { targetR + halfW };
 
@@ -166,8 +166,8 @@ void SkidpadRenderer::drawStagingChute(SDL_Renderer* renderer,
                                        const MotionLabCamera& camera,
                                        const SkidpadCoordinator& coordinator) noexcept {
     const double targetR { coordinator.getTargetRadius() };
-    constexpr double halfW { SkidpadCoordinator::kCorridorWidth * 0.5 };
-    constexpr double chuteLen { SkidpadCoordinator::kStagingLength };
+    const double halfW { coordinator.getCorridorWidth() * 0.5 };
+    const double chuteLen { coordinator.getStagingLength() };
 
     const SDL_Color steelColor { 120, 140, 170, 140 };
     const SDL_Color greenGate { 0, 255, 120, 255 };

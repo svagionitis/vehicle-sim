@@ -98,6 +98,18 @@ where $\delta_i \in [-\Delta_{\text{pert}}, +\Delta_{\text{pert}}]$ is a determi
 Each segment between $\mathbf{P}_i$ and $\mathbf{P}_{i+1}$ is interpolated using $C^1$-continuous cubic Hermite splines to produce a fine discrete centerline:
 $$\mathcal{C} = \{\mathbf{c}_0, \mathbf{c}_1, \dots, \mathbf{c}_{M-1}\}, \quad \mathbf{c}_k \in \mathbb{R}^2$$
 
+#### Vehicle-Adaptive Ribbon Dimensions & Curvature Constraints
+The ribbon geometry scales dynamically to accommodate all vehicle categories:
+* **Asphalt Drivable Ribbon Width**:
+  $$W_{\text{track}}(W_{\text{veh}}, L_{\text{veh}}) = \max\left(10.0\,\text{m}, \; 3.5 \cdot W_{\text{veh}} + 1.0\,\text{m}, \; (L_{\text{veh}} \ge 10.0\,\text{m} \ ? \ 12.0\,\text{m} : 10.0\,\text{m})\right)$$
+* **Loose Gravel Shoulder Width**:
+  $$W_{\text{shoulder}}(W_{\text{veh}}) = \max\left(2.0\,\text{m}, \; 1.0 \cdot W_{\text{veh}}\right)$$
+* **Apex Kerb Teeth Width**:
+  $$W_{\text{kerb}}(W_{\text{veh}}) = \max\left(0.8\,\text{m}, \; 0.4 \cdot W_{\text{veh}}\right)$$
+* **Minimum Radius of Curvature (Jackknife & Lockout Prevention)**:
+  $$R_{\text{min}}(L_{\text{veh}}) = \max\left(15.0\,\text{m}, \; 2.5 \cdot L_{\text{veh}}\right)$$
+  Enforces $R_{\text{min}} \ge 30.0\,\text{m}$ for the $12.0\,\text{m}$ Articulated Semi-Truck and $R_{\text{min}} \ge 15.0\,\text{m}$ for passenger cars.
+
 #### Ribbon Boundary Vectors
 At each discrete centerline vertex $\mathbf{c}_k$, the unit forward tangent $\mathbf{t}_k$ and outward unit normal $\mathbf{n}_k$ are:
 $$\mathbf{t}_k = \frac{\mathbf{c}_{k+1} - \mathbf{c}_k}{\|\mathbf{c}_{k+1} - \mathbf{c}_k\|}, \quad \mathbf{n}_k = (-t_{k,y}, \; t_{k,x})$$
@@ -106,23 +118,24 @@ The roadway and shoulder edge vertices are computed by transversal expansion:
 $$\mathbf{b}_{\text{left}, k} = \mathbf{c}_k + \frac{W_{\text{track}}}{2} \mathbf{n}_k, \quad \mathbf{b}_{\text{right}, k} = \mathbf{c}_k - \frac{W_{\text{track}}}{2} \mathbf{n}_k$$
 $$\mathbf{s}_{\text{left}, k} = \mathbf{b}_{\text{left}, k} + W_{\text{shoulder}} \mathbf{n}_k, \quad \mathbf{s}_{\text{right}, k} = \mathbf{b}_{\text{right}, k} - W_{\text{shoulder}} \mathbf{n}_k$$
 
-### 3.2 Track Ribbon Cross-Section ASCII Diagram
+### 3.2 Vehicle-Adaptive Track Ribbon Cross-Section ASCII Diagram
 
 ```
 +---------------------------------------------------------------------------------------------------+
-|                                  Circuit Track Cross-Section                                      |
+|                               Circuit Track Cross-Section & Curvature                             |
 +---------------------------------------------------------------------------------------------------+
 |                                                                                                   |
 |  [Grass: mu=0.35]  | [Gravel: 0.60] |        [Tarmac: mu=1.00]       | [Gravel: 0.60] |  [Grass]  |
 |                    |   (Shoulder)   |         (Drivable Road)        |   (Shoulder)   |           |
 |                    |                |                                |                |           |
 |  ..................+----------------+----------------+---------------+----------------+.........  |
-|                    |     Kerbs      |   Centerline   |     Kerbs     |                |           |
+|                    |  Kerbs: W_kerb |   Centerline   |  Kerbs: W_kerb|                |           |
 |                    |  (Red/White)   |    (Dashed)    |  (Red/White)  |                |           |
-|                    |     0.8m       |       *        |     0.8m      |                |           |
+|                    | max(0.8m,0.4W) |       *        | max(0.8m,0.4W)|                |           |
 |                    |                |<-- W_track/2 ->|               |                |           |
-|                    |<-- W_shldr --->|<------- W_track (10.0m) ------>|<-- W_shldr --->|           |
+|                    |<-- W_shldr --->|<------- W_track (Adaptive) --->|<-- W_shldr --->|           |
 |                                                                                                   |
+| Curvature Constraint: R_min = max(15.0m, 2.5 * L_veh) (30m for Semi-Truck, 15m for Cars)         |
 +---------------------------------------------------------------------------------------------------+
 ```
 

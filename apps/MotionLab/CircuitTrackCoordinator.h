@@ -73,6 +73,23 @@ public:
     /// @return Fractional progress along centerline.
     [[nodiscard]] double getTrackProgress() const noexcept;
 
+    /// @brief Updates vehicle dimensions and dynamically scales circuit track geometry.
+    /// @param[in] vehicleWidth Width of active vehicle in meters.
+    /// @param[in] vehicleLength Overall length of active vehicle in meters.
+    void updateDimensions(double vehicleWidth, double vehicleLength) noexcept;
+
+    /// @brief Gets dynamic drivable track width in meters.
+    /// @return Active track width in meters.
+    [[nodiscard]] double getTrackWidth() const noexcept;
+
+    /// @brief Gets active vehicle width in meters.
+    /// @return Vehicle width in meters.
+    [[nodiscard]] double getVehicleWidth() const noexcept;
+
+    /// @brief Gets active vehicle length in meters.
+    /// @return Vehicle length in meters.
+    [[nodiscard]] double getVehicleLength() const noexcept;
+
 private:
     void evaluateSurface(vehicle_sim::physics::RigidBody2D& body) noexcept;
     void evaluateBanking(vehicle_sim::physics::RigidBody2D& body) noexcept;
@@ -89,6 +106,8 @@ private:
     vehicle_sim::terrain::SurfaceMaterial mActiveMaterial { };
     vehicle_sim::math::Vec2 mLastVehiclePos { 0.0, 0.0 };
     double mCurrentProgress { 0.0 };
+    double mVehicleWidth { 2.0 };
+    double mVehicleLength { 4.0 };
     std::uint32_t mSeed { 2024U };
     bool mEnabled { false };
     bool mHasStartedLap { false };
