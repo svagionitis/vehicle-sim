@@ -32,10 +32,19 @@ void Camera2D::update(const Vec2& targetPos, double forwardSpeed, double dt) noe
     const Vec2 desiredPos{ targetPos.x + leadDist, targetPos.y };
 
     const double alphaX { 1.0 - std::exp(-config_.followRateX * dt) };
-    const double alphaY { 1.0 - std::exp(-config_.followRateY * dt) };
+    const double effectiveFollowRateY {
+        (desiredPos.y > position_.y) ? (config_.followRateY * 1.5) : config_.followRateY
+    };
+    const double alphaY { 1.0 - std::exp(-effectiveFollowRateY * dt) };
 
     position_.x += alphaX * (desiredPos.x - position_.x);
     position_.y += alphaY * (desiredPos.y - position_.y);
+
+    // Hard ceiling and floor clamping: target is guaranteed to stay within [minScreenMarginY, maxScreenMarginY]
+    const double anchorScreenY { config_.screenFractionY * static_cast<double>(config_.viewportHeight) };
+    const double minYLimit { targetPos.y - (anchorScreenY - config_.minScreenMarginY) / config_.pixelsPerMeter };
+    const double maxYLimit { targetPos.y + (config_.maxScreenMarginY - anchorScreenY) / config_.pixelsPerMeter };
+    position_.y = std::clamp(position_.y, minYLimit, maxYLimit);
 
     if (trauma_ > 0.0) {
         trauma_ = std::max(0.0, trauma_ - config_.traumaDecayRate * dt);

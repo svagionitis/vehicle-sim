@@ -44,7 +44,7 @@ struct OffroadTruckConfig {
     double maxDriveForce { 8500.0 };       ///< Total forward 4WD traction capacity in N.
     double maxBrakeForce { 11000.0 };      ///< Total 4WD service braking force capacity in N.
     double maxReverseForce { 4500.0 };     ///< Total reverse traction capacity in N.
-    double jumpSpeed { 8.8 };              ///< Upward takeoff impulse speed in m/s.
+    double jumpSpeed { 6.8 };              ///< Upward takeoff impulse speed in m/s.
     double jumpImpulse { 0.0 };            ///< Optional explicit vertical impulse in N*s (0 uses mass * jumpSpeed).
     double pitchStabGain { 1600.0 };       ///< Mid-air attitude stabilization torque gain.
     double antiRollTorqueGain { 3500.0 };  ///< Anti-roll pitch stiffness coupling axles.
@@ -178,6 +178,8 @@ private:
     bool isAirborne_ { true };
     bool jumpTriggered_ { false };
     double jumpSpeedOverride_ { 0.0 };
+    double jumpCooldown_ { 0.0 };
+    bool jumpLatch_ { false };
 };
 
 } // namespace vehicle_sim::dynamics

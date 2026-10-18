@@ -196,7 +196,15 @@ void GameApp::updateSimulation(double dt) noexcept
     }
 
     inputController_.update(dt);
-    const auto truckInput { inputController_.getTruckInput() };
+    auto truckInput { inputController_.getTruckInput() };
+
+    // Baseline cruising drive: in Moon Patrol and Offroad, the vehicle maintains
+    // automatic forward progress across the desert unless actively braking.
+    if (truckInput.throttle <= 0.0 && truckInput.brake <= 0.0) {
+        if (truckBody_.getLinearVelocity().x < 10.0) {
+            truckInput.throttle = 0.25;
+        }
+    }
 
     // Procedural sound triggers for vehicle driver controls
     if (truckInput.jump && !prevJump_) {
@@ -303,9 +311,15 @@ void GameApp::updateSimulation(double dt) noexcept
         bossController_.applyCombatDamage(combatTargets_, particleSystem_);
     }
 
-    // Fatal vehicle crash into abyss/crevasse
-    if (truckBody_.getPosition().y < -15.0 && !campaignManager_.isInvulnerable()) {
+    // Fatal vehicle crash: abyss/crevasse, catastrophic rollover, or enemy weapon destruction
+    const double pitchAngle { truckBody_.getOrientation() };
+    const bool isRolledOver { std::cos(pitchAngle) < -0.2 };
+    const bool isFallenInAbyss { truckBody_.getPosition().y < -15.0 };
+    const bool isEnemyDestroyed { enemyManager_.checkTruckDestroyed() };
+
+    if ((isFallenInAbyss || isRolledOver || isEnemyDestroyed) && !campaignManager_.isInvulnerable()) {
         campaignManager_.handleTruckCrash(courseManager_, audioSystem_, truckBody_, truckDynamics_);
+        enemyManager_.reset();
     }
 
     // Boss victory trigger

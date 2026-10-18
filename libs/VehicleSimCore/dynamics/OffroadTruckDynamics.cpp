@@ -33,23 +33,37 @@ void OffroadTruckDynamics::step(physics::RigidBody2D& body, double dt) noexcept
         return;
     }
 
+    if (jumpCooldown_ > 0.0) {
+        jumpCooldown_ = std::max(0.0, jumpCooldown_ - dt);
+    }
+
     if (input_.jump) {
-        triggerJump();
+        if (!jumpLatch_ && jumpCooldown_ <= 0.0 && isGrounded()) {
+            triggerJump();
+            jumpLatch_ = true;
+        }
+    } else {
+        jumpLatch_ = false;
     }
 
     resolveSuspension(body, dt);
 
     if (jumpTriggered_) {
-        if (isGrounded()) {
+        if (isGrounded() && jumpCooldown_ <= 0.0) {
             const double jumpV { (jumpSpeedOverride_ > 0.0) ? jumpSpeedOverride_ : config_.jumpSpeed };
-            const double impulse { (config_.jumpImpulse > 0.0) ? config_.jumpImpulse : (config_.mass * jumpV) };
-            body.applyLinearImpulse(math::Vec2 { 0.0, impulse });
+            const double currentVy { body.getLinearVelocity().y };
+            const double deltaV { std::max(0.0, jumpV - currentVy) };
+            if (deltaV > 0.0) {
+                const double impulse { (config_.jumpImpulse > 0.0) ? config_.jumpImpulse : (config_.mass * deltaV) };
+                body.applyLinearImpulse(math::Vec2 { 0.0, impulse });
+            }
 
             for (auto& axle : axleStates_) {
                 axle.isGrounded = false;
                 axle.normalForce = 0.0;
             }
             isAirborne_ = true;
+            jumpCooldown_ = 0.35;
         }
         jumpTriggered_ = false;
         jumpSpeedOverride_ = 0.0;
@@ -66,6 +80,8 @@ void OffroadTruckDynamics::reset() noexcept
     isAirborne_ = true;
     jumpTriggered_ = false;
     jumpSpeedOverride_ = 0.0;
+    jumpCooldown_ = 0.0;
+    jumpLatch_ = false;
     input_ = OffroadTruckInput { };
 
     for (auto& axle : axleStates_) {
@@ -123,8 +139,10 @@ terrain::DeformableTerrain* OffroadTruckDynamics::getDeformable() const noexcept
 
 void OffroadTruckDynamics::triggerJump(double speed) noexcept
 {
-    jumpTriggered_ = true;
-    jumpSpeedOverride_ = speed;
+    if (jumpCooldown_ <= 0.0) {
+        jumpTriggered_ = true;
+        jumpSpeedOverride_ = speed;
+    }
 }
 
 const OffroadAxleState& OffroadTruckDynamics::getAxleState(std::size_t index) const noexcept
@@ -168,7 +186,7 @@ void OffroadTruckDynamics::resolveSuspension(physics::RigidBody2D& body, double 
         auto& axle { axleStates_[i] };
         const auto& axleConfig { config_.axles[i] };
 
-        const math::Vec2 attachLocal { forwardDir * axleConfig.longitudinalOffset };
+        const math::Vec2 attachLocal { axleConfig.longitudinalOffset, 0.0 };
         const math::Vec2 attachWorld { body.toWorldPoint(attachLocal) };
         const math::Vec2 attachVel { body.getVelocityAtPoint(attachWorld) };
 
@@ -323,7 +341,8 @@ void OffroadTruckDynamics::applyTraction(physics::RigidBody2D& body) noexcept
         axle.tractionForce = clampedTraction;
 
         const math::Vec2 tangentDir { axle.surfaceNormal.y, -axle.surfaceNormal.x };
-        body.applyForceAtPoint(tangentDir * clampedTraction, axle.worldPos);
+        const math::Vec2 mountPointWorld { body.toWorldPoint(math::Vec2 { config_.axles[i].longitudinalOffset, 0.0 }) };
+        body.applyForceAtPoint(tangentDir * clampedTraction, mountPointWorld);
     }
 }
 
@@ -345,14 +364,16 @@ void OffroadTruckDynamics::applyAeroDrag(physics::RigidBody2D& body) noexcept
 
 void OffroadTruckDynamics::applyAttitudeStabilizer(physics::RigidBody2D& body) noexcept
 {
-    if (!isAirborne_) {
+    const double currentAngle { body.getOrientation() };
+    const double angularVel { body.getAngularVelocity() };
+    const double wrappedAngle { math::Angle2D::normalizeRad(currentAngle) };
+
+    const bool needsStabilization { isAirborne_ || (!axleStates_[kRearAxle].isGrounded) ||
+                                    (!axleStates_[kFrontAxle].isGrounded) || (std::abs(wrappedAngle) > 0.08) };
+    if (!needsStabilization) {
         return;
     }
 
-    const double currentAngle { body.getOrientation() };
-    const double angularVel { body.getAngularVelocity() };
-
-    const double wrappedAngle { math::Angle2D::normalizeRad(currentAngle) };
     const double restoringTorque { -wrappedAngle * config_.pitchStabGain };
     const double dampingTorque { -angularVel * (config_.pitchStabGain * 0.25) };
 

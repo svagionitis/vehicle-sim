@@ -181,6 +181,71 @@ TEST(OffroadTruckDynamicsTest, JumpImpulseAndAirborneAttitudeStabilization)
     EXPECT_LT(body.getAngularVelocity(), 0.10);
 }
 
+TEST(OffroadTruckDynamicsTest, JumpImpulseDoesNotStackWhenHeld)
+{
+    OffroadTruckDynamics truck {};
+    terrain::Heightfield1D terrain {};
+    terrain.setBaseHeight(0.0);
+    truck.setTerrain(&terrain);
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1450.0;
+    bodyConfig.inertia = 1200.0;
+    bodyConfig.position = math::Vec2 { 10.0, 0.85 };
+    physics::RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int i { 0 }; i < 30; ++i) {
+        truck.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    OffroadTruckInput input {};
+    input.jump = true; // Hold jump button down
+    truck.setInput(input);
+
+    truck.step(body, dt);
+    physics::Integrator2D::integrate(body, dt);
+    body.clearForces();
+
+    const double initialVy { body.getLinearVelocity().y };
+
+    // Step 2 more frames with jump still held
+    for (int i { 0 }; i < 2; ++i) {
+        truck.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    // Vertical velocity must decrease under gravity, not double or stack!
+    EXPECT_LT(body.getLinearVelocity().y, initialVy);
+    EXPECT_LT(body.getLinearVelocity().y, 10.0);
+}
+
+TEST(OffroadTruckDynamicsTest, AxleKinematicsUnderChassisPitch)
+{
+    OffroadTruckDynamics truck {};
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1450.0;
+    bodyConfig.inertia = 1200.0;
+    bodyConfig.position = math::Vec2 { 10.0, 5.0 };
+    bodyConfig.orientation = 0.20; // ~11.5 deg pitch
+    physics::RigidBody2D body { bodyConfig };
+
+    truck.step(body, 1.0 / 60.0);
+
+    const auto& frontAxle { truck.getAxleState(OffroadTruckDynamics::kFrontAxle) };
+    const math::Vec2 expectedAttach { body.toWorldPoint(math::Vec2 { 1.20, 0.0 }) };
+    const double cosT { std::cos(0.20) };
+    const double sinT { std::sin(0.20) };
+    const math::Vec2 downwardDir { sinT, -cosT };
+    const math::Vec2 expectedHub { expectedAttach + (downwardDir * truck.getConfig().axles[1].restLength) };
+
+    EXPECT_NEAR(frontAxle.worldPos.x, expectedHub.x, 1e-3);
+    EXPECT_NEAR(frontAxle.worldPos.y, expectedHub.y, 1e-3);
+}
+
 TEST(OffroadTruckDynamicsTest, TerramechanicBekkerSinkageDrag)
 {
     OffroadTruckDynamics truck {};

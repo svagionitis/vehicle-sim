@@ -18,6 +18,8 @@ struct CameraConfig {
     int viewportHeight { 200 };          ///< Native virtual viewport height in pixels.
     double maxShakeDisplacement { 0.5 }; ///< Peak trauma shake displacement in meters.
     double traumaDecayRate { 1.5 };      ///< Linear trauma decay rate in 1/s.
+    double minScreenMarginY { 28.0 };    ///< Minimum vertical screen margin from top in pixels.
+    double maxScreenMarginY { 180.0 };   ///< Maximum vertical screen margin from top in pixels.
 };
 
 /// @class Camera2D

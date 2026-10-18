@@ -28,13 +28,18 @@ void InputController::handleEvent(const SDL_Event& event) noexcept
             fireSecondaryPressed_ = true;
             truckInput_.fireSecondary = true;
             break;
-        case SDL_CONTROLLER_BUTTON_DPAD_UP:
+        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
             throttlePressed_ = true;
             truckInput_.throttle = 1.0;
             break;
+        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
         case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
             brakePressed_ = true;
             truckInput_.brake = 1.0;
+            break;
+        case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            jumpPressed_ = true;
+            truckInput_.jump = true;
             break;
         case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
             pendingAction_ = SystemAction::CyclePalette;
@@ -63,16 +68,23 @@ void InputController::handleEvent(const SDL_Event& event) noexcept
             fireSecondaryPressed_ = false;
             truckInput_.fireSecondary = false;
             break;
-        case SDL_CONTROLLER_BUTTON_DPAD_UP:
+        case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
             throttlePressed_ = false;
             if (!throttlePressed_) {
                 truckInput_.throttle = 0.0;
             }
             break;
+        case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
         case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
             brakePressed_ = false;
             if (!brakePressed_) {
                 truckInput_.brake = 0.0;
+            }
+            break;
+        case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            jumpPressed_ = false;
+            if (!jumpPressed_) {
+                truckInput_.jump = false;
             }
             break;
         default:
@@ -86,11 +98,11 @@ void InputController::handleEvent(const SDL_Event& event) noexcept
         } else if (event.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
             const double val { static_cast<double>(event.caxis.value) / 32767.0 };
             truckInput_.throttle = val > 0.1 ? val : (throttlePressed_ ? 1.0 : 0.0);
-        } else if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
-            if (event.caxis.value < -kDeadzone) {
-                truckInput_.throttle = static_cast<double>(-event.caxis.value) / 32768.0;
-            } else if (event.caxis.value > kDeadzone) {
-                truckInput_.brake = static_cast<double>(event.caxis.value) / 32767.0;
+        } else if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX) {
+            if (event.caxis.value > kDeadzone) {
+                truckInput_.throttle = static_cast<double>(event.caxis.value) / 32767.0;
+            } else if (event.caxis.value < -kDeadzone) {
+                truckInput_.brake = static_cast<double>(-event.caxis.value) / 32768.0;
             } else {
                 if (!throttlePressed_) {
                     truckInput_.throttle = 0.0;
@@ -106,27 +118,38 @@ void InputController::handleEvent(const SDL_Event& event) noexcept
 void InputController::handleKeyDown(SDL_Keycode key) noexcept
 {
     switch (key) {
-    case SDLK_UP:
+    case SDLK_RIGHT:
+    case SDLK_d:
     case SDLK_w:
         throttlePressed_ = true;
         truckInput_.throttle = 1.0;
         break;
+    case SDLK_LEFT:
+    case SDLK_a:
     case SDLK_DOWN:
     case SDLK_s:
         brakePressed_ = true;
         truckInput_.brake = 1.0;
         break;
+    case SDLK_UP:
     case SDLK_SPACE:
         jumpPressed_ = true;
         truckInput_.jump = true;
         break;
     case SDLK_z:
     case SDLK_j:
+    case SDLK_LCTRL:
+    case SDLK_RCTRL:
+    case SDLK_RETURN:
         firePrimaryPressed_ = true;
         truckInput_.firePrimary = true;
         break;
     case SDLK_x:
     case SDLK_k:
+    case SDLK_LALT:
+    case SDLK_RALT:
+    case SDLK_LSHIFT:
+    case SDLK_RSHIFT:
         fireSecondaryPressed_ = true;
         truckInput_.fireSecondary = true;
         break;
@@ -160,29 +183,50 @@ void InputController::handleKeyDown(SDL_Keycode key) noexcept
 void InputController::handleKeyUp(SDL_Keycode key) noexcept
 {
     switch (key) {
-    case SDLK_UP:
+    case SDLK_RIGHT:
+    case SDLK_d:
     case SDLK_w:
         throttlePressed_ = false;
-        truckInput_.throttle = 0.0;
+        if (!throttlePressed_) {
+            truckInput_.throttle = 0.0;
+        }
         break;
+    case SDLK_LEFT:
+    case SDLK_a:
     case SDLK_DOWN:
     case SDLK_s:
         brakePressed_ = false;
-        truckInput_.brake = 0.0;
+        if (!brakePressed_) {
+            truckInput_.brake = 0.0;
+        }
         break;
+    case SDLK_UP:
     case SDLK_SPACE:
         jumpPressed_ = false;
-        truckInput_.jump = false;
+        if (!jumpPressed_) {
+            truckInput_.jump = false;
+        }
         break;
     case SDLK_z:
     case SDLK_j:
+    case SDLK_LCTRL:
+    case SDLK_RCTRL:
+    case SDLK_RETURN:
         firePrimaryPressed_ = false;
-        truckInput_.firePrimary = false;
+        if (!firePrimaryPressed_) {
+            truckInput_.firePrimary = false;
+        }
         break;
     case SDLK_x:
     case SDLK_k:
+    case SDLK_LALT:
+    case SDLK_RALT:
+    case SDLK_LSHIFT:
+    case SDLK_RSHIFT:
         fireSecondaryPressed_ = false;
-        truckInput_.fireSecondary = false;
+        if (!fireSecondaryPressed_) {
+            truckInput_.fireSecondary = false;
+        }
         break;
     default:
         break;

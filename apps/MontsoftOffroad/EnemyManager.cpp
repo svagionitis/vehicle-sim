@@ -543,6 +543,12 @@ void EnemyManager::resolveTruckContacts(
 
         // 2. Red Chase Buggy Ramming Contact
         if (enemy.type == EnemyType::RedChaseBuggy && dist < 2.0) {
+            // If truck is airborne and above the buggy, player successfully jumped over it
+            if (truckPos.y > enemy.position.y + 0.85) {
+                accumulatedScore_ += 100U;
+                particleSystem.emitThrusterSparks(enemy.position + Vec2{ 0.0, 0.5 }, Vec2{ 0.0, 5.0 });
+                continue;
+            }
             // Apply forward impulse bump to truck
             const Vec2 pushDir { (truckPos.x > enemy.position.x) ? Vec2{ 1.0, 0.1 } : Vec2{ -1.0, 0.1 } };
             truckBody.applyLinearImpulse(pushDir * 600.0);
@@ -554,7 +560,22 @@ void EnemyManager::resolveTruckContacts(
             continue;
         }
 
-        // 3. Drone Square Mid-air Contact Crash
+        // 3. Scout Dirt Bike Contact
+        if (enemy.type == EnemyType::ScoutDirtBike && dist < 1.5) {
+            if (truckPos.y > enemy.position.y + 0.70) {
+                accumulatedScore_ += 100U;
+                continue;
+            }
+            enemy.active = false;
+            particleSystem.emitExplosionShrapnel(enemy.position, 2.0, 0.8, 0U);
+            playerHealth_ -= 10.0;
+            if (playerHealth_ <= 0.0) {
+                truckDestroyed_ = true;
+            }
+            continue;
+        }
+
+        // 4. Drone Square Mid-air Contact Crash
         if (enemy.type == EnemyType::BouncingDrone && dist < 1.4) {
             enemy.active = false;
             particleSystem.emitExplosionShrapnel(enemy.position, 2.5, 1.0, 0U);

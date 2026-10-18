@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cstdio>
 
 #include "apps/MontsoftOffroad/AudioSystem.h"
 #include "apps/MontsoftOffroad/BossController.h"
@@ -487,6 +488,79 @@ TEST(InputControllerTest, KeyboardMappingTransitions)
     ev.key.keysym.sym = SDLK_s;
     controller.handleEvent(ev);
     EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 0.0);
+}
+
+TEST(InputControllerTest, ArrowKeysAndDpadMapping)
+{
+    InputController controller {};
+
+    SDL_Event ev {};
+    ev.type = SDL_KEYDOWN;
+    ev.key.repeat = 0;
+
+    // Right Arrow -> Throttle
+    ev.key.keysym.sym = SDLK_RIGHT;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 1.0);
+
+    // Release Right Arrow
+    ev.type = SDL_KEYUP;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 0.0);
+
+    // Left Arrow -> Brake
+    ev.type = SDL_KEYDOWN;
+    ev.key.keysym.sym = SDLK_LEFT;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 1.0);
+
+    // Release Left Arrow
+    ev.type = SDL_KEYUP;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 0.0);
+
+    // Up Arrow -> Jump
+    ev.type = SDL_KEYDOWN;
+    ev.key.keysym.sym = SDLK_UP;
+    controller.handleEvent(ev);
+    EXPECT_TRUE(controller.getTruckInput().jump);
+
+    // Release Up Arrow
+    ev.type = SDL_KEYUP;
+    controller.handleEvent(ev);
+    EXPECT_FALSE(controller.getTruckInput().jump);
+
+    // Key D -> Throttle
+    ev.type = SDL_KEYDOWN;
+    ev.key.keysym.sym = SDLK_d;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 1.0);
+
+    // Key A -> Brake
+    ev.key.keysym.sym = SDLK_a;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 1.0);
+
+    // Reset
+    controller.reset();
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 0.0);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 0.0);
+
+    // Gamepad DPAD Right -> Throttle
+    ev.type = SDL_CONTROLLERBUTTONDOWN;
+    ev.cbutton.button = SDL_CONTROLLER_BUTTON_DPAD_RIGHT;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 1.0);
+
+    // Gamepad DPAD Left -> Brake
+    ev.cbutton.button = SDL_CONTROLLER_BUTTON_DPAD_LEFT;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 1.0);
+
+    // Gamepad DPAD Up -> Jump
+    ev.cbutton.button = SDL_CONTROLLER_BUTTON_DPAD_UP;
+    controller.handleEvent(ev);
+    EXPECT_TRUE(controller.getTruckInput().jump);
 }
 
 TEST(InputControllerTest, SystemActionEdgeTriggering)
@@ -1610,7 +1684,9 @@ TEST(CgaRendererTest, BitmapFontTypography)
 
 TEST(HighScoreManagerTest, DefaultLeaderboardAndRanking)
 {
+    static_cast<void>(std::remove("highscores.dat"));
     HighScoreManager manager {};
+    manager.resetToDefaults();
     const auto& records { manager.getRecords() };
     EXPECT_EQ(records.size(), 10U);
 
@@ -1640,6 +1716,7 @@ TEST(HighScoreManagerTest, DefaultLeaderboardAndRanking)
     // Persistence reload test
     EXPECT_TRUE(manager.saveScores());
     EXPECT_TRUE(manager.loadScores());
+    static_cast<void>(std::remove("highscores.dat"));
 }
 
 TEST(CampaignManagerTest, LifecycleAndStateTransitions)
@@ -1795,4 +1872,27 @@ TEST(GameAppPhase8IntegrationTest, FullCampaignAudioAndRenderPasses)
     app.renderFrame();
 }
 
+TEST(Camera2DTest, CameraClampsVehicleWithinVerticalScreenBounds)
+{
+    Camera2D camera {};
+    const vehicle_sim::math::Vec2 startPos { 10.0, 0.85 };
+    camera.reset(startPos);
+
+    // Baseline: ground vehicle at rest is near anchorScreenY (144 px)
+    const vehicle_sim::math::Vec2 initialScreenPos { camera.worldToScreen(startPos) };
+    EXPECT_NEAR(initialScreenPos.y, 144.0, 0.1);
+
+    // High jump (e.g. 10m high airborne leap)
+    const vehicle_sim::math::Vec2 highJumpPos { 10.0, 10.0 };
+    constexpr double dt { 1.0 / 60.0 };
+    // Update camera for a single frame
+    camera.update(highJumpPos, 10.0, dt);
+
+    const vehicle_sim::math::Vec2 screenPosAfterJump { camera.worldToScreen(highJumpPos) };
+    // Screen position must be clamped within visible bounds (never negative / lost off top of screen)
+    EXPECT_GE(screenPosAfterJump.y, 28.0);
+    EXPECT_LE(screenPosAfterJump.y, 180.0);
+}
+
 } // namespace montsoft_offroad
+
