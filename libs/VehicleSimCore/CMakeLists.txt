@@ -120,6 +120,10 @@ add_library(VehicleSimCore STATIC
     dynamics/ArticulatedTruckDynamics.cpp
     dynamics/EarthRoverDynamics.h
     dynamics/EarthRoverDynamics.cpp
+    dynamics/OffroadTruckDynamics.h
+    dynamics/OffroadTruckDynamics.cpp
+    dynamics/OffroadBallistics2D.h
+    dynamics/OffroadBallistics2D.cpp
     dynamics/PacejkaTireModel.h
     dynamics/PacejkaTireModel.cpp
     dynamics/TireThermalModel.h

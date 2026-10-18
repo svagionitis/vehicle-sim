@@ -1644,6 +1644,15 @@ graph TD
   - [TOISolver2D](../libs/VehicleSimCore/physics/TOISolver2D.h) Continuous Collision Detection: Swept time-of-impact root finding ensuring supersonic rockets never tunnel through razor-thin cavern walls.
   - [DynamicBVH2D](../libs/VehicleSimCore/physics/DynamicBVH2D.h): High-density obstacle broadphase supporting hundreds of falling boulders and falling debris colliders.
 
+### 8.7 *Montsoft Offroad: 4WD Desert Combat Racer (1988 Classic Reimagined)*
+- **Inspiration**: *Offroad* (1988, Monte Variakojis / Montsoft), *Jumpjet*, *Moon Patrol*.
+- **Gameplay Concept**: 2D side-scrolling vehicular combat action racing where a high-clearance 4WD desert truck jumps over chasms and fires dual weaponry (forward kinetic rockets and anti-air flak mortars) across 8 distinct desert biomes to battle scout bikes, chase buggies, fighter jets, and multi-phase bosses (Giant Mech Head & Dreadnought Cruiser).
+- **Engine Subsystems Leveraged**:
+  - `OffroadTruckDynamics`: 2-axle / 4WD independent long-travel spring-damper suspension, 50:50 center differential, bump stops, and in-flight attitude stabilization.
+  - `OffroadBallistics2D`: Physical ballistic simulation for forward rockets and arched mortar shells with aerodynamic drag, gravity drop, and explosive blast impulse transfer.
+  - [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h): Bekker-Wong soil sinkage and compaction rut drag across soft sand dunes and mud.
+  - [Heightfield1D](../libs/VehicleSimCore/terrain/Heightfield1D.h) & [FluidDrag2D](../libs/VehicleSimCore/physics/FluidDrag2D.h): Continuous terrain elevation, atmospheric drag, and desert gusts.
+
 ---
 
 ## 9. Architectural Roadmap and Priority Matrix
@@ -1661,6 +1670,7 @@ graph TD
 | **Banked / Cambered Tracks (Implemented)** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | [BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h) - Centerline superelevation & normal tilting |
 | **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h), [FluidDrag2D.h](../libs/VehicleSimCore/physics/FluidDrag2D.h) |
 | **Earth Patrol (3-Axle Rover & SDL Game) (Implemented)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [apps/EarthPatrol](../apps/EarthPatrol), [Earth Patrol Plan](EarthPatrolImplementationPlan.md) |
+| **Montsoft Offroad (4WD Combat Racer & CGA Game)** | Dynamics / App | Medium | `OffroadTruckDynamics`, `OffroadBallistics2D`, `DeformableTerrain`, SDL2 | [apps/MontsoftOffroad](../apps/MontsoftOffroad), [Montsoft Offroad Plan](MontsoftOffroadImplementationPlan.md) |
 | **Stanley Path Following & Speed Profiler (Implemented)** | Math / Dynamics | Low-Med | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [PIDController](../libs/VehicleSimCore/math/PIDController.h) | [StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h), [Stanley Path Plan](StanleyPathFollowingImplementationPlan.md) |
 | **DynamicBVH2D Broadphase (Implemented)** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | [DynamicBVH2D.h](../libs/VehicleSimCore/physics/DynamicBVH2D.h), [DynamicBVH Plan](DynamicBVHImplementationPlan.md) |
 | **Extended Joints (`Wheel`, `Prismatic`, `Weld`) (Implemented)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | [WheelJoint2D.h](../libs/VehicleSimCore/physics/WheelJoint2D.h), [Extended Joints Plan](ExtendedConstraintJointsImplementationPlan.md) |
