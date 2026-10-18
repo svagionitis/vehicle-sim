@@ -18,6 +18,7 @@ RigidBody2D::RigidBody2D(const RigidBodyConfig& config) noexcept
     , mAngularDamping { std::max(0.0, config.angularDamping) }
     , mGravityScale { config.gravityScale }
     , mBodyType { config.bodyType }
+    , mIsBullet { config.isBullet }
 {
     updateInertialCache();
 }
@@ -301,6 +302,26 @@ math::Vec2 RigidBody2D::getLinearMomentum() const noexcept
 double RigidBody2D::getAngularMomentum() const noexcept
 {
     return mInertia * mAngularVelocity;
+}
+
+void RigidBody2D::setBullet(bool isBullet) noexcept
+{
+    mIsBullet = isBullet;
+}
+
+bool RigidBody2D::isBullet() const noexcept
+{
+    return mIsBullet;
+}
+
+void RigidBody2D::setCcdRadius(double radius) noexcept
+{
+    mCcdRadius = std::max(0.0, radius);
+}
+
+double RigidBody2D::getCcdRadius() const noexcept
+{
+    return mCcdRadius;
 }
 
 } // namespace vehicle_sim::physics

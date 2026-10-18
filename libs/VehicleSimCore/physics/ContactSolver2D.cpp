@@ -11,8 +11,9 @@ bool ContactSolver2D::resolve(RigidBody2D& bodyA, RigidBody2D* bodyB, const Cont
     const math::Vec2 velB { (bodyB != nullptr) ? bodyB->getVelocityAtPoint(contact.point) : math::Vec2::zero() };
     const math::Vec2 relVel { velB - velA };
 
+    const double desiredRelVel { contact.isSpeculative ? contact.targetVelocity : 0.0 };
     const double normalVel { relVel.dot(contact.normal) };
-    if (normalVel >= 0.0) {
+    if (normalVel >= desiredRelVel) {
         return false;
     }
 
@@ -37,8 +38,8 @@ bool ContactSolver2D::resolve(RigidBody2D& bodyA, RigidBody2D* bodyB, const Cont
         return false;
     }
 
-    const double restitution { std::clamp(contact.restitution, 0.0, 1.0) };
-    const double jn { -(1.0 + restitution) * normalVel / kn };
+    const double restitution { contact.isSpeculative ? 0.0 : std::clamp(contact.restitution, 0.0, 1.0) };
+    const double jn { -((1.0 + restitution) * normalVel - desiredRelVel) / kn };
     const math::Vec2 normalImpulse { contact.normal * jn };
 
     bodyA.applyImpulseAtPoint(-normalImpulse, contact.point);
@@ -46,7 +47,7 @@ bool ContactSolver2D::resolve(RigidBody2D& bodyA, RigidBody2D* bodyB, const Cont
         bodyB->applyImpulseAtPoint(normalImpulse, contact.point);
     }
 
-    if (contact.friction > 0.0) {
+    if (!contact.isSpeculative && contact.friction > 0.0) {
         const math::Vec2 tangent { contact.normal.perpendicular() };
         const double tangentVel { relVel.dot(tangent) };
 
@@ -73,7 +74,7 @@ bool ContactSolver2D::resolve(RigidBody2D& bodyA, RigidBody2D* bodyB, const Cont
         }
     }
 
-    if (contact.penetration > 0.0001) {
+    if (!contact.isSpeculative && contact.penetration > 0.0001) {
         const double totalInvMass { bodyA.getInverseMass() + invMassB };
         if (totalInvMass > 1e-12) {
             constexpr double kBaumgarte { 0.4 };

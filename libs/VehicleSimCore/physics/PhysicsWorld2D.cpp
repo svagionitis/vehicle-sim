@@ -5,6 +5,8 @@
 #include "Collider2D.h"
 #include "ContactManifold2D.h"
 #include "Narrowphase2D.h"
+#include "SpeculativeContact2D.h"
+#include "TOISolver2D.h"
 #include "libs/VehicleSimCore/math/Angle2D.h"
 #include "libs/VehicleSimCore/terrain/Heightfield1D.h"
 
@@ -196,6 +198,16 @@ void PhysicsWorld2D::step(double dt) noexcept
                             *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
                     }
                 }
+            } else if (mSpeculativeEnabled) {
+                if (SpeculativeContact2D::generateContacts(
+                        *colA, *colB, dt, mSpeculativeSettings, manifold)) {
+                    if (manifold.bodyA != nullptr) {
+                        for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
+                            static_cast<void>(ContactSolver2D::resolve(
+                                *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
+                        }
+                    }
+                }
             }
         }
 
@@ -213,18 +225,90 @@ void PhysicsWorld2D::step(double dt) noexcept
         }
     }
 
-    // 5. Symplectic position integration
+    // 5. Symplectic position integration with Continuous Collision Detection (CCD)
     for (auto* body : mBodies) {
         if (body == nullptr || body->isStatic()) {
             continue;
         }
 
-        const math::Vec2 newPos { body->getPosition() + (body->getLinearVelocity() * dt) };
-        body->setPosition(newPos);
+        if (!mCCDEnabled || !body->isBullet()) {
+            const math::Vec2 newPos { body->getPosition() + (body->getLinearVelocity() * dt) };
+            body->setPosition(newPos);
 
-        const double newAngle { math::Angle2D::normalizeRad(
-            body->getOrientation() + (body->getAngularVelocity() * dt)) };
-        body->setOrientation(newAngle);
+            const double newAngle { math::Angle2D::normalizeRad(
+                body->getOrientation() + (body->getAngularVelocity() * dt)) };
+            body->setOrientation(newAngle);
+            continue;
+        }
+
+        // Bullet body CCD sub-stepping
+        double timeRemaining { dt };
+        std::size_t subStep { 0 };
+
+        while (timeRemaining > 1e-6 && subStep < mMaxCCDSubsteps) {
+            ++subStep;
+
+            TOIOutput earliestTOI {};
+            earliestTOI.time = 1.0;
+            earliestTOI.state = TOIState::Separated;
+            Collider2D* hitCollider { nullptr };
+
+            for (auto* colA : mColliders) {
+                if (colA == nullptr || colA->getBody() != body) {
+                    continue;
+                }
+
+                for (auto* colB : mColliders) {
+                    if (colB == nullptr || colB->getBody() == body || colB->isSensor()) {
+                        continue;
+                    }
+                    if (!colA->canCollideWith(*colB)) {
+                        continue;
+                    }
+
+                    const TOIInput subInput { timeRemaining, 1e-4, 16 };
+                    const TOIOutput res { TOISolver2D::solveColliderTOI(*colA, *colB, subInput) };
+                    if ((res.state == TOIState::Touching || res.state == TOIState::Overlapped)
+                        && res.time < earliestTOI.time) {
+                        earliestTOI = res;
+                        hitCollider = colB;
+                    }
+                }
+
+                if (mTerrain != nullptr) {
+                    const TOIInput subInput { timeRemaining, 1e-4, 16 };
+                    const TOIOutput res { TOISolver2D::solveTerrainTOI(*colA, *mTerrain, subInput) };
+                    if ((res.state == TOIState::Touching || res.state == TOIState::Overlapped)
+                        && res.time < earliestTOI.time) {
+                        earliestTOI = res;
+                        hitCollider = nullptr;
+                    }
+                }
+            }
+
+            if (earliestTOI.state == TOIState::Touching || earliestTOI.state == TOIState::Overlapped) {
+                const double tAdvance { std::max(0.0, earliestTOI.time * timeRemaining) };
+                body->setPosition(body->getPosition() + (body->getLinearVelocity() * tAdvance));
+                body->setOrientation(math::Angle2D::normalizeRad(
+                    body->getOrientation() + (body->getAngularVelocity() * tAdvance)));
+
+                Contact2D impactContact {};
+                impactContact.point = earliestTOI.point;
+                impactContact.normal = earliestTOI.normal;
+                impactContact.penetration = 0.0;
+                impactContact.restitution = 0.2;
+                impactContact.friction = 0.4;
+                RigidBody2D* otherBody { (hitCollider != nullptr) ? hitCollider->getBody() : nullptr };
+                static_cast<void>(ContactSolver2D::resolve(*body, otherBody, impactContact));
+
+                timeRemaining -= tAdvance;
+            } else {
+                body->setPosition(body->getPosition() + (body->getLinearVelocity() * timeRemaining));
+                body->setOrientation(math::Angle2D::normalizeRad(
+                    body->getOrientation() + (body->getAngularVelocity() * timeRemaining)));
+                timeRemaining = 0.0;
+            }
+        }
     }
 
     // 6. Iterative position constraint solve
@@ -358,6 +442,46 @@ const DynamicBVH2D& PhysicsWorld2D::getBroadphaseTree() const noexcept
 DynamicBVH2D& PhysicsWorld2D::getBroadphaseTree() noexcept
 {
     return mBroadphaseTree;
+}
+
+void PhysicsWorld2D::setCCDEnabled(bool enabled) noexcept
+{
+    mCCDEnabled = enabled;
+}
+
+bool PhysicsWorld2D::isCCDEnabled() const noexcept
+{
+    return mCCDEnabled;
+}
+
+void PhysicsWorld2D::setSpeculativeEnabled(bool enabled) noexcept
+{
+    mSpeculativeEnabled = enabled;
+}
+
+bool PhysicsWorld2D::isSpeculativeEnabled() const noexcept
+{
+    return mSpeculativeEnabled;
+}
+
+void PhysicsWorld2D::setMaxCCDSubsteps(std::size_t substeps) noexcept
+{
+    mMaxCCDSubsteps = std::max(std::size_t { 1 }, substeps);
+}
+
+std::size_t PhysicsWorld2D::getMaxCCDSubsteps() const noexcept
+{
+    return mMaxCCDSubsteps;
+}
+
+void PhysicsWorld2D::setSpeculativeSettings(const SpeculativeSettings& settings) noexcept
+{
+    mSpeculativeSettings = settings;
+}
+
+const SpeculativeSettings& PhysicsWorld2D::getSpeculativeSettings() const noexcept
+{
+    return mSpeculativeSettings;
 }
 
 } // namespace vehicle_sim::physics

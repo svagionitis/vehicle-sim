@@ -108,6 +108,14 @@ public:
     /// @return Proxy identifier or -1 if unregistered.
     [[nodiscard]] std::int32_t getBroadphaseProxyId() const noexcept;
 
+    /// @brief Sets whether continuous collision detection is enabled for this collider.
+    /// @param[in] enabled True to activate CCD sweeps.
+    void setCCDEnabled(bool enabled) noexcept;
+
+    /// @brief Queries whether continuous collision detection is enabled for this collider.
+    /// @return True if CCD is enabled.
+    [[nodiscard]] bool isCCDEnabled() const noexcept;
+
 private:
     ShapeVariant mShape { math::Circle2D { { 0.0, 0.0 }, 0.5 } };
     RigidBody2D* mBody { nullptr };
@@ -116,6 +124,7 @@ private:
     std::uint16_t mMaskBits { 0xFFFF };
     std::int32_t mBroadphaseProxyId { -1 };
     bool mIsSensor { false };
+    bool mCCDEnabled { false };
 };
 
 } // namespace vehicle_sim::physics

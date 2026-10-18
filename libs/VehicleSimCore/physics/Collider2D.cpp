@@ -236,4 +236,14 @@ std::int32_t Collider2D::getBroadphaseProxyId() const noexcept
     return mBroadphaseProxyId;
 }
 
+void Collider2D::setCCDEnabled(bool enabled) noexcept
+{
+    mCCDEnabled = enabled;
+}
+
+bool Collider2D::isCCDEnabled() const noexcept
+{
+    return mCCDEnabled;
+}
+
 } // namespace vehicle_sim::physics

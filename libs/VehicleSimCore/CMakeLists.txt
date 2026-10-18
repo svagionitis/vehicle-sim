@@ -37,6 +37,8 @@ add_library(VehicleSimCore STATIC
     math/StanleyController.cpp
     math/SpeedProfiler2D.h
     math/SpeedProfiler2D.cpp
+    math/SweptShape2D.h
+    math/SweptShape2D.cpp
     physics/RigidBody2D.h
     physics/RigidBody2D.cpp
     physics/Integrator2D.h
@@ -54,6 +56,11 @@ add_library(VehicleSimCore STATIC
     physics/DynamicBVH2D.cpp
     physics/Narrowphase2D.h
     physics/Narrowphase2D.cpp
+    physics/TOIPrimitives2D.h
+    physics/TOISolver2D.h
+    physics/TOISolver2D.cpp
+    physics/SpeculativeContact2D.h
+    physics/SpeculativeContact2D.cpp
     physics/PhysicsWorld2D.h
     physics/PhysicsWorld2D.cpp
     physics/Joint2D.h

@@ -12,6 +12,8 @@ struct Contact2D {
     math::Vec2 normal { 0.0,
         1.0 }; ///< Unit normal pointing from body A towards body B (or towards barrier if body B is nullptr).
     double penetration { 0.0 }; ///< Interpenetration depth in meters.
+    double targetVelocity { 0.0 }; ///< Target relative normal velocity bias (-d0 / dt for speculative).
+    bool isSpeculative { false }; ///< True if contact represents a speculative proximity constraint.
     double restitution { 0.0 }; ///< Coefficient of restitution [0.0 = inelastic, 1.0 = elastic].
     double friction { 0.0 }; ///< Coulomb friction coefficient.
 };

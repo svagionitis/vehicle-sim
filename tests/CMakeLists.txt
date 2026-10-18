@@ -37,6 +37,7 @@ add_executable(VehicleSimCoreTests
     HazardScatteringTest.cpp
     StratifiedSoilTest.cpp
     HydroplaningModelTest.cpp
+    ContinuousCollisionDetectionTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

@@ -27,6 +27,7 @@ struct RigidBodyConfig {
     BodyType bodyType { BodyType::Dynamic };
     math::Vec2 position { 0.0, 0.0 };
     double orientation { 0.0 };
+    bool isBullet { false };
 };
 
 /// @class RigidBody2D
@@ -247,6 +248,22 @@ public:
     /// @return Angular momentum scalar in kg*m^2/s.
     [[nodiscard]] double getAngularMomentum() const noexcept;
 
+    /// @brief Sets bullet classification for continuous collision detection.
+    /// @param[in] isBullet True to enable TOI continuous collision sweeps.
+    void setBullet(bool isBullet) noexcept;
+
+    /// @brief Queries whether body is classified as a bullet for CCD.
+    /// @return True if bullet mode is enabled.
+    [[nodiscard]] bool isBullet() const noexcept;
+
+    /// @brief Sets the swept radius used for CCD conservative advancement.
+    /// @param[in] radius Bounding swept radius in meters.
+    void setCcdRadius(double radius) noexcept;
+
+    /// @brief Gets the swept radius used for CCD conservative advancement.
+    /// @return Swept radius in meters.
+    [[nodiscard]] double getCcdRadius() const noexcept;
+
 private:
     void updateInertialCache() noexcept;
 
@@ -267,6 +284,9 @@ private:
 
     math::Vec2 mAccumulatedForce { 0.0, 0.0 };
     double mAccumulatedTorque { 0.0 };
+
+    bool mIsBullet { false };
+    double mCcdRadius { 0.0 };
 };
 
 } // namespace vehicle_sim::physics

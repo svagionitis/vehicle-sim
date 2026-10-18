@@ -9,6 +9,7 @@
 #include "Integrator2D.h"
 #include "Joint2D.h"
 #include "RigidBody2D.h"
+#include "SpeculativeContact2D.h"
 #include "libs/VehicleSimCore/math/Ray2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
 
@@ -155,6 +156,38 @@ public:
     /// @return Mutable reference to internal DynamicBVH2D instance.
     [[nodiscard]] DynamicBVH2D& getBroadphaseTree() noexcept;
 
+    /// @brief Sets whether continuous collision detection sweeps are enabled.
+    /// @param[in] enabled True to activate CCD sub-stepping for bullet bodies.
+    void setCCDEnabled(bool enabled) noexcept;
+
+    /// @brief Queries whether continuous collision detection is enabled.
+    /// @return True if CCD is enabled.
+    [[nodiscard]] bool isCCDEnabled() const noexcept;
+
+    /// @brief Sets whether speculative predictive contacts are enabled.
+    /// @param[in] enabled True to generate speculative contacts.
+    void setSpeculativeEnabled(bool enabled) noexcept;
+
+    /// @brief Queries whether speculative predictive contacts are enabled.
+    /// @return True if speculative contacts are enabled.
+    [[nodiscard]] bool isSpeculativeEnabled() const noexcept;
+
+    /// @brief Sets maximum sub-step count for continuous collision detection.
+    /// @param[in] substeps Maximum sub-steps per simulation step.
+    void setMaxCCDSubsteps(std::size_t substeps) noexcept;
+
+    /// @brief Gets maximum sub-step count for continuous collision detection.
+    /// @return Maximum sub-step budget.
+    [[nodiscard]] std::size_t getMaxCCDSubsteps() const noexcept;
+
+    /// @brief Sets speculative contact detection settings.
+    /// @param[in] settings Configuration parameters for speculative contacts.
+    void setSpeculativeSettings(const SpeculativeSettings& settings) noexcept;
+
+    /// @brief Gets speculative contact detection settings.
+    /// @return Current speculative settings.
+    [[nodiscard]] const SpeculativeSettings& getSpeculativeSettings() const noexcept;
+
 private:
     math::Vec2 mGravity { 0.0, -9.81 };
     std::vector<RigidBody2D*> mBodies {};
@@ -166,6 +199,10 @@ private:
     std::size_t mPositionIterations { 3 };
     const FluidField2D* mFluidField { nullptr };
     const terrain::Heightfield1D* mTerrain { nullptr };
+    bool mCCDEnabled { true };
+    bool mSpeculativeEnabled { true };
+    std::size_t mMaxCCDSubsteps { 3 };
+    SpeculativeSettings mSpeculativeSettings {};
 };
 
 } // namespace vehicle_sim::physics

@@ -660,10 +660,10 @@ graph TD
 
 ---
 
-### 4.6 Continuous Collision Detection (CCD) & Speculative Contacts
+### 4.6 Continuous Collision Detection (CCD) & Speculative Contacts (Implemented)
 
 #### Objective
-Prevent high-speed vehicles (such as [AntiGravityRacerDynamics](../libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h), [RocketDynamics](../libs/VehicleSimCore/dynamics/RocketDynamics.h), or high-speed racing cars) from tunneling through thin track barriers or terrain edges during large simulation time steps $\Delta t$.
+Prevent high-speed vehicles (such as [AntiGravityRacerDynamics](../libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h), [RocketDynamics](../libs/VehicleSimCore/dynamics/RocketDynamics.h), or high-speed racing cars) from tunneling through thin track barriers or terrain edges during large simulation time steps $\Delta t$. Detailed architectural and anti-tunneling design specification: [Continuous Collision Detection Plan](ContinuousCollisionDetectionImplementationPlan.md).
 
 #### Technical Formulation
 - **Time-of-Impact (TOI) Root Finding**:
