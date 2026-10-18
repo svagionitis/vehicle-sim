@@ -24,6 +24,8 @@ add_executable(MontsoftOffroad
     ParallaxRenderer.cpp
     CombatManager.h
     CombatManager.cpp
+    EnemyManager.h
+    EnemyManager.cpp
     SDLWrappers.h
 )
 
@@ -75,6 +77,8 @@ if(BUILD_TESTING)
         ParallaxRenderer.cpp
         CombatManager.h
         CombatManager.cpp
+        EnemyManager.h
+        EnemyManager.cpp
         SDLWrappers.h
     )
 

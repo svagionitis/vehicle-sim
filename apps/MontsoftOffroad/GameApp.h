@@ -8,6 +8,7 @@
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CombatManager.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
+#include "apps/MontsoftOffroad/EnemyManager.h"
 #include "apps/MontsoftOffroad/InputController.h"
 #include "apps/MontsoftOffroad/ParallaxRenderer.h"
 #include "apps/MontsoftOffroad/ParticleSystem.h"
@@ -120,6 +121,14 @@ public:
     /// @return Mutable reference to CombatManager.
     [[nodiscard]] CombatManager& getCombatManager() noexcept;
 
+    /// @brief Gets enemy coordinator.
+    /// @return Constant reference to EnemyManager.
+    [[nodiscard]] const EnemyManager& getEnemyManager() const noexcept;
+
+    /// @brief Gets mutable enemy coordinator.
+    /// @return Mutable reference to EnemyManager.
+    [[nodiscard]] EnemyManager& getEnemyManager() noexcept;
+
     /// @brief Gets CGA palette renderer.
     /// @return Constant reference to CgaPaletteRenderer.
     [[nodiscard]] const CgaPaletteRenderer& getRenderer() const noexcept;
@@ -199,6 +208,8 @@ private:
     vehicle_sim::physics::RigidBody2D truckBody_ {};
     vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};
     CombatManager combatManager_ {};
+    EnemyManager enemyManager_ {};
+    std::vector<CombatTargetAabb> combatTargets_ {};
 
     bool running_ { false };
     bool paused_ { false };

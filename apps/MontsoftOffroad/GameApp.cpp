@@ -220,6 +220,19 @@ void GameApp::updateSimulation(double dt) noexcept
     particleSystem_.update(dt);
     truckRenderer_.updateAnimation(truckBody_.getLinearVelocity().x, dt);
 
+    // Milestone progress for wave formations
+    std::size_t milestoneIdx { 0U };
+    const auto& checkpoints { courseManager_.getCheckpoints() };
+    for (std::size_t cp { 0 }; cp < checkpoints.size(); ++cp) {
+        if (checkpoints[cp].reached) {
+            milestoneIdx = cp;
+        }
+    }
+    enemyManager_.spawnFormation(stageIdx, milestoneIdx, truckBody_.getPosition().x, &courseManager_.getHeightfield());
+    enemyManager_.update(dt, &courseManager_.getHeightfield(), camera_, truckBody_, particleSystem_);
+
+    enemyManager_.syncCombatTargets(combatTargets_);
+
     const std::vector<vehicle_sim::physics::RigidBody2D*> sceneBodies{ &truckBody_ };
     combatManager_.update(
         dt,
@@ -227,9 +240,11 @@ void GameApp::updateSimulation(double dt) noexcept
         particleSystem_,
         camera_,
         sceneBodies,
-        nullptr,
+        &combatTargets_,
         stageIdx
     );
+
+    enemyManager_.applyCombatDamage(combatTargets_, particleSystem_, stageIdx);
 
     camera_.update(truckBody_.getPosition(), truckBody_.getLinearVelocity().x, dt);
     parallax_.update(dt);
@@ -264,13 +279,16 @@ void GameApp::renderFrame() noexcept
         }
     }
 
-    // 3. Render terramechanic dust plumes & rooster tails (Layer behind truck)
+    // 3. Render terramechanic dust plumes & rooster tails (Layer behind truck and enemies)
     particleSystem_.render(cgaRenderer_, camera_);
 
-    // 4. Render articulated 4WD desert truck chassis, suspension, knobby tires, weapons
+    // 4. Render active enemy units and incoming projectiles
+    enemyManager_.render(cgaRenderer_, camera_);
+
+    // 5. Render articulated 4WD desert truck chassis, suspension, knobby tires, weapons
     truckRenderer_.render(cgaRenderer_, camera_, truckBody_, truckDynamics_);
 
-    // 5. Render active ballistic projectiles, rockets, mortars, and shockwaves
+    // 6. Render active ballistic projectiles, rockets, mortars, and shockwaves
     combatManager_.render(cgaRenderer_, camera_);
 
     if (!config_.headless && window_ && renderer_) {
@@ -340,6 +358,16 @@ const CombatManager& GameApp::getCombatManager() const noexcept
 CombatManager& GameApp::getCombatManager() noexcept
 {
     return combatManager_;
+}
+
+const EnemyManager& GameApp::getEnemyManager() const noexcept
+{
+    return enemyManager_;
+}
+
+EnemyManager& GameApp::getEnemyManager() noexcept
+{
+    return enemyManager_;
 }
 
 const CgaPaletteRenderer& GameApp::getRenderer() const noexcept

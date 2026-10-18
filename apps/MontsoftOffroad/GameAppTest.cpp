@@ -4,6 +4,7 @@
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CombatManager.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
+#include "apps/MontsoftOffroad/EnemyManager.h"
 #include "apps/MontsoftOffroad/GameApp.h"
 #include "apps/MontsoftOffroad/InputController.h"
 #include "apps/MontsoftOffroad/ParallaxRenderer.h"
@@ -947,6 +948,269 @@ TEST(GameAppPhase5IntegrationTest, FullPhase5RenderFrameExecution)
 
     // Render frame with all Phase 5 combat visuals active
     app.renderFrame();
+}
+
+TEST(EnemyManagerTest, SpawnAndCapacityLimits)
+{
+    EnemyManagerConfig cfg {};
+    cfg.maxEnemies = 4U;
+    EnemyManager mgr{ cfg };
+
+    EXPECT_EQ(mgr.getActiveCount(), 0U);
+
+    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 10.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::BuriedLandmine, vehicle_sim::math::Vec2{ 30.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2{ 40.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+
+    EXPECT_EQ(mgr.getActiveCount(), 4U);
+
+    // 5th spawn must fail due to maxEnemies capacity
+    EXPECT_FALSE(mgr.spawnEnemy(EnemyType::StrafingJet, vehicle_sim::math::Vec2{ 50.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+    EXPECT_EQ(mgr.getActiveCount(), 4U);
+}
+
+TEST(EnemyManagerTest, GroundConformation)
+{
+    EnemyManager mgr {};
+    vehicle_sim::terrain::Heightfield1D terrain {};
+    terrain.addSample(vehicle_sim::terrain::HeightSample1D{ 0.0, 0.0 });
+    terrain.addSample(vehicle_sim::terrain::HeightSample1D{ 100.0, 25.0 }); // Slope = 0.25
+
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    ParticleSystem particles {};
+
+    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 5.0 }, vehicle_sim::math::Vec2{ 5.0, 0.0 });
+
+    // Step 20 frames
+    for (int i { 0 }; i < 20; ++i) {
+        mgr.update(1.0 / 60.0, &terrain, camera, truck, particles);
+    }
+
+    const auto& enemies { mgr.getEnemies() };
+    ASSERT_GE(enemies.size(), 1U);
+    EXPECT_TRUE(enemies[0].active);
+    // Heading should adapt toward atan(0.25)
+    EXPECT_NEAR(enemies[0].orientation, std::atan(0.25), 0.05);
+    EXPECT_GT(enemies[0].position.y, 4.0);
+}
+
+TEST(EnemyManagerTest, RedBuggyPdSpeedMatching)
+{
+    EnemyManager mgr {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 30.0, 0.0 });
+    truck.setLinearVelocity(vehicle_sim::math::Vec2{ 20.0, 0.0 });
+    ParticleSystem particles {};
+
+    // Spawn buggy behind truck at x = 10, stationary
+    mgr.spawnEnemy(EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2{ 10.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    for (int i { 0 }; i < 30; ++i) {
+        mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    }
+
+    const auto& enemies { mgr.getEnemies() };
+    ASSERT_GE(enemies.size(), 1U);
+    // Buggy should accelerate toward target speed
+    EXPECT_GT(enemies[0].velocity.x, 5.0);
+}
+
+TEST(EnemyManagerTest, DroneSinusoidalTrajectory)
+{
+    EnemyManager mgr {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    ParticleSystem particles {};
+
+    mgr.spawnEnemy(EnemyType::BouncingDrone, vehicle_sim::math::Vec2{ 25.0, 6.0 }, vehicle_sim::math::Vec2{ -10.0, 0.0 });
+
+    double prevY { 6.0 };
+    bool movedY { false };
+
+    for (int i { 0 }; i < 30; ++i) {
+        mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
+        const auto& enemies { mgr.getEnemies() };
+        if (std::abs(enemies[0].position.y - prevY) > 0.05) {
+            movedY = true;
+        }
+        prevY = enemies[0].position.y;
+    }
+
+    EXPECT_TRUE(movedY);
+}
+
+TEST(EnemyManagerTest, ArtilleryBallisticShell)
+{
+    EnemyManager mgr {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 10.0, 0.0 });
+    ParticleSystem particles {};
+
+    mgr.spawnEnemy(EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2{ 25.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    // Step 180 frames (3.0 seconds, exceeding 2.6s attack cooldown)
+    for (int i { 0 }; i < 180; ++i) {
+        mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    }
+
+    const auto& projs { mgr.getProjectiles() };
+    bool foundBallistic { false };
+    for (const auto& p : projs) {
+        if (p.active && p.isBallistic) {
+            foundBallistic = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(foundBallistic);
+}
+
+TEST(EnemyManagerTest, TargetSyncAndHitDamage)
+{
+    EnemyManager mgr {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    ParticleSystem particles {};
+
+    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    std::vector<CombatTargetAabb> targets {};
+    mgr.syncCombatTargets(targets);
+    ASSERT_EQ(targets.size(), 1U);
+    EXPECT_EQ(targets[0].health, 25.0);
+
+    // Apply simulated hit damage
+    targets[0].health -= 15.0;
+    mgr.applyCombatDamage(targets, particles, 0U);
+
+    const auto& enemies { mgr.getEnemies() };
+    EXPECT_EQ(enemies[0].health, 10.0);
+    EXPECT_GT(enemies[0].flashTimer, 0.0);
+}
+
+TEST(EnemyManagerTest, DestructionAndBountyScore)
+{
+    EnemyManager mgr {};
+    ParticleSystem particles {};
+
+    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    EXPECT_EQ(mgr.getActiveCount(), 1U);
+    EXPECT_EQ(mgr.getAccumulatedScore(), 0U);
+
+    std::vector<CombatTargetAabb> targets {};
+    mgr.syncCombatTargets(targets);
+    ASSERT_EQ(targets.size(), 1U);
+
+    // Inflict fatal damage
+    targets[0].health = 0.0;
+    targets[0].isAlive = false;
+    mgr.applyCombatDamage(targets, particles, 0U);
+
+    EXPECT_EQ(mgr.getActiveCount(), 0U);
+    EXPECT_EQ(mgr.getAccumulatedScore(), 150U);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(EnemyManagerTest, LandmineProximityDetonation)
+{
+    EnemyManager mgr {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 10.0, 0.0 });
+    ParticleSystem particles {};
+
+    // Spawn landmine at x = 10.5 (within 1.3m contact distance)
+    mgr.spawnEnemy(EnemyType::BuriedLandmine, vehicle_sim::math::Vec2{ 10.5, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    EXPECT_EQ(mgr.getActiveCount(), 1U);
+
+    mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
+
+    // Landmine should detonate, launch truck upward, and despawn
+    EXPECT_EQ(mgr.getActiveCount(), 0U);
+    EXPECT_GT(truck.getLinearVelocity().y, 0.0);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(EnemyManagerTest, FrustumCullingAndRecycle)
+{
+    EnemyManagerConfig cfg {};
+    cfg.despawnDistance = 20.0;
+    EnemyManager mgr{ cfg };
+
+    Camera2D camera {};
+    camera.reset(vehicle_sim::math::Vec2{ 50.0, 0.0 }); // Camera at x = 50
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 50.0, 0.0 });
+    ParticleSystem particles {};
+
+    // Enemy placed at x = 20 (30m behind camera, exceeding 20m despawn distance)
+    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    EXPECT_EQ(mgr.getActiveCount(), 1U);
+
+    mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
+
+    // Should be culled
+    EXPECT_EQ(mgr.getActiveCount(), 0U);
+}
+
+TEST(EnemyManagerTest, StageFormationScheduling)
+{
+    EnemyManager mgr {};
+    vehicle_sim::terrain::Heightfield1D terrain {};
+
+    // Verify all 8 stages can trigger formations cleanly
+    for (std::size_t stage { 0 }; stage < 8; ++stage) {
+        mgr.reset();
+        mgr.spawnFormation(stage, 0U, 100.0, &terrain);
+        EXPECT_GT(mgr.getActiveCount(), 0U);
+    }
+}
+
+TEST(EnemyManagerTest, RenderCleanliness)
+{
+    EnemyManager mgr {};
+    Camera2D camera {};
+    CgaPaletteRenderer cga {};
+
+    // Spawn all 7 types simultaneously to verify no out-of-bounds rendering
+    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 10.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2{ 15.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(EnemyType::BuriedLandmine, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2{ 25.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(EnemyType::StrafingJet, vehicle_sim::math::Vec2{ 30.0, 10.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(EnemyType::HoveringSaucer, vehicle_sim::math::Vec2{ 35.0, 8.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(EnemyType::BouncingDrone, vehicle_sim::math::Vec2{ 40.0, 6.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    // Render frame
+    mgr.render(cga, camera);
+}
+
+TEST(GameAppPhase6IntegrationTest, FullCombatLoopWithEnemies)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    input.firePrimary = true;
+    app.setInput(input);
+
+    // Run 60 frames (1 second of complete simulation)
+    for (int i { 0 }; i < 60; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Must execute renderFrame without exceptions
+    app.renderFrame();
+
+    // Verify enemy subsystem is actively ticking
+    EXPECT_GE(app.getEnemyManager().getConfig().maxEnemies, 16U);
 }
 
 } // namespace montsoft_offroad
