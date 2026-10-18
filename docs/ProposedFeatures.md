@@ -165,10 +165,10 @@ graph TD
 
 ---
 
-### 2.3 Dynamic Shallow Water and Wave Propagation (1D/2D)
+### 2.3 Dynamic Shallow Water and Wave Propagation (1D/2D) (Implemented)
 
 #### Objective
-Provide a real-time wave height perturbation simulation for watercraft, amphibious hovercraft, and submarine surface interactions. Detailed architectural and hydrodynamic wave design specification: [Shallow Water Wave Plan](ShallowWaterWaveImplementationPlan.md).
+Provide a real-time wave height perturbation simulation for watercraft, amphibious hovercraft, and submarine surface interactions. Detailed architectural and hydrodynamic wave design specification: [Shallow Water Wave Plan](ShallowWaterWaveImplementationPlan.md). Implemented via [WaveGrid1D.h](../libs/VehicleSimCore/terrain/WaveGrid1D.h), [WaveGrid2D.h](../libs/VehicleSimCore/terrain/WaveGrid2D.h), and [ShallowWaterCoupler.h](../libs/VehicleSimCore/terrain/ShallowWaterCoupler.h).
 
 #### Technical Formulation
 - **Wave PDE (Discrete 2D Wave Grid)**:
@@ -199,10 +199,10 @@ graph TD
 
 ---
 
-### 2.4 Deterministic Object and Hazard Scattering (Blue-Noise / Poisson Disk)
+### 2.4 Deterministic Object and Hazard Scattering (Blue-Noise / Poisson Disk) (Implemented)
 
 #### Objective
-Deterministically seed track hazards (rocks, oil patches, boost pads, puddles, cones) along course segments without spatial collisions or unnatural clustering. Detailed architectural and procedural design specification: [Deterministic Hazard Scattering Plan](DeterministicHazardScatteringImplementationPlan.md).
+Deterministically seed track hazards (rocks, oil patches, boost pads, puddles, cones) along course segments without spatial collisions or unnatural clustering. Detailed architectural and procedural design specification: [Deterministic Hazard Scattering Plan](DeterministicHazardScatteringImplementationPlan.md). Implemented via [PoissonDiskSampler.h](../libs/VehicleSimCore/terrain/PoissonDiskSampler.h) and [HazardScattering.h](../libs/VehicleSimCore/terrain/HazardScattering.h).
 
 #### Technical Formulation
 - **Bridson Poisson-Disk Algorithm**:
@@ -772,10 +772,10 @@ graph TD
 
 ## 5. Vehicle Dynamics and Powertrain Systems
 
-### 5.1 Modular Internal Combustion Engine and Electric Powertrain (`Powertrain2D`)
+### 5.1 Modular Internal Combustion Engine and Electric Powertrain (`Powertrain2D`) (Implemented)
 
 #### Objective
-Replace simplified wheel torque scaling in wheeled vehicles with realistic internal combustion and electric propulsion models, multi-gear transmissions, and differential torque vectoring. Detailed architectural, physical, and engineering design specification: [Powertrain2D Plan](Powertrain2DImplementationPlan.md).
+Replace simplified wheel torque scaling in wheeled vehicles with realistic internal combustion and electric propulsion models, multi-gear transmissions, and differential torque vectoring. Detailed architectural, physical, and engineering design specification: [Powertrain2D Plan](Powertrain2DImplementationPlan.md). Implemented via [Powertrain2D.h](../libs/VehicleSimCore/dynamics/Powertrain2D.h), [InternalCombustionEngine2D.h](../libs/VehicleSimCore/dynamics/InternalCombustionEngine2D.h), [ElectricMotor2D.h](../libs/VehicleSimCore/dynamics/ElectricMotor2D.h), [FlywheelClutch2D.h](../libs/VehicleSimCore/dynamics/FlywheelClutch2D.h), [Transmission2D.h](../libs/VehicleSimCore/dynamics/Transmission2D.h), and [Differential2D.h](../libs/VehicleSimCore/dynamics/Differential2D.h).
 
 #### Technical Formulation
 1. **Engine Model**:
@@ -1285,9 +1285,9 @@ graph TD
 
 ---
 
-#### 5.6.2 Tilt-Rotor VTOL Aircraft Dynamics (`VTOLTiltRotorDynamics`)
+#### 5.6.2 Tilt-Rotor VTOL Aircraft Dynamics (`VTOLTiltRotorDynamics`) (Implemented)
 
-*Full Architecture & Implementation Plan: [VTOLTiltRotorImplementationPlan.md](VTOLTiltRotorImplementationPlan.md)*
+*Full Architecture & Implementation Plan: [VTOLTiltRotorImplementationPlan.md](VTOLTiltRotorImplementationPlan.md)*. Implemented via [VTOLTiltRotorDynamics.h](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h) and [VTOLTiltRotorDynamics.cpp](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.cpp).
 
 ##### Objective
 Model vertical takeoff and landing (VTOL) tilt-rotor aircraft featuring rotatable nacelles transitioning smoothly between hover helicopter mode and fixed-wing aerodynamic cruising flight.
@@ -1326,10 +1326,10 @@ graph TD
 
 ## 6. Simulation Telemetry and Deterministic Serialization
 
-### 6.1 Bit-Exact State Snapshotting and Rollback Netcode (`SimulationSnapshot2D`)
+### 6.1 Bit-Exact State Snapshotting and Rollback Netcode (`SimulationSnapshot2D`) (Implemented)
 
 #### Objective
-Support GGPO-style rollback netcode, rewind mechanics, and differential regression testing via IEEE 754 bit-exact simulation snapshots.
+Support GGPO-style rollback netcode, rewind mechanics, and differential regression testing via IEEE 754 bit-exact simulation snapshots. Detailed architectural and rollback design specification: [Simulation Snapshot Implementation Plan](SimulationSnapshotImplementationPlan.md). Implemented via [SimulationSnapshot2D.h](../libs/VehicleSimCore/physics/SimulationSnapshot2D.h) and [PhysicsWorld2D.h](../libs/VehicleSimCore/physics/PhysicsWorld2D.h).
 
 #### Technical Formulation
 - **Complete World State Serialization**:
@@ -1396,48 +1396,303 @@ graph TD
 
 ---
 
-## 7. Architectural Roadmap and Priority Matrix
+## 7. Proposed New Physical and Mechanical Systems
 
-| Feature | Subsystem | Complexity | Dependencies | Primary Use Cases |
-| :--- | :--- | :--- | :--- | :--- |
-| **Angle2D & Math Utilities (Implemented)** | Math | Low | None | All Dynamics coordinators ([Angle2D.h](../libs/VehicleSimCore/math/Angle2D.h)) |
-| **Spline2D & Catmull-Rom (Implemented)** | Math | Medium | `Vec2`, `Mat2` | `CircuitTrack2D`, Waypoint navigation ([Spline2D.h](../libs/VehicleSimCore/math/Spline2D.h)) |
-| **AABB2D, Ray2D, OBB2D, Polygon2D (Implemented)** | Math | Medium | `Vec2`, `Transform2D` | Broadphase and collision detection ([Polygon2D.h](../libs/VehicleSimCore/math/Polygon2D.h)) |
-| **PIDController, Filters & Kalman (Implemented)** | Math | Low | None | Autopilots, cruise control, sensor fusion ([PIDController.h](../libs/VehicleSimCore/math/PIDController.h)) |
-| **Revolute & Distance Joints (Implemented)** | Physics | High | `RigidBody2D`, `PhysicsWorld2D` | `ArticulatedTruckDynamics`, suspensions ([RevoluteJoint2D.h](../libs/VehicleSimCore/physics/RevoluteJoint2D.h)) |
-| **Narrowphase Collision (Implemented)** | Physics | High | `AABB2D`, `OBB2D`, `Polygon2D`, `Contact2D` | [Narrowphase Plan](NarrowphaseImplementationPlan.md) - Automated body & terrain collisions |
-| **Pacejka Tire Model (Implemented)** | Dynamics / Physics | Medium | `SurfaceMaterial` | [Pacejka Tire Plan](PacejkaTireImplementationPlan.md) - Realistic wheeled dynamics ([PacejkaTireModel.h](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [MonsterCarDynamics.h](../libs/VehicleSimCore/dynamics/MonsterCarDynamics.h)) |
-| **Deformable Rutting (Implemented)** | Terrain | Medium | `SurfaceMap2D`, `SurfaceMaterial` | [Deformable Rutting Plan](DeformableRuttingImplementationPlan.md) - Soil sinkage, permanent ruts, compaction drag ([DeformableTerrain.h](../libs/VehicleSimCore/terrain/DeformableTerrain.h)) |
-| **Banked / Cambered Tracks (Implemented)** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | High-speed racing circuits ([BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h)) |
-| **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | Planes, rockets, trucks, boats, subs ([FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h)) |
-| **Earth Patrol (3-Axle Rover & SDL Game) (Implemented)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [Earth Patrol Plan](EarthPatrolImplementationPlan.md) - Moon Patrol style side-scroller on Earth ([apps/EarthPatrol](../apps/EarthPatrol)) |
-| **Stanley Path Following & Speed Profiler (Implemented)** | Math / Dynamics | Low-Med | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [PIDController](../libs/VehicleSimCore/math/PIDController.h) | [Stanley Path Plan](StanleyPathFollowingImplementationPlan.md) - Racing AI, trajectory navigation, autopilot ([StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h)) |
-| **DynamicBVH2D Broadphase (Implemented)** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | [DynamicBVH Plan](DynamicBVHImplementationPlan.md) - Multi-car collision, scaling to 100+ bodies & obstacles ([DynamicBVH2D.h](../libs/VehicleSimCore/physics/DynamicBVH2D.h)) |
-| **Extended Joints (`Wheel`, `Prismatic`, `Weld`)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Suspension struts, breakable parts, hydraulic linkages |
-| **Modular Powertrain & Differentials** | Dynamics | High | [MathUtils](../libs/VehicleSimCore/math/MathUtils.h), [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Powertrain2D Plan](Powertrain2DImplementationPlan.md) - Realistic engine RPM, gearboxes, LSD / Torsen handling |
-| **Poisson-Disk Object Scattering** | Terrain | Medium | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) | Procedural track hazards, cones, obstacles |
-| **Continuous Collision Detection (CCD)** | Physics | High | [Narrowphase2D](../libs/VehicleSimCore/physics/Narrowphase2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | Anti-tunneling for high-speed craft (AntiGravity, rockets) |
-| **Dynamic Shallow Water PDE** | Terrain / Physics | Med-High | [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Watercraft wakes, boat bobbing, wave forces |
-| **Hydrostatic Buoyancy & Hull Slicing** | Physics | Medium | [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h), [FluidField2D](../libs/VehicleSimCore/physics/FluidField2D.h) | Boat flotation, righting moments, submarines |
-| **Ground Effect & Active DRS (Implemented)** | Dynamics | Low-Med | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h) | [Ground Effect & DRS Plan](GroundEffectDrsImplementationPlan.md) - High-speed downforce, aerodynamic stalling, DRS flaps ([GroundEffectAero2D.h](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h)) |
-| **Deterministic Snapshotting & Rollback** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Rewind mechanics, GGPO rollback netcode, testing |
-| **Stratified Terramechanics & Hydroplaning** | Terrain | Medium | [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | Snow over bedrock, standing water aquaplaning loss of grip |
-| **Telemetry Ring-Buffer & Exporters (Implemented)** | Core / Diagnostic | Low | None | [Telemetry Plan](TelemetryRingBufferImplementationPlan.md) - Telemetry analysis, CSV logging, sensor streaming ([TelemetryRingBuffer2D.h](../libs/VehicleSimCore/telemetry/TelemetryRingBuffer2D.h)) |
-| **RaceCarDynamics (Motorsport) (Implemented)** | Dynamics | Medium | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [GroundEffectAero2D](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h) | [Race Car Plan](RaceCarImplementationPlan.md) - Closed-circuit racing, 4-wheel load transfer, Pacejka slip, DRS ([RaceCarDynamics.h](../libs/VehicleSimCore/dynamics/RaceCarDynamics.h)) |
-| **ForkliftDynamics (Rear-Steer Industrial) (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Forklift Plan](ForkliftImplementationPlan.md) - Rear-wheel pivot steering, mast height CG shift, rollover index ([ForkliftDynamics.h](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h)) |
-| **QuadcopterDroneDynamics (4-Rotor Aerial) (Implemented)** | Dynamics | Medium | [PIDController](../libs/VehicleSimCore/math/PIDController.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [Quadcopter Plan](QuadcopterDroneImplementationPlan.md) - 4-rotor thrust mixer, attitude PID, aerial robotics ([QuadcopterDroneDynamics.h](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h)) |
-| **DriftCarDynamics & GoKartDynamics (Implemented)** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Drift & Go-Kart Plan](DriftCarGoKartImplementationPlan.md) - Oversteer slip-angle balance, solid rear axle spool cornering ([DriftCarDynamics.h](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h), [GoKartDynamics.h](../libs/VehicleSimCore/dynamics/GoKartDynamics.h)) |
-| **TrainRailDynamics & ExcavatorDynamics (Implemented)** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | [TrainRail & Excavator Plan](TrainRailExcavatorImplementationPlan.md) - Guided track railway adhesion, dual-track excavator slew ring & multi-link arm ([TrainRailDynamics.h](../libs/VehicleSimCore/dynamics/TrainRailDynamics.h), [ExcavatorDynamics.h](../libs/VehicleSimCore/dynamics/ExcavatorDynamics.h)) |
-| **Snowmobile, Bicycle & QuadBike Dynamics (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | [Snowmobile, Bicycle & QuadBike Plan](SnowmobileBicycleQuadBikeImplementationPlan.md) - Ski carving, single-track Whipple counter-steering, balloon tire ATV ([SnowmobileDynamics.h](../libs/VehicleSimCore/dynamics/SnowmobileDynamics.h), [BicycleDynamics.h](../libs/VehicleSimCore/dynamics/BicycleDynamics.h), [QuadBikeDynamics.h](../libs/VehicleSimCore/dynamics/QuadBikeDynamics.h)) |
-| **VTOLTiltRotorDynamics (Implemented)** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | [VTOL Tilt-Rotor Plan](VTOLTiltRotorImplementationPlan.md) - Tilt-rotor transition corridor between vertical hover and fixed-wing cruise ([VTOLTiltRotorDynamics.h](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h)) |
+### 7.1 Winch, Tow Cable and Elastic Tether Mechanics (`CableTether2D`)
+
+#### Objective
+Model non-linear elastic cables, recovery winches, towing bridles, and crane sling lines between arbitrary rigid bodies or terrain anchors with motor spooling and structural rupture thresholds.
+
+#### Technical Formulation
+- **Unilateral Elastic Formulation**:
+  $$F_{\text{cable}} = \begin{cases} k_{\text{cable}} (d - L_0(t)) + c_{\text{cable}} \dot{d}, & d > L_0(t) \\ 0, & d \le L_0(t) \end{cases}$$
+  where $d = \|\mathbf{p}_B - \mathbf{p}_A\|$ is the separation distance between body anchor points and $L_0(t)$ is unstretched rest length.
+- **Dynamic Winch Drum Spooling**:
+  $$\frac{dL_0}{dt} = v_{\text{spool}} \cdot u_{\text{winch}}$$
+  supporting powered haul-in ($v_{\text{spool}} < 0$) or free-wheel payout ($v_{\text{spool}} > 0$).
+- **Rupture Criterion**: If cable tension $F_{\text{cable}} \ge F_{\text{rupture}}$, the cable snaps, instantly releasing tension and notifying listeners via callback.
+
+```
+  ASCII Diagram: Dynamic Winch Spool and Recovery Cable
+
+  [ Recovery Winch Truck ]                     [ Immobilized Vehicle in Mud ]
+  +----------------------+                     +----------------------------+
+  | Drum Spool L0(t)     |                     | Tow Shackle Point          |
+  | Winch Motor v_spool  *~~~~~~~~~~~~~~~~~~~~~* Anchor B                   |
+  +----------------------+     Tension Force   +----------------------------+
+             \                   F_cable                      /
+  ============*==============================================*=============== Soft Mud
+```
+
+```mermaid
+graph LR
+    WinchSpool["Winch Drum Motor (Spool Rate v_spool)"] --> RestLength["Update Rest Length L0(t)"]
+    AnchorA["Anchor A (Body A)"] --> Separation["Separation Distance d = ||pB - pA||"]
+    AnchorB["Anchor B (Body B)"] --> Separation
+    Separation --> StrainCheck{"d > L0(t)?"}
+    StrainCheck -- Yes --> ElasticTension["F = k * (d - L0) + c * d_dot"]
+    StrainCheck -- No --> Slack["Cable Slack: F = 0"]
+    ElasticTension --> RuptureCheck{"F >= F_rupture?"}
+    RuptureCheck -- Yes --> Snapped["Cable Snapped (F = 0 forever)"]
+    RuptureCheck -- No --> ApplyImpulses["Apply Equal & Opposite Forces to Bodies"]
+```
 
 ---
 
-## 8. Compliance and Coding Standards
+### 7.2 Bulk Granular and Sloshing Fluid Cargo Dynamics (`LiquidSloshCargo2D`)
 
-All future implementations must comply with:
+#### Objective
+Simulate non-rigid cargo inertia inside tanker trucks, fire tenders, cement mixers, and bulk hopper railcars, capturing dynamic center-of-gravity shifts and lateral rollover hazards under rapid steering and braking.
+
+#### Technical Formulation
+- **Equivalent Slosh Pendulum Dynamics**:
+  Fluid surface free oscillation is represented as an internal mechanical pendulum mass $m_{\text{slosh}}$ with arm length $L_s$ and damping $\zeta$:
+  $$\ddot{\theta}_s + 2 \zeta \omega_n \dot{\theta}_s + \frac{g}{L_s} \sin(\theta_s) = -\frac{a_{\text{lat}}}{L_s} \cos(\theta_s) + \frac{a_{\text{long}}}{L_s} \sin(\theta_s)$$
+- **Dynamic Composite Center of Gravity**:
+  $$\mathbf{X}_{\text{cog,composite}}(t) = \frac{m_{\text{tare}} \mathbf{X}_{\text{tare}} + m_{\text{slosh}} \mathbf{X}_{\text{fluid}}(\theta_s(t))}{m_{\text{tare}} + m_{\text{slosh}}}$$
+- **Hydrodynamic Wall Slam Moment**:
+  Baffles restrict max swing angle $\theta_{s,\text{max}}$, generating peak overturning torques during emergency lane changes.
+
+```
+  ASCII Diagram: Tanker Trailer Lateral Sloshing Pendulum Dynamics
+
+         +-----------------------------------------------+
+         | Tanker Wall                     Baffle Wall   |
+         |         \                     /               |
+         |          \     (theta_slosh) /                |
+         |           o-----[ Pendulum ]*                 |
+         |                  /   |                        |
+         |            Slosh /   v Dynamic CG Shift       |
+         |            Mass [M_fluid]                     |
+         +-----------------------------------------------+
+```
+
+```mermaid
+graph TD
+    ChassisAccel["Vehicle Body Accelerations (ax, ay, alpha)"] --> SloshODE["Slosh Pendulum ODE: theta''(t)"]
+    SloshODE --> FluidPosition["Dynamic Fluid Center of Mass Position"]
+    FluidPosition --> CompositeCG["Recalculate Composite CG & Inertia Tensor"]
+    FluidPosition --> WallImpact{"Pendulum at Baffle Limit?"}
+    WallImpact -- Yes --> ImpactTorque["Apply Impulse Overturning Torque"]
+    WallImpact -- No --> RestoringTorque["Nominal Dynamic Liquid Restoring Moment"]
+    CompositeCG --> RollWarning["Check Rollover Margin Against Track Width"]
+```
+
+---
+
+### 7.3 Segmented Continuous Track and Sprocket Dynamics (`SegmentedTrack2D`)
+
+#### Objective
+Model discrete articulated track links, sprocket tooth drive engagement, road wheel bogie suspension arrays, and dynamic track tensioning for tanks, bulldozers, and heavy crawlers, including authentic track shedding under severe side loading.
+
+#### Technical Formulation
+- **Sprocket Engagement & Link Chain**:
+  Continuous loop composed of $N$ articulated rigid track shoes wrapped around drive sprocket, idler, and road wheels. Drive torque is transferred via tooth contact kinematics.
+- **Tensioner & Recoil Cylinder**:
+  Hydraulic/spring idler wheel applies preload tension $T_{\text{preload}}$ to prevent link slackness.
+- **Track De-tracking (Shedding) Limit**:
+  When lateral ground shear forces exceed track guide horn retention capacity ($F_{\text{lat}} > F_{\text{guide}}$), the track dislodges from the idler, immobilizing drive on that flank.
+
+```
+  ASCII Diagram: Articulated Track Segment & Bogie Torsion Array
+
+             Drive Sprocket                     Idler Wheel & Recoil Tensioner
+                 ( O )========================( O ) <--- Spring Preload
+                /     \                      /     \
+    [Link #1]--*       *--[Link #2]-- ... --*       *--[Link #N]
+                \                                  /
+                 ( O )    ( O )    ( O )    ( O )
+                 Road Wheel Bogies & Torsion Springs
+  --------------------------------------------------------------- Deformable Ground
+```
+
+```mermaid
+graph TD
+    Sprocket["Sprocket Torque & Angular Speed"] --> ChainDrive["Advance Articulated Track Shoe Loop"]
+    BogieSprings["Bogie Torsion Bar Deflections"] --> GroundContact["Track Shoe Ground Normal Loads"]
+    GroundContact --> ShearTraction["Ground Shear Grip & Rut Compaction (Bekker)"]
+    ShearTraction --> TensionCalc["Calculate Segment Tension Around Idler"]
+    TensionCalc --> GuideHorn{"Lateral Load > Guide Horn Retention?"}
+    GuideHorn -- Yes --> DeTrack["Track Shedding Incident (Thrown Track)"]
+    GuideHorn -- No --> NominalTraction["Drive Force Applied to Undercarriage"]
+```
+
+---
+
+### 7.4 Structural Yield, Plastic Deformation and Crush Lattice (`StructuralDamage2D`)
+
+#### Objective
+Simulate permanent plastic deformation and structural crushing of vehicle frames, crumple zones, suspension arms, and aerodynamic wings under high-energy collision impulses, altering vehicle geometry, steering alignment, and aerodynamics.
+
+#### Technical Formulation
+- **Elastoplastic Lattice Network**:
+  The vehicle structure is discretized as a fixed-capacity lattice of nodes connected by compliant 1D structural struts:
+  $$\sigma = \begin{cases} E \epsilon, & \sigma \le \sigma_{\text{yield}} \\ \sigma_{\text{yield}} + H (\epsilon - \epsilon_{\text{yield}}), & \sigma > \sigma_{\text{yield}} \end{cases}$$
+- **Permanent Rest Length Update**:
+  When member strain exceeds yield strain ($\epsilon > \epsilon_{\text{yield}}$), the un-deformed rest length $L_0$ is permanently mutated: $L_{0,\text{new}} = L_0 (1 + \Delta \epsilon_{\text{plastic}})$.
+- **Dynamics Feedback Coupling**:
+  - Front tie-rod crushing alters Ackermann toe angle, causing permanent steering drift.
+  - Aerodynamic wing deformation lowers downforce $C_L$ and elevates drag $C_d$.
+
+```
+  ASCII Diagram: Chassis Crumple Zone Plastic Lattice
+
+      Un-deformed Truss Frame                     Post-Impact Crushed Zone
+        +-------+-------+                           +-------+----+
+        | \   / | \   / |                           | \   / | \  | <- Buckled Struts
+        |   X   |   X   |    ==== Impact ===>       |   X   |  X |    (Permanent Plastic Yield)
+        | /   \ | /   \ |                           | /   \ | /  |
+        +-------+-------+                           +-------+----+
+```
+
+```mermaid
+graph TD
+    ContactImpulse["High-Energy Collision Impulse J_impact"] --> NodeDistribution["Resolve Internal Member Stresses sigma_i"]
+    NodeDistribution --> YieldTest{"sigma_i > sigma_yield?"}
+    YieldTest -- Yes --> PlasticDeform["Mutate Rest Length L0_new (Plastic Strain)"]
+    YieldTest -- No --> ElasticReturn["Purely Elastic Restoration"]
+    PlasticDeform --> GeometryMutation["Update Visual OBB/Polygon Bounds"]
+    PlasticDeform --> AlignmentPull["Mutate Wheel Steer Toe/Camber (Steering Pull)"]
+    PlasticDeform --> AeroPenalty["Reduce Wing Downforce CL & Increase Cd"]
+```
+
+---
+
+## 8. Potential Game Implementations and Prototypes
+
+The extensive vehicle dynamics, soil terramechanics, fluid fields, and constraint systems in `VehicleSimCore` provide a complete simulation engine for several distinct commercial and indie game genres.
+
+```
++-----------------------------------------------------------------------------------------------+
+|                       VehicleSimCore Supported Game Ecosystem                                 |
++-----------------------------------------------------------------------------------------------+
+|  1. TerraLogistics 2D    |  2. Heavy Works Sim      |  3. Apex Motorsport                     |
+|  (MudRunner-style 2D)    |  (Construction/Trench)   |  (Motorsport & Multiclass Festival)     |
+|  Rutting, Winch, Rivers  |  Excavator, Crane, Train |  F1 Downforce, Drift Thermals, Go-Karts |
++--------------------------+--------------------------+-----------------------------------------+
+|  4. Search & Rescue 2D   |  5. Stunt Moto Trials    |  6. Subterranean Aerospace              |
+|  (Choplifter Reimagined) |  (Precision Physics)     |  (Lunar Lander / Deep Core)             |
+|  VTOL, Boats, Subs, Wind |  TrialsBike, Whipple     |  Rockets, Hovercraft, Caves, Asteroids  |
++-----------------------------------------------------------------------------------------------+
+```
+
+```mermaid
+graph TD
+    Core["VehicleSimCore Engine"] --> Game1["TerraLogistics 2D (Wilderness Hauling & Recovery)"]
+    Core --> Game2["Heavy Works (Precision Construction & Rail Tycoon)"]
+    Core --> Game3["Apex Motorsport (Multi-Discipline Retro Racing Festival)"]
+    Core --> Game4["Search & Rescue 2D (Tactical Multi-Domain Extraction)"]
+    Core --> Game5["Stunt Moto: Pure Trials (Obstacle Platformer)"]
+    Core --> Game6["Deep Core Aerospace (Planetary Physics Descent)"]
+
+    Game1 --> Feat1["DeformableTerrain + CableTether2D + ArticulatedTruckDynamics + Buoyancy2D"]
+    Game2 --> Feat2["ExcavatorDynamics + ForkliftDynamics + TrainRailDynamics + PrismaticJoint2D"]
+    Game3 --> Feat3["RaceCarDynamics + DriftCarDynamics + GoKartDynamics + StanleyController"]
+    Game4 --> Feat4["VTOLTiltRotorDynamics + QuadcopterDroneDynamics + WatercraftDynamics + FluidField2D"]
+    Game5 --> Feat5["TrialsBikeDynamics + BicycleDynamics + WheelJoint2D + TrackGenerator"]
+    Game6 --> Feat6["RocketDynamics + AntiGravityRacerDynamics + TOISolver2D CCD + DynamicBVH2D"]
+```
+
+### 8.1 *TerraLogistics 2D: Extreme Wilderness Hauler & Recovery*
+- **Inspiration**: *MudRunner*, *SnowRunner*, *Spintires*.
+- **Gameplay Concept**: Players operate logging, fuel, and heavy recovery operations across remote boreal forests, swamps, and snowbound tundras.
+- **Engine Subsystems Leveraged**:
+  - [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) & [StratifiedSoil](../libs/VehicleSimCore/terrain/StratifiedSoil.h): Deep wheel rutting, mud suction, and ice crusts breaking over bedrock.
+  - [ArticulatedTruckDynamics](../libs/VehicleSimCore/dynamics/ArticulatedTruckDynamics.h) & [MonsterCarDynamics](../libs/VehicleSimCore/dynamics/MonsterCarDynamics.h): Multi-axle differential lockup, high torque transfer, and trailer kingpin articulation.
+  - [Buoyancy2D](../libs/VehicleSimCore/physics/Buoyancy2D.h) & [WaveGrid2D](../libs/VehicleSimCore/terrain/WaveGrid2D.h): River fording, amphibious transport, and vehicle recovery when swept away by river currents.
+  - `CableTether2D`: Winch recovery lines anchored to roadside trees or partner trucks to pull free from mud pits.
+
+### 8.2 *Heavy Works: Precision Construction & Material Logistics*
+- **Inspiration**: *Blast Corps*, *Heavy Equipment Simulator*, *Train Simulator*.
+- **Gameplay Concept**: A physics-focused construction sandbox where players complete civil engineering projects: trenching foundations, erecting steel trusses, clearing landslides, and transporting ore via freight rail.
+- **Engine Subsystems Leveraged**:
+  - [ExcavatorDynamics](../libs/VehicleSimCore/dynamics/ExcavatorDynamics.h): 360-degree slew ring bearing inertia, articulated boom/stick/bucket kinematics, and soil digging resistance.
+  - [ForkliftDynamics](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h): Rear-wheel pivot steering up to $\pm 90^\circ$, high-mast payload center-of-gravity elevation, and stability triangle rollover warnings.
+  - [TrainRailDynamics](../libs/VehicleSimCore/dynamics/TrainRailDynamics.h): Parametric railway track constraints along [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), multi-car coupler slack action, and wheel-rail Kalker creep adhesion limits.
+
+### 8.3 *Apex Motorsport: Multiclass Racing Festival*
+- **Inspiration**: *Micro Machines*, *GeneRally*, *Circuit Breakers*, *Super Off Road*.
+- **Gameplay Concept**: Top-down / isometric multiclass closed-circuit racing featuring formula open-wheelers, pro drift cars, and direct-steer sprint karts on the same tracks.
+- **Engine Subsystems Leveraged**:
+  - [RaceCarDynamics](../libs/VehicleSimCore/dynamics/RaceCarDynamics.h): Dynamic 4-wheel weight transfer, underbody ground effect Venturi downforce, and active DRS flap actuation.
+  - [DriftCarDynamics](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h) & [TireThermalModel](../libs/VehicleSimCore/dynamics/TireThermalModel.h): Extreme slip angle balance, pneumatic trail self-aligning counter-steering, and progressive thermal grip loss.
+  - [GoKartDynamics](../libs/VehicleSimCore/dynamics/GoKartDynamics.h): Solid rear spool axle tire scrub and kingpin caster frame flex inside wheel lift.
+  - [BankedTrack](../libs/VehicleSimCore/terrain/BankedTrack.h) & [StanleyController](../libs/VehicleSimCore/math/StanleyController.h): Superelevated speedway banking and autonomous AI path-following with curvature-constrained optimal braking.
+
+### 8.4 *Search & Rescue 2D: Multi-Domain Task Force*
+- **Inspiration**: *Choplifter*, *Armor Alley*, *Search and Rescue*.
+- **Gameplay Concept**: Rapid-response humanitarian disaster relief and combat extraction across contested archipelagos during hurricane-force squalls.
+- **Engine Subsystems Leveraged**:
+  - [VTOLTiltRotorDynamics](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h) & [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h): Smooth conversion corridor from vertical hover to fixed-wing aerodynamic cruising.
+  - [QuadcopterDroneDynamics](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h): Reconnaissance drone deployment with cascaded attitude/altitude PID flight control.
+  - [FluidField2D](../libs/VehicleSimCore/physics/FluidField2D.h): Dynamic atmospheric wind shear, discrete 1-cosine gusts, and offshore turbulence.
+  - [WatercraftDynamics](../libs/VehicleSimCore/dynamics/WatercraftDynamics.h) & [SubmarineDynamics](../libs/VehicleSimCore/dynamics/SubmarineDynamics.h): High-speed offshore interception and underwater sonar search.
+
+### 8.5 *Stunt Moto: Pure Trials 2D*
+- **Inspiration**: *Trials HD*, *Elasto Mania*, *Action SuperCross*.
+- **Gameplay Concept**: Side-view physics obstacle course trials where momentum conservation, suspension preloading, and rider weight distribution are essential to climb vertical concrete pipes, jump flaming gaps, and land on fragile scaffolding.
+- **Engine Subsystems Leveraged**:
+  - [TrialsBikeDynamics](../libs/VehicleSimCore/dynamics/TrialsBikeDynamics.h) & [BicycleDynamics](../libs/VehicleSimCore/dynamics/BicycleDynamics.h): Active rider pitch/roll weight transfer, single-track Whipple gyroscopic stability, and clutch kick unweighting.
+  - [WheelJoint2D](../libs/VehicleSimCore/physics/WheelJoint2D.h) & [WeldJoint2D](../libs/VehicleSimCore/physics/WeldJoint2D.h): High-compliance suspension struts and breakable obstacle bridges that snap under excessive load.
+  - [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h): Procedural trials courses with vertical tiers, gaps, and steep pitches.
+
+### 8.6 *Subterranean Aerospace: Deep Core Descent*
+- **Inspiration**: *Lunar Lander*, *Sub-Terrania*, *Solar Jetman*, *Gravitar*.
+- **Gameplay Concept**: Thrust-vectored landers and high-speed hovercraft navigating narrow cavernous networks with variable gravity, explosive cave-in hazards, and zero margin for error.
+- **Engine Subsystems Leveraged**:
+  - [RocketDynamics](../libs/VehicleSimCore/dynamics/RocketDynamics.h) & [AntiGravityRacerDynamics](../libs/VehicleSimCore/dynamics/AntiGravityRacerDynamics.h): Gimbaled rocket thrust vectoring, hover repulsor altitude cushions, and reaction control RCS thrusters.
+  - [TOISolver2D](../libs/VehicleSimCore/physics/TOISolver2D.h) Continuous Collision Detection: Swept time-of-impact root finding ensuring supersonic rockets never tunnel through razor-thin cavern walls.
+  - [DynamicBVH2D](../libs/VehicleSimCore/physics/DynamicBVH2D.h): High-density obstacle broadphase supporting hundreds of falling boulders and falling debris colliders.
+
+---
+
+## 9. Architectural Roadmap and Priority Matrix
+
+| Feature | Subsystem | Complexity | Dependencies | Status & Core References |
+| :--- | :--- | :--- | :--- | :--- |
+| **Angle2D & Math Utilities (Implemented)** | Math | Low | None | [Angle2D.h](../libs/VehicleSimCore/math/Angle2D.h) - Principal angle wrapping, lerp, slerp |
+| **Spline2D & Catmull-Rom (Implemented)** | Math | Medium | `Vec2`, `Mat2` | [Spline2D.h](../libs/VehicleSimCore/math/Spline2D.h) - Centripetal spline, Gauss-Legendre arc-length LUT |
+| **AABB2D, Ray2D, OBB2D, Polygon2D (Implemented)** | Math | Medium | `Vec2`, `Transform2D` | [Polygon2D.h](../libs/VehicleSimCore/math/Polygon2D.h), [CompoundShape2D.h](../libs/VehicleSimCore/physics/CompoundShape2D.h) |
+| **PIDController, Filters & Kalman (Implemented)** | Math | Low | None | [PIDController.h](../libs/VehicleSimCore/math/PIDController.h), [KalmanFilter1D.h](../libs/VehicleSimCore/math/KalmanFilter1D.h) |
+| **Revolute & Distance Joints (Implemented)** | Physics | High | `RigidBody2D`, `PhysicsWorld2D` | [RevoluteJoint2D.h](../libs/VehicleSimCore/physics/RevoluteJoint2D.h), [DistanceJoint2D.h](../libs/VehicleSimCore/physics/DistanceJoint2D.h) |
+| **Narrowphase Collision (Implemented)** | Physics | High | `AABB2D`, `OBB2D`, `Polygon2D`, `Contact2D` | [Narrowphase2D.h](../libs/VehicleSimCore/physics/Narrowphase2D.h), [Narrowphase Plan](NarrowphaseImplementationPlan.md) |
+| **Pacejka Tire Model (Implemented)** | Dynamics / Physics | Medium | `SurfaceMaterial` | [PacejkaTireModel.h](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [Pacejka Tire Plan](PacejkaTireImplementationPlan.md) |
+| **Deformable Rutting (Implemented)** | Terrain | Medium | `SurfaceMap2D`, `SurfaceMaterial` | [DeformableTerrain.h](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [Deformable Rutting Plan](DeformableRuttingImplementationPlan.md) |
+| **Banked / Cambered Tracks (Implemented)** | Terrain | Medium | `TrackGenerator`, `SurfaceMap2D` | [BankedTrack.h](../libs/VehicleSimCore/terrain/BankedTrack.h) - Centerline superelevation & normal tilting |
+| **Environmental Wind / Water (Implemented)** | Physics | Low | `Vec2` | [FluidField2D.h](../libs/VehicleSimCore/physics/FluidField2D.h), [FluidDrag2D.h](../libs/VehicleSimCore/physics/FluidDrag2D.h) |
+| **Earth Patrol (3-Axle Rover & SDL Game) (Implemented)** | Dynamics / App | Medium | `EarthRoverDynamics`, `Heightfield1D`, SDL2 | [apps/EarthPatrol](../apps/EarthPatrol), [Earth Patrol Plan](EarthPatrolImplementationPlan.md) |
+| **Stanley Path Following & Speed Profiler (Implemented)** | Math / Dynamics | Low-Med | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [PIDController](../libs/VehicleSimCore/math/PIDController.h) | [StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h), [Stanley Path Plan](StanleyPathFollowingImplementationPlan.md) |
+| **DynamicBVH2D Broadphase (Implemented)** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | [DynamicBVH2D.h](../libs/VehicleSimCore/physics/DynamicBVH2D.h), [DynamicBVH Plan](DynamicBVHImplementationPlan.md) |
+| **Extended Joints (`Wheel`, `Prismatic`, `Weld`) (Implemented)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | [WheelJoint2D.h](../libs/VehicleSimCore/physics/WheelJoint2D.h), [Extended Joints Plan](ExtendedConstraintJointsImplementationPlan.md) |
+| **Modular Powertrain & Differentials (Implemented)** | Dynamics | High | [MathUtils](../libs/VehicleSimCore/math/MathUtils.h), [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Powertrain2D.h](../libs/VehicleSimCore/dynamics/Powertrain2D.h), [Powertrain2D Plan](Powertrain2DImplementationPlan.md) |
+| **Poisson-Disk Object Scattering (Implemented)** | Terrain | Medium | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) | [PoissonDiskSampler.h](../libs/VehicleSimCore/terrain/PoissonDiskSampler.h), [Hazard Scattering Plan](DeterministicHazardScatteringImplementationPlan.md) |
+| **Continuous Collision Detection (CCD) (Implemented)** | Physics | High | [Narrowphase2D](../libs/VehicleSimCore/physics/Narrowphase2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | [TOISolver2D.h](../libs/VehicleSimCore/physics/TOISolver2D.h), [Continuous Collision Detection Plan](ContinuousCollisionDetectionImplementationPlan.md) |
+| **Dynamic Shallow Water PDE (Implemented)** | Terrain / Physics | Med-High | [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [WaveGrid2D.h](../libs/VehicleSimCore/terrain/WaveGrid2D.h), [Shallow Water Wave Plan](ShallowWaterWaveImplementationPlan.md) |
+| **Hydrostatic Buoyancy & Hull Slicing (Implemented)** | Physics | Medium | [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h), [FluidField2D](../libs/VehicleSimCore/physics/FluidField2D.h) | [Buoyancy2D.h](../libs/VehicleSimCore/physics/Buoyancy2D.h), [Buoyancy Plan](BuoyancyHullSlicingImplementationPlan.md) |
+| **Ground Effect & Active DRS (Implemented)** | Dynamics | Low-Med | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SlewRateLimiter](../libs/VehicleSimCore/math/SlewRateLimiter.h) | [GroundEffectAero2D.h](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h), [Ground Effect & DRS Plan](GroundEffectDrsImplementationPlan.md) |
+| **Stratified Terramechanics & Hydroplaning (Implemented)** | Terrain | Medium | [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | [StratifiedSoil.h](../libs/VehicleSimCore/terrain/StratifiedSoil.h), [Stratified Soil Plan](StratifiedSoilHydroplaningImplementationPlan.md) |
+| **Telemetry Ring-Buffer & Exporters (Implemented)** | Core / Diagnostic | Low | None | [TelemetryRingBuffer2D.h](../libs/VehicleSimCore/telemetry/TelemetryRingBuffer2D.h), [Telemetry Plan](TelemetryRingBufferImplementationPlan.md) |
+| **RaceCarDynamics (Motorsport) (Implemented)** | Dynamics | Medium | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h), [GroundEffectAero2D](../libs/VehicleSimCore/dynamics/GroundEffectAero2D.h) | [RaceCarDynamics.h](../libs/VehicleSimCore/dynamics/RaceCarDynamics.h), [Race Car Plan](RaceCarImplementationPlan.md) |
+| **ForkliftDynamics (Rear-Steer Industrial) (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [ForkliftDynamics.h](../libs/VehicleSimCore/dynamics/ForkliftDynamics.h), [Forklift Plan](ForkliftImplementationPlan.md) |
+| **QuadcopterDroneDynamics (4-Rotor Aerial) (Implemented)** | Dynamics | Medium | [PIDController](../libs/VehicleSimCore/math/PIDController.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [QuadcopterDroneDynamics.h](../libs/VehicleSimCore/dynamics/QuadcopterDroneDynamics.h), [Quadcopter Plan](QuadcopterDroneImplementationPlan.md) |
+| **DriftCarDynamics & GoKartDynamics (Implemented)** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [DriftCarDynamics.h](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h), [GoKartDynamics.h](../libs/VehicleSimCore/dynamics/GoKartDynamics.h) |
+| **TrainRailDynamics & ExcavatorDynamics (Implemented)** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | [TrainRailDynamics.h](../libs/VehicleSimCore/dynamics/TrainRailDynamics.h), [ExcavatorDynamics.h](../libs/VehicleSimCore/dynamics/ExcavatorDynamics.h) |
+| **Snowmobile, Bicycle & QuadBike Dynamics (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | [SnowmobileDynamics.h](../libs/VehicleSimCore/dynamics/SnowmobileDynamics.h), [BicycleDynamics.h](../libs/VehicleSimCore/dynamics/BicycleDynamics.h) |
+| **VTOLTiltRotorDynamics (Implemented)** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | [VTOLTiltRotorDynamics.h](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h), [VTOL Tilt-Rotor Plan](VTOLTiltRotorImplementationPlan.md) |
+| **Deterministic Snapshotting & Rollback Netcode (Implemented)** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | [SimulationSnapshot2D.h](../libs/VehicleSimCore/physics/SimulationSnapshot2D.h), [Simulation Snapshot Plan](SimulationSnapshotImplementationPlan.md) - Rewind mechanics, GGPO rollback netcode |
+| **CableTether2D (Winch & Tow Cable)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Proposed - Off-road vehicle recovery, towing bridles, cranes |
+| **LiquidSloshCargo2D (Slosh & Granular Cargo)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Proposed - Dynamic center of gravity shifts in tankers & dumpers |
+| **SegmentedTrack2D (Articulated Crawler Tracks)** | Dynamics / Physics | High | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) | Proposed - Discrete track shoes, idler tensioning, de-tracking |
+| **StructuralDamage2D (Plastic Crush Lattice)** | Physics | Med-High | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h) | Proposed - Permanent chassis crush, tie-rod bent alignment pull |
+
+---
+
+## 10. Compliance and Coding Standards
+
+All implementations in `VehicleSimCore` must comply with:
 - **Language Standard**: Pure ISO C++17 (`-std=c++17` on GCC/Clang, `/std:c++17` on MSVC).
 - **Zero External Dependencies**: Zero third-party physics engines; all algorithms self-contained in `VehicleSimCore`.
 - **MISRA C++:2023 & SEI CERT C++**: No raw pointer memory ownership, RAII throughout, zero dynamic casts, explicit braces `{}` initialization.
 - **Floating-Point Determinism**: IEEE 754 compliance across Linux and Windows platforms.
 - **Documentation**: Triple-slash `///` Doxygen blocks with `@brief`, `@details`, `@param`, `@return` on all public APIs.
+

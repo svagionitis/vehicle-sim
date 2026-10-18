@@ -336,4 +336,22 @@ double RevoluteJoint2D::getReactionTorque(double invDt) const noexcept
     return (mMotorImpulse + mLimitImpulse) * invDt;
 }
 
+JointSnapshotData RevoluteJoint2D::captureState() const noexcept
+{
+    JointSnapshotData data {};
+    data.linearImpulse = mPointImpulse;
+    data.angularImpulse = 0.0;
+    data.motorImpulse = mMotorImpulse;
+    data.limitImpulse = mLimitImpulse;
+    data.isBroken = false;
+    return data;
+}
+
+void RevoluteJoint2D::restoreState(const JointSnapshotData& state) noexcept
+{
+    mPointImpulse = state.linearImpulse;
+    mMotorImpulse = state.motorImpulse;
+    mLimitImpulse = state.limitImpulse;
+}
+
 } // namespace vehicle_sim::physics

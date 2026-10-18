@@ -229,4 +229,20 @@ double DistanceJoint2D::getReactionTorque(double /*invDt*/) const noexcept
     return 0.0;
 }
 
+JointSnapshotData DistanceJoint2D::captureState() const noexcept
+{
+    JointSnapshotData data {};
+    data.linearImpulse = math::Vec2 { mImpulse, 0.0 };
+    data.angularImpulse = 0.0;
+    data.motorImpulse = 0.0;
+    data.limitImpulse = 0.0;
+    data.isBroken = false;
+    return data;
+}
+
+void DistanceJoint2D::restoreState(const JointSnapshotData& state) noexcept
+{
+    mImpulse = state.linearImpulse.x;
+}
+
 } // namespace vehicle_sim::physics

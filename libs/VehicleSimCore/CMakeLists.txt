@@ -63,6 +63,8 @@ add_library(VehicleSimCore STATIC
     physics/SpeculativeContact2D.cpp
     physics/PhysicsWorld2D.h
     physics/PhysicsWorld2D.cpp
+    physics/SimulationSnapshot2D.h
+    physics/SimulationSnapshot2D.cpp
     physics/Joint2D.h
     physics/Joint2D.cpp
     physics/DistanceJoint2D.h

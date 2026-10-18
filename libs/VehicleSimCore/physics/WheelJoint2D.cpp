@@ -353,4 +353,22 @@ double WheelJoint2D::getReactionTorque(double invDt) const noexcept
     return mMotorImpulse * invDt;
 }
 
+JointSnapshotData WheelJoint2D::captureState() const noexcept
+{
+    JointSnapshotData data {};
+    data.linearImpulse = math::Vec2 { mPerpImpulse, mAxialImpulse };
+    data.angularImpulse = 0.0;
+    data.motorImpulse = mMotorImpulse;
+    data.limitImpulse = 0.0;
+    data.isBroken = false;
+    return data;
+}
+
+void WheelJoint2D::restoreState(const JointSnapshotData& state) noexcept
+{
+    mPerpImpulse = state.linearImpulse.x;
+    mAxialImpulse = state.linearImpulse.y;
+    mMotorImpulse = state.motorImpulse;
+}
+
 } // namespace vehicle_sim::physics

@@ -157,6 +157,14 @@ public:
     /// @return Accumulated torque scalar in N*m.
     [[nodiscard]] double getAccumulatedTorque() const noexcept;
 
+    /// @brief Sets total accumulated force in world frame.
+    /// @param[in] force Accumulated force vector in Newtons.
+    void setAccumulatedForce(const math::Vec2& force) noexcept;
+
+    /// @brief Sets total accumulated torque.
+    /// @param[in] torque Accumulated torque scalar in N*m.
+    void setAccumulatedTorque(double torque) noexcept;
+
     /// @brief Applies a world force through the center of mass.
     /// @param[in] forceWorld Force vector in Newtons (world frame).
     void applyForce(const math::Vec2& forceWorld) noexcept;

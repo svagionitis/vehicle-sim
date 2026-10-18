@@ -484,4 +484,91 @@ const SpeculativeSettings& PhysicsWorld2D::getSpeculativeSettings() const noexce
     return mSpeculativeSettings;
 }
 
+bool PhysicsWorld2D::captureSnapshot(std::uint32_t frameIndex, SimulationSnapshot2D& snapshot) const noexcept
+{
+    snapshot.frameIndex = frameIndex;
+    snapshot.timestamp = static_cast<double>(frameIndex);
+
+    const std::size_t numBodies { std::min(mBodies.size(), kMaxSnapshotBodies) };
+    snapshot.bodyCount = static_cast<std::uint32_t>(numBodies);
+
+    for (std::size_t i { 0U }; i < numBodies; ++i) {
+        if (mBodies[i] != nullptr) {
+            snapshot.bodies[i].bodyId = static_cast<std::uint32_t>(i);
+            snapshot.bodies[i].position = mBodies[i]->getPosition();
+            snapshot.bodies[i].linearVelocity = mBodies[i]->getLinearVelocity();
+            snapshot.bodies[i].orientation = mBodies[i]->getOrientation();
+            snapshot.bodies[i].angularVelocity = mBodies[i]->getAngularVelocity();
+            snapshot.bodies[i].forceAccumulator = mBodies[i]->getAccumulatedForce();
+            snapshot.bodies[i].torqueAccumulator = mBodies[i]->getAccumulatedTorque();
+            snapshot.bodies[i].isStatic = mBodies[i]->isStatic();
+            snapshot.bodies[i].isBullet = mBodies[i]->isBullet();
+        }
+    }
+
+    const std::size_t numJoints { std::min(mJoints.size(), kMaxSnapshotJoints) };
+    snapshot.jointCount = static_cast<std::uint32_t>(numJoints);
+
+    for (std::size_t i { 0U }; i < numJoints; ++i) {
+        if (mJoints[i] != nullptr) {
+            const JointSnapshotData jointData { mJoints[i]->captureState() };
+            snapshot.joints[i].jointId = static_cast<std::uint32_t>(i);
+            snapshot.joints[i].linearImpulse = jointData.linearImpulse;
+            snapshot.joints[i].angularImpulse = jointData.angularImpulse;
+            snapshot.joints[i].motorImpulse = jointData.motorImpulse;
+            snapshot.joints[i].limitImpulse = jointData.limitImpulse;
+            snapshot.joints[i].isBroken = jointData.isBroken;
+        }
+    }
+
+    snapshot.terrainDeltaCount = 0U;
+    snapshot.stateChecksum = snapshot.computeChecksum();
+    return true;
+}
+
+bool PhysicsWorld2D::restoreSnapshot(const SimulationSnapshot2D& snapshot) noexcept
+{
+    if (!snapshot.isValid()) {
+        return false;
+    }
+
+    if (snapshot.bodyCount > mBodies.size() || snapshot.jointCount > mJoints.size()) {
+        return false;
+    }
+
+    for (std::size_t i { 0U }; i < snapshot.bodyCount; ++i) {
+        if (mBodies[i] != nullptr) {
+            mBodies[i]->setPosition(snapshot.bodies[i].position);
+            mBodies[i]->setLinearVelocity(snapshot.bodies[i].linearVelocity);
+            mBodies[i]->setOrientation(snapshot.bodies[i].orientation);
+            mBodies[i]->setAngularVelocity(snapshot.bodies[i].angularVelocity);
+            mBodies[i]->setAccumulatedForce(snapshot.bodies[i].forceAccumulator);
+            mBodies[i]->setAccumulatedTorque(snapshot.bodies[i].torqueAccumulator);
+        }
+    }
+
+    for (std::size_t i { 0U }; i < snapshot.jointCount; ++i) {
+        if (mJoints[i] != nullptr) {
+            JointSnapshotData jointData {};
+            jointData.linearImpulse = snapshot.joints[i].linearImpulse;
+            jointData.angularImpulse = snapshot.joints[i].angularImpulse;
+            jointData.motorImpulse = snapshot.joints[i].motorImpulse;
+            jointData.limitImpulse = snapshot.joints[i].limitImpulse;
+            jointData.isBroken = snapshot.joints[i].isBroken;
+            mJoints[i]->restoreState(jointData);
+        }
+    }
+
+    // Synchronize broadphase proxies with restored body transforms
+    for (auto* col : mColliders) {
+        if (col != nullptr && col->getBroadphaseProxyId() != kNullBVHNode) {
+            const math::AABB2D tightAABB { col->computeWorldAABB() };
+            static_cast<void>(mBroadphaseTree.moveProxy(col->getBroadphaseProxyId(), tightAABB, { 0.0, 0.0 }));
+        }
+    }
+
+    mPairBuffer.clear();
+    return true;
+}
+
 } // namespace vehicle_sim::physics

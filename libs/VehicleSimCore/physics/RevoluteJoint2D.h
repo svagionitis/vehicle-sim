@@ -106,6 +106,14 @@ public:
     /// @return True if position constraint error is within tolerance.
     [[nodiscard]] bool solvePositionConstraints() noexcept override;
 
+    /// @brief Captures warm-starting impulses and internal constraint state for snapshots.
+    /// @return JointSnapshotData with cached impulses.
+    [[nodiscard]] JointSnapshotData captureState() const noexcept override;
+
+    /// @brief Restores warm-starting impulses and internal constraint state from snapshot.
+    /// @param[in] state Cached impulses and rupture state.
+    void restoreState(const JointSnapshotData& state) noexcept override;
+
     /// @brief Gets reaction force vector exerted on body B in world coordinates.
     /// @param[in] invDt Inverse timestep (1.0 / dt).
     /// @return Reaction force in Newtons.

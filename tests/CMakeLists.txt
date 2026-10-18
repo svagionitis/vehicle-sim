@@ -42,6 +42,7 @@ add_executable(VehicleSimCoreTests
     BuoyancyTest.cpp
     Powertrain2DTest.cpp
     VTOLTiltRotorDynamicsTest.cpp
+    SimulationSnapshotTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

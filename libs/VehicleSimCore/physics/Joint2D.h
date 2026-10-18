@@ -26,6 +26,16 @@ struct JointConfig {
     bool collideConnected { false }; ///< True if linked bodies may collide against each other.
 };
 
+/// @struct JointSnapshotData
+/// @brief State capture for warm-starting constraint impulses and rupture state.
+struct JointSnapshotData {
+    math::Vec2 linearImpulse { 0.0, 0.0 };
+    double angularImpulse { 0.0 };
+    double motorImpulse { 0.0 };
+    double limitImpulse { 0.0 };
+    bool isBroken { false };
+};
+
 /// @class Joint2D
 /// @brief Abstract base class for 2D multi-body rigid body constraints.
 /// @details Defines the lifecycle and solver interface executed by PhysicsWorld2D.
@@ -79,6 +89,14 @@ public:
     /// @brief Queries whether the joint is currently broken or ruptured.
     /// @return True if joint is broken and inactive.
     [[nodiscard]] virtual bool isBroken() const noexcept { return false; }
+
+    /// @brief Captures warm-starting impulses and internal constraint state for snapshots.
+    /// @return JointSnapshotData with cached impulses.
+    [[nodiscard]] virtual JointSnapshotData captureState() const noexcept { return {}; }
+
+    /// @brief Restores warm-starting impulses and internal constraint state from snapshot.
+    /// @param[in] state Cached impulses and rupture state.
+    virtual void restoreState(const JointSnapshotData& state) noexcept { (void)state; }
 
     /// @brief Pre-calculates effective mass, Baumgarte bias, and applies warm-starting impulses.
     /// @param[in] dt Simulation timestep in seconds.

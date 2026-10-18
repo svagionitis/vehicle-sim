@@ -396,4 +396,22 @@ double PrismaticJoint2D::getReactionTorque(double invDt) const noexcept
     return mImpulse.y * invDt;
 }
 
+JointSnapshotData PrismaticJoint2D::captureState() const noexcept
+{
+    JointSnapshotData data {};
+    data.linearImpulse = mImpulse;
+    data.angularImpulse = 0.0;
+    data.motorImpulse = mMotorImpulse;
+    data.limitImpulse = mLimitImpulse;
+    data.isBroken = false;
+    return data;
+}
+
+void PrismaticJoint2D::restoreState(const JointSnapshotData& state) noexcept
+{
+    mImpulse = state.linearImpulse;
+    mMotorImpulse = state.motorImpulse;
+    mLimitImpulse = state.limitImpulse;
+}
+
 } // namespace vehicle_sim::physics

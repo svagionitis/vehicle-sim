@@ -9,6 +9,7 @@
 #include "Integrator2D.h"
 #include "Joint2D.h"
 #include "RigidBody2D.h"
+#include "SimulationSnapshot2D.h"
 #include "SpeculativeContact2D.h"
 #include "libs/VehicleSimCore/math/Ray2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
@@ -187,6 +188,41 @@ public:
     /// @brief Gets speculative contact detection settings.
     /// @return Current speculative settings.
     [[nodiscard]] const SpeculativeSettings& getSpeculativeSettings() const noexcept;
+
+    /// @brief Captures a bit-exact snapshot of the current physics simulation state.
+    /// @param[in] frameIndex Current simulation frame sequence number.
+    /// @param[out] snapshot Destination snapshot structure to populate.
+    /// @return True if state was completely captured within capacity limits.
+    [[nodiscard]] bool captureSnapshot(std::uint32_t frameIndex,
+                                       SimulationSnapshot2D& snapshot) const noexcept;
+
+    /// @brief Restores the physics simulation state from a snapshot.
+    /// @param[in] snapshot Valid snapshot to restore into the world.
+    /// @return True if restore succeeded, false if checksum mismatch or discrepancy.
+    [[nodiscard]] bool restoreSnapshot(const SimulationSnapshot2D& snapshot) noexcept;
+
+    /// @brief Restores world to a past snapshot and deterministically resimulates forward.
+    /// @tparam InputFn Callable with signature: void(std::uint32_t frame)
+    /// @param[in] snapshot Target historical snapshot.
+    /// @param[in] targetFrame Final frame index to reach.
+    /// @param[in] timeStep Fixed delta time per resimulation step.
+    /// @param[in] applyInputs Callback applying inputs prior to each step.
+    /// @return True if rollback and resimulation succeeded.
+    template <typename InputFn>
+    bool rollbackAndReplay(const SimulationSnapshot2D& snapshot,
+                           std::uint32_t targetFrame,
+                           double timeStep,
+                           InputFn applyInputs) noexcept
+    {
+        if (!restoreSnapshot(snapshot)) {
+            return false;
+        }
+        for (std::uint32_t f { snapshot.frameIndex }; f < targetFrame; ++f) {
+            applyInputs(f);
+            step(timeStep);
+        }
+        return true;
+    }
 
 private:
     math::Vec2 mGravity { 0.0, -9.81 };

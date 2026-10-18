@@ -324,4 +324,22 @@ double WeldJoint2D::getReactionTorque(double invDt) const noexcept
     return mAngularImpulse * invDt;
 }
 
+JointSnapshotData WeldJoint2D::captureState() const noexcept
+{
+    JointSnapshotData data {};
+    data.linearImpulse = mLinearImpulse;
+    data.angularImpulse = mAngularImpulse;
+    data.motorImpulse = 0.0;
+    data.limitImpulse = 0.0;
+    data.isBroken = mBroken;
+    return data;
+}
+
+void WeldJoint2D::restoreState(const JointSnapshotData& state) noexcept
+{
+    mLinearImpulse = state.linearImpulse;
+    mAngularImpulse = state.angularImpulse;
+    mBroken = state.isBroken;
+}
+
 } // namespace vehicle_sim::physics

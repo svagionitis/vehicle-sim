@@ -187,6 +187,16 @@ double RigidBody2D::getAccumulatedTorque() const noexcept
     return mAccumulatedTorque;
 }
 
+void RigidBody2D::setAccumulatedForce(const math::Vec2& force) noexcept
+{
+    mAccumulatedForce = force;
+}
+
+void RigidBody2D::setAccumulatedTorque(double torque) noexcept
+{
+    mAccumulatedTorque = torque;
+}
+
 void RigidBody2D::applyForce(const math::Vec2& forceWorld) noexcept
 {
     if (mBodyType == BodyType::Dynamic) {
