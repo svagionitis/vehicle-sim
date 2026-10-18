@@ -6,6 +6,7 @@
 
 #include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
+#include "apps/MontsoftOffroad/CombatManager.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
 #include "apps/MontsoftOffroad/InputController.h"
 #include "apps/MontsoftOffroad/ParallaxRenderer.h"
@@ -111,6 +112,14 @@ public:
     /// @return Mutable reference to OffroadBallistics2D.
     [[nodiscard]] vehicle_sim::dynamics::OffroadBallistics2D& getBallistics() noexcept;
 
+    /// @brief Gets combat coordinator.
+    /// @return Constant reference to CombatManager.
+    [[nodiscard]] const CombatManager& getCombatManager() const noexcept;
+
+    /// @brief Gets mutable combat coordinator.
+    /// @return Mutable reference to CombatManager.
+    [[nodiscard]] CombatManager& getCombatManager() noexcept;
+
     /// @brief Gets CGA palette renderer.
     /// @return Constant reference to CgaPaletteRenderer.
     [[nodiscard]] const CgaPaletteRenderer& getRenderer() const noexcept;
@@ -189,7 +198,7 @@ private:
 
     vehicle_sim::physics::RigidBody2D truckBody_ {};
     vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};
-    vehicle_sim::dynamics::OffroadBallistics2D ballistics_ {};
+    CombatManager combatManager_ {};
 
     bool running_ { false };
     bool paused_ { false };

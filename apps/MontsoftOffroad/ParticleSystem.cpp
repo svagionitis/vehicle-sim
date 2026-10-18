@@ -190,6 +190,99 @@ void ParticleSystem::emitThrusterSparks(
     }
 }
 
+void ParticleSystem::emitRocketExhaust(
+    const Vec2& nozzleWorldPos,
+    const Vec2& rocketVelocity,
+    double heading
+) noexcept
+{
+    constexpr std::size_t kCount { 2U };
+    const double cosH { std::cos(heading) };
+    const double sinH { std::sin(heading) };
+
+    for (std::size_t i { 0 }; i < kCount; ++i) {
+        const std::size_t slot { allocateSlot() };
+        Particle& p { pool_[slot] };
+        p.active = true;
+        p.type = ParticleType::RocketExhaust;
+        p.age = 0.0;
+        p.maxLifetime = 0.12 + nextRandomDouble() * 0.12;
+        p.sizePx = 1U;
+
+        const double jitter { (nextRandomDouble() - 0.5) * 0.15 };
+        p.position = nozzleWorldPos + Vec2{ -sinH * jitter, cosH * jitter };
+
+        const double exhaustSpeed { 4.0 + nextRandomDouble() * 5.0 };
+        const double vx { rocketVelocity.x * 0.15 - cosH * exhaustSpeed + (nextRandomDouble() - 0.5) * 1.5 };
+        const double vy { rocketVelocity.y * 0.15 - sinH * exhaustSpeed + (nextRandomDouble() - 0.5) * 1.5 };
+        p.velocity = Vec2{ vx, vy };
+
+        const double r { nextRandomDouble() };
+        if (r < 0.45) {
+            p.baseColor = ColorRgba{ 255, 255, 255, 255 }; // Hot white
+        } else if (r < 0.75) {
+            p.baseColor = ColorRgba{ 255, 255, 85, 255 };  // Hot yellow
+        } else {
+            p.baseColor = ColorRgba{ 255, 85, 85, 255 };   // Flame red
+        }
+    }
+}
+
+void ParticleSystem::emitMortarTrail(
+    const Vec2& shellWorldPos,
+    const Vec2& shellVelocity
+) noexcept
+{
+    const std::size_t slot { allocateSlot() };
+    Particle& p { pool_[slot] };
+    p.active = true;
+    p.type = ParticleType::RocketExhaust;
+    p.age = 0.0;
+    p.maxLifetime = 0.18 + nextRandomDouble() * 0.10;
+    p.sizePx = 1U;
+
+    p.position = shellWorldPos;
+    p.velocity = shellVelocity * 0.08 + Vec2{ (nextRandomDouble() - 0.5) * 0.8, (nextRandomDouble() - 0.5) * 0.8 };
+    p.baseColor = (nextRandomDouble() < 0.6)
+        ? ColorRgba{ 255, 255, 255, 255 }
+        : ColorRgba{ 85, 255, 255, 255 };
+}
+
+void ParticleSystem::emitExplosionShrapnel(
+    const Vec2& epicenter,
+    double radius,
+    double intensity,
+    std::size_t stageIndex
+) noexcept
+{
+    const std::size_t count { std::min<std::size_t>(28U, static_cast<std::size_t>(16U + radius * 3.0 * intensity)) };
+    for (std::size_t i { 0 }; i < count; ++i) {
+        const std::size_t slot { allocateSlot() };
+        Particle& p { pool_[slot] };
+        p.active = true;
+        p.type = ParticleType::ExplosionShrapnel;
+        p.age = 0.0;
+        p.maxLifetime = 0.25 + nextRandomDouble() * 0.35;
+        p.sizePx = (nextRandomDouble() < 0.4) ? 2U : 1U;
+
+        const double angle { (2.0 * 3.14159265358979323846 / static_cast<double>(count)) * static_cast<double>(i) + (nextRandomDouble() - 0.5) * 0.4 };
+        const double speed { (8.0 + nextRandomDouble() * 16.0) * std::sqrt(std::max(0.5, intensity)) };
+        const double jitterDist { nextRandomDouble() * 0.2 };
+
+        p.position = epicenter + Vec2{ std::cos(angle) * jitterDist, std::sin(angle) * jitterDist };
+        p.velocity = Vec2{ std::cos(angle) * speed, std::sin(angle) * speed + 2.0 };
+
+        const double cr { nextRandomDouble() };
+        if (cr < 0.35) {
+            p.baseColor = ColorRgba{ 255, 255, 255, 255 }; // Hot core white
+        } else if (cr < 0.70) {
+            p.baseColor = ColorRgba{ 255, 255, 85, 255 };  // Yellow fireball
+        } else {
+            p.baseColor = getBiomeColor(stageIndex, ParticleType::ExplosionShrapnel);
+        }
+    }
+}
+
 void ParticleSystem::update(double dt) noexcept
 {
     for (auto& p : pool_) {
@@ -222,6 +315,18 @@ void ParticleSystem::update(double dt) noexcept
         } else if (p.type == ParticleType::ThrusterSpark) {
             gravityY = -14.0;
             dragCoeff = 0.1;
+        } else if (p.type == ParticleType::RocketExhaust) {
+            gravityY = -0.2;
+            dragCoeff = 3.5;
+            if (p.age > p.maxLifetime * 0.5) {
+                p.sizePx = 2U;
+            }
+        } else if (p.type == ParticleType::ExplosionShrapnel) {
+            gravityY = -8.5;
+            dragCoeff = 1.2;
+            if (p.age > p.maxLifetime * 0.6) {
+                p.sizePx = 2U;
+            }
         }
 
         // Air drag force

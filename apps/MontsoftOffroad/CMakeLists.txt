@@ -22,6 +22,8 @@ add_executable(MontsoftOffroad
     TruckRenderer.cpp
     ParallaxRenderer.h
     ParallaxRenderer.cpp
+    CombatManager.h
+    CombatManager.cpp
     SDLWrappers.h
 )
 
@@ -71,6 +73,8 @@ if(BUILD_TESTING)
         TruckRenderer.cpp
         ParallaxRenderer.h
         ParallaxRenderer.cpp
+        CombatManager.h
+        CombatManager.cpp
         SDLWrappers.h
     )
 

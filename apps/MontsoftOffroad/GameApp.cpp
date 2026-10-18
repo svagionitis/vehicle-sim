@@ -183,23 +183,8 @@ void GameApp::updateSimulation(double dt) noexcept
     vehicle_sim::physics::Integrator2D::integrate(truckBody_, dt);
     truckBody_.clearForces();
 
-    // Weapon projectile firing
-    if (truckInput.firePrimary) {
-        ballistics_.fireRocket(
-            truckBody_.getPosition() + Vec2{ 1.2, 0.2 },
-            truckBody_.getOrientation(),
-            truckBody_.getLinearVelocity()
-        );
-        camera_.addTrauma(0.25);
-    }
-
-    if (truckInput.fireSecondary) {
-        ballistics_.fireMortar(
-            truckBody_.getPosition() + Vec2{ 0.0, 0.4 },
-            truckBody_.getLinearVelocity()
-        );
-        camera_.addTrauma(0.35);
-    }
+    // Weapon projectile firing and cadence coordinator
+    combatManager_.handleFireInputs(truckInput, truckBody_, truckDynamics_, camera_);
 
     // Terramechanic dust and spark emission
     const auto& rearAxle { truckDynamics_.getAxleState(0) };
@@ -234,7 +219,18 @@ void GameApp::updateSimulation(double dt) noexcept
 
     particleSystem_.update(dt);
     truckRenderer_.updateAnimation(truckBody_.getLinearVelocity().x, dt);
-    ballistics_.step(dt, &courseManager_.getHeightfield());
+
+    const std::vector<vehicle_sim::physics::RigidBody2D*> sceneBodies{ &truckBody_ };
+    combatManager_.update(
+        dt,
+        &courseManager_.getHeightfield(),
+        particleSystem_,
+        camera_,
+        sceneBodies,
+        nullptr,
+        stageIdx
+    );
+
     camera_.update(truckBody_.getPosition(), truckBody_.getLinearVelocity().x, dt);
     parallax_.update(dt);
 }
@@ -274,15 +270,8 @@ void GameApp::renderFrame() noexcept
     // 4. Render articulated 4WD desert truck chassis, suspension, knobby tires, weapons
     truckRenderer_.render(cgaRenderer_, camera_, truckBody_, truckDynamics_);
 
-    // 5. Render active ballistic projectiles
-    for (const auto& proj : ballistics_.getProjectiles()) {
-        const Vec2 projScreen { camera_.worldToScreen(proj.position) };
-        const int px { static_cast<int>(std::round(projScreen.x)) };
-        const int py { static_cast<int>(std::round(projScreen.y)) };
-        if (px >= 0 && px < CgaPaletteRenderer::kNativeWidth && py >= 0 && py < CgaPaletteRenderer::kNativeHeight) {
-            cgaRenderer_.fillRect(px - 1, py - 1, 3, 3, ColorRgba{ 255, 255, 255, 255 });
-        }
-    }
+    // 5. Render active ballistic projectiles, rockets, mortars, and shockwaves
+    combatManager_.render(cgaRenderer_, camera_);
 
     if (!config_.headless && window_ && renderer_) {
         int w { config_.windowWidth };
@@ -335,12 +324,22 @@ vehicle_sim::physics::RigidBody2D& GameApp::getTruckBody() noexcept
 
 const vehicle_sim::dynamics::OffroadBallistics2D& GameApp::getBallistics() const noexcept
 {
-    return ballistics_;
+    return combatManager_.getBallistics();
 }
 
 vehicle_sim::dynamics::OffroadBallistics2D& GameApp::getBallistics() noexcept
 {
-    return ballistics_;
+    return combatManager_.getBallistics();
+}
+
+const CombatManager& GameApp::getCombatManager() const noexcept
+{
+    return combatManager_;
+}
+
+CombatManager& GameApp::getCombatManager() noexcept
+{
+    return combatManager_;
 }
 
 const CgaPaletteRenderer& GameApp::getRenderer() const noexcept

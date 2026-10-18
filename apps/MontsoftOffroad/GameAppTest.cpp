@@ -2,6 +2,7 @@
 
 #include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
+#include "apps/MontsoftOffroad/CombatManager.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
 #include "apps/MontsoftOffroad/GameApp.h"
 #include "apps/MontsoftOffroad/InputController.h"
@@ -686,6 +687,265 @@ TEST(GameAppPhase4IntegrationTest, FullPhase4RenderFrameExecution)
     }
 
     // Render frame with all Phase 4 visual subsystems active
+    app.renderFrame();
+}
+
+TEST(CombatManagerTest, WeaponCadenceAndCooldownTimers)
+{
+    CombatManager cm {};
+    vehicle_sim::physics::RigidBody2D body {};
+    ParticleSystem particles {};
+    Camera2D camera {};
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+
+    EXPECT_TRUE(cm.canFireRocket());
+    EXPECT_TRUE(cm.canFireMortar());
+    EXPECT_EQ(cm.getRocketCooldown(), 0.0);
+    EXPECT_EQ(cm.getMortarCooldown(), 0.0);
+
+    // Discharge rocket
+    EXPECT_TRUE(cm.fireRocket(body));
+    EXPECT_FALSE(cm.canFireRocket());
+    EXPECT_GT(cm.getRocketCooldown(), 0.0);
+
+    // Immediate second fire fails due to cadence lock
+    EXPECT_FALSE(cm.fireRocket(body));
+
+    // Discharge mortar
+    EXPECT_TRUE(cm.fireMortar(body));
+    EXPECT_FALSE(cm.canFireMortar());
+    EXPECT_GT(cm.getMortarCooldown(), 0.0);
+    EXPECT_FALSE(cm.fireMortar(body));
+
+    // Step simulation by partial cooldown time
+    cm.update(0.10, nullptr, particles, camera, bodies);
+    EXPECT_FALSE(cm.canFireRocket());
+    EXPECT_FALSE(cm.canFireMortar());
+
+    // Step remaining time past 0.25s rocket cooldown
+    cm.update(0.20, nullptr, particles, camera, bodies);
+    EXPECT_TRUE(cm.canFireRocket());
+    EXPECT_FALSE(cm.canFireMortar());
+
+    // Step past 0.45s mortar cooldown
+    cm.update(0.20, nullptr, particles, camera, bodies);
+    EXPECT_TRUE(cm.canFireMortar());
+}
+
+TEST(CombatManagerTest, RocketRecoilImpulseAndHeading)
+{
+    CombatManager cm {};
+    vehicle_sim::physics::RigidBody2D body {};
+    body.setOrientation(0.0);
+    body.setLinearVelocity(vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    EXPECT_TRUE(cm.fireRocket(body));
+    // Rocket recoil should push truck in negative X direction
+    EXPECT_LT(body.getLinearVelocity().x, 0.0);
+
+    // Ballistics should contain 1 forward rocket
+    const auto& projs { cm.getBallistics().getProjectiles() };
+    ASSERT_EQ(projs.size(), 1U);
+    EXPECT_EQ(projs[0].type, vehicle_sim::dynamics::ProjectileType::ForwardRocket);
+    EXPECT_GT(projs[0].velocity.x, 0.0);
+}
+
+TEST(CombatManagerTest, MortarVerticalThumpAndHighAngle)
+{
+    CombatManager cm {};
+    vehicle_sim::physics::RigidBody2D body {};
+    body.setOrientation(0.0);
+    body.setLinearVelocity(vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    EXPECT_TRUE(cm.fireMortar(body));
+    // Mortar kick pushes truck chassis downward into suspension
+    EXPECT_LT(body.getLinearVelocity().y, 0.0);
+
+    const auto& projs { cm.getBallistics().getProjectiles() };
+    ASSERT_EQ(projs.size(), 1U);
+    EXPECT_EQ(projs[0].type, vehicle_sim::dynamics::ProjectileType::AntiAirMortar);
+    EXPECT_GT(projs[0].velocity.y, 0.0);
+}
+
+TEST(CombatManagerTest, ExhaustTrailEmission)
+{
+    CombatManager cm {};
+    ParticleSystem particles {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D body {};
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+
+    cm.fireRocket(body);
+    cm.fireMortar(body);
+
+    cm.update(1.0 / 60.0, nullptr, particles, camera, bodies);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(CombatManagerTest, TargetSweepHitCollisionAndDamage)
+{
+    CombatManager cm {};
+    ParticleSystem particles {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D body {};
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+
+    // Register a target AABB directly in front of launcher
+    CombatTargetAabb target {};
+    target.targetId = 42U;
+    target.type = CombatTargetType::GroundScout;
+    target.minBounds = vehicle_sim::math::Vec2{ 0.5, -2.0 };
+    target.maxBounds = vehicle_sim::math::Vec2{ 5.0, 2.0 };
+    target.health = 100.0;
+    target.isAlive = true;
+
+    std::vector<CombatTargetAabb> targets{ target };
+
+    EXPECT_TRUE(cm.fireRocket(body));
+
+    // Update with target hit test
+    cm.update(0.05, nullptr, particles, camera, bodies, &targets);
+
+    // Target should take damage and trigger a shockwave detonation
+    EXPECT_LT(targets[0].health, 100.0);
+    EXPECT_GT(cm.getShockwaveCount(), 0U);
+}
+
+TEST(CombatManagerTest, BlastEventImpulseAndCameraTrauma)
+{
+    CombatManager cm {};
+    ParticleSystem particles {};
+    Camera2D camera {};
+    vehicle_sim::physics::RigidBody2D body {};
+    body.setPosition(vehicle_sim::math::Vec2{ 1.0, 0.0 });
+    camera.reset(vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+
+    EXPECT_TRUE(cm.fireRocket(body));
+    // Trigger immediate manual detonation
+    cm.getBallistics().detonate(0U);
+
+    cm.update(1.0 / 60.0, nullptr, particles, camera, bodies);
+
+    EXPECT_GT(camera.getTrauma(), 0.0);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+    EXPECT_GT(cm.getShockwaveCount(), 0U);
+}
+
+TEST(CombatManagerTest, RenderShockwavesAndProjectilesClean)
+{
+    CombatManager cm {};
+    Camera2D camera {};
+    CgaPaletteRenderer cga {};
+    vehicle_sim::physics::RigidBody2D body {};
+
+    cm.fireRocket(body);
+    cm.fireMortar(body);
+
+    // Trigger detonation to spawn active shockwave
+    cm.getBallistics().detonate(0U);
+    ParticleSystem dummyParticles {};
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+    cm.update(1.0 / 60.0, nullptr, dummyParticles, camera, bodies);
+
+    // Rasterization must execute cleanly without clipping exceptions
+    cm.render(cga, camera);
+}
+
+TEST(CombatManagerTest, ResetIntegrity)
+{
+    CombatManager cm {};
+    vehicle_sim::physics::RigidBody2D body {};
+
+    cm.fireRocket(body);
+    EXPECT_EQ(cm.getBallistics().getProjectiles().size(), 1U);
+    EXPECT_GT(cm.getRocketCooldown(), 0.0);
+
+    cm.reset();
+    EXPECT_EQ(cm.getBallistics().getProjectiles().size(), 0U);
+    EXPECT_EQ(cm.getRocketCooldown(), 0.0);
+    EXPECT_EQ(cm.getMortarCooldown(), 0.0);
+    EXPECT_EQ(cm.getShockwaveCount(), 0U);
+}
+
+TEST(ParticleSystemCombatTest, RocketExhaustEmission)
+{
+    ParticleSystem particles {};
+    particles.emitRocketExhaust(
+        vehicle_sim::math::Vec2{ 0.0, 0.0 },
+        vehicle_sim::math::Vec2{ 45.0, 0.0 },
+        0.0
+    );
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemCombatTest, MortarTrailEmission)
+{
+    ParticleSystem particles {};
+    particles.emitMortarTrail(
+        vehicle_sim::math::Vec2{ 0.0, 0.0 },
+        vehicle_sim::math::Vec2{ 10.0, 20.0 }
+    );
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemCombatTest, ExplosionShrapnelRadialBurst)
+{
+    ParticleSystem particles {};
+    particles.emitExplosionShrapnel(
+        vehicle_sim::math::Vec2{ 0.0, 0.0 },
+        3.0,
+        1.0,
+        0U
+    );
+    // Should spawn substantial burst of fragments
+    EXPECT_GE(particles.getActiveCount(), 16U);
+}
+
+TEST(GameAppPhase5IntegrationTest, DrivingAndWeaponCadenceIntegration)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    input.firePrimary = true;
+    app.setInput(input);
+
+    // Step 15 frames (0.25 seconds)
+    // Holding fire button should NOT produce 15 rockets; should produce 1 or 2
+    for (int i { 0 }; i < 15; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    const auto& projs { app.getBallistics().getProjectiles() };
+    EXPECT_GE(projs.size(), 1U);
+    EXPECT_LE(projs.size(), 3U);
+}
+
+TEST(GameAppPhase5IntegrationTest, FullPhase5RenderFrameExecution)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    input.firePrimary = true;
+    input.fireSecondary = true;
+    app.setInput(input);
+
+    for (int i { 0 }; i < 30; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Render frame with all Phase 5 combat visuals active
     app.renderFrame();
 }
 

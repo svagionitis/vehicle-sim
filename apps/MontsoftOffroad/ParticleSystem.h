@@ -86,6 +86,36 @@ public:
         const vehicle_sim::math::Vec2& chassisVelocity
     ) noexcept;
 
+    /// @brief Emits incandescent propellant exhaust puffs trailing behind an active missile.
+    /// @param[in] nozzleWorldPos Rear nozzle position in world coordinates.
+    /// @param[in] rocketVelocity Projectile velocity in m/s.
+    /// @param[in] heading Projectile travel heading in radians.
+    void emitRocketExhaust(
+        const vehicle_sim::math::Vec2& nozzleWorldPos,
+        const vehicle_sim::math::Vec2& rocketVelocity,
+        double heading
+    ) noexcept;
+
+    /// @brief Emits subtle glowing tracer sparks along an anti-air mortar trajectory.
+    /// @param[in] shellWorldPos Current shell position in world coordinates.
+    /// @param[in] shellVelocity Shell velocity vector in m/s.
+    void emitMortarTrail(
+        const vehicle_sim::math::Vec2& shellWorldPos,
+        const vehicle_sim::math::Vec2& shellVelocity
+    ) noexcept;
+
+    /// @brief Emits a violent radial burst of jagged shrapnel sparks upon detonation.
+    /// @param[in] epicenter Explosion detonation point in world coordinates.
+    /// @param[in] radius Blast radius in meters.
+    /// @param[in] intensity Normalized detonation energy scale factor.
+    /// @param[in] stageIndex Active course stage index for biome debris styling.
+    void emitExplosionShrapnel(
+        const vehicle_sim::math::Vec2& epicenter,
+        double radius,
+        double intensity,
+        std::size_t stageIndex
+    ) noexcept;
+
     /// @brief Clears and deactivates all particles in the pool.
     void reset() noexcept;
 
