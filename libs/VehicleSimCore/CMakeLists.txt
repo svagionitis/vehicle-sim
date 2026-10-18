@@ -69,6 +69,12 @@ add_library(VehicleSimCore STATIC
     physics/DistanceJoint2D.cpp
     physics/RevoluteJoint2D.h
     physics/RevoluteJoint2D.cpp
+    physics/PrismaticJoint2D.h
+    physics/PrismaticJoint2D.cpp
+    physics/WheelJoint2D.h
+    physics/WheelJoint2D.cpp
+    physics/WeldJoint2D.h
+    physics/WeldJoint2D.cpp
     physics/FluidField2D.h
     physics/FluidField2D.cpp
     physics/FluidDrag2D.h

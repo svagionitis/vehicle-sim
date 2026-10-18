@@ -693,10 +693,10 @@ graph LR
 
 ---
 
-### 4.7 Extended Constraint Joints (`PrismaticJoint2D`, `WheelJoint2D`, `WeldJoint2D`)
+### 4.7 Extended Constraint Joints (`PrismaticJoint2D`, `WheelJoint2D`, `WeldJoint2D`) (Implemented)
 
 #### Objective
-Expand the multi-body constraint system ([Joint2D](../libs/VehicleSimCore/physics/Joint2D.h)) to support telescopic suspension struts, hydraulic rams, steering linkages, and breakable structural attachments.
+Expand the multi-body constraint system ([Joint2D](../libs/VehicleSimCore/physics/Joint2D.h)) to support telescopic suspension struts, hydraulic rams, steering linkages, and breakable structural attachments. Detailed architectural and multi-body joint design specification: [Extended Constraint Joints Plan](ExtendedConstraintJointsImplementationPlan.md).
 
 #### Technical Formulation
 1. **`PrismaticJoint2D` (Slider / Piston)**:

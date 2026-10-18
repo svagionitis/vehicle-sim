@@ -10,7 +10,10 @@ class RigidBody2D;
 /// @brief Classification of physical 2D multi-body joint constraints.
 enum class JointType {
     Distance, ///< Distance constraint maintaining target anchor separation.
-    Revolute ///< Pin/hinge joint constraining translational anchors with optional limits and motor.
+    Revolute, ///< Pin/hinge joint constraining translational anchors with optional limits and motor.
+    Prismatic, ///< Linear slider joint constraining relative rotation and lateral translation.
+    Wheel, ///< Suspension strut joint with soft compliance, limits, and rotating wheel hub.
+    Weld ///< 3-DOF fixed structural bond with optional elasticity and rupture mechanics.
 };
 
 /// @struct JointConfig
@@ -72,6 +75,10 @@ public:
     /// @brief Queries whether collision between linked bodies is permitted.
     /// @return True if connected bodies collide.
     [[nodiscard]] bool getCollideConnected() const noexcept;
+
+    /// @brief Queries whether the joint is currently broken or ruptured.
+    /// @return True if joint is broken and inactive.
+    [[nodiscard]] virtual bool isBroken() const noexcept { return false; }
 
     /// @brief Pre-calculates effective mass, Baumgarte bias, and applies warm-starting impulses.
     /// @param[in] dt Simulation timestep in seconds.

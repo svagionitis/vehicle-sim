@@ -145,7 +145,7 @@ void PhysicsWorld2D::step(double dt) noexcept
 
     // 2. Joint pre-step initialization (warm starting & mass matrix assembly)
     for (auto* joint : mJoints) {
-        if (joint != nullptr) {
+        if (joint != nullptr && !joint->isBroken()) {
             joint->initVelocityConstraints(dt);
         }
     }
@@ -153,7 +153,7 @@ void PhysicsWorld2D::step(double dt) noexcept
     // 3. Iterative velocity constraint solve
     for (std::size_t i = 0; i < mVelocityIterations; ++i) {
         for (auto* joint : mJoints) {
-            if (joint != nullptr) {
+            if (joint != nullptr && !joint->isBroken()) {
                 joint->solveVelocityConstraints();
             }
         }
@@ -315,7 +315,7 @@ void PhysicsWorld2D::step(double dt) noexcept
     for (std::size_t i = 0; i < mPositionIterations; ++i) {
         bool allSatisfied { true };
         for (auto* joint : mJoints) {
-            if (joint != nullptr) {
+            if (joint != nullptr && !joint->isBroken()) {
                 const bool satisfied = joint->solvePositionConstraints();
                 allSatisfied = allSatisfied && satisfied;
             }
