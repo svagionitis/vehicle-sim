@@ -733,10 +733,10 @@ graph LR
 
 ---
 
-### 4.8 Submerged Hydrostatic Buoyancy & Hull Slicing (`Buoyancy2D`)
+### 4.8 Submerged Hydrostatic Buoyancy & Hull Slicing (`Buoyancy2D`) (Implemented)
 
 #### Objective
-Provide realistic hydrostatic and hydrodynamic simulation for watercraft ([WatercraftDynamics](../libs/VehicleSimCore/dynamics/WatercraftDynamics.h)) and submarines ([SubmarineDynamics](../libs/VehicleSimCore/dynamics/SubmarineDynamics.h)) by coupling vehicle geometries with dynamic waterlines.
+Provide realistic hydrostatic and hydrodynamic simulation for watercraft ([WatercraftDynamics](../libs/VehicleSimCore/dynamics/WatercraftDynamics.h)) and submarines ([SubmarineDynamics](../libs/VehicleSimCore/dynamics/SubmarineDynamics.h)) by coupling vehicle geometries with dynamic waterlines. Detailed architectural and hydrodynamics design specification: [Buoyancy & Hull Slicing Plan](BuoyancyHullSlicingImplementationPlan.md).
 
 #### Technical Formulation
 - **Polygon Hull Waterline Clipping**:

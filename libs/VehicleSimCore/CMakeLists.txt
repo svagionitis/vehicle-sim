@@ -81,6 +81,10 @@ add_library(VehicleSimCore STATIC
     physics/FluidDrag2D.cpp
     physics/BarrierSolver2D.h
     physics/BarrierSolver2D.cpp
+    physics/HullSlicer2D.h
+    physics/HullSlicer2D.cpp
+    physics/Buoyancy2D.h
+    physics/Buoyancy2D.cpp
     dynamics/IVehicleDynamics.h
     dynamics/ArcadeCarDynamics.h
     dynamics/ArcadeCarDynamics.cpp

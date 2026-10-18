@@ -39,6 +39,7 @@ add_executable(VehicleSimCoreTests
     HydroplaningModelTest.cpp
     ContinuousCollisionDetectionTest.cpp
     ExtendedJointTest.cpp
+    BuoyancyTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE
