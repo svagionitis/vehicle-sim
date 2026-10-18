@@ -1398,10 +1398,10 @@ graph TD
 
 ## 7. Proposed New Physical and Mechanical Systems
 
-### 7.1 Winch, Tow Cable and Elastic Tether Mechanics (`CableTether2D`)
+### 7.1 Winch, Tow Cable and Elastic Tether Mechanics (`CableTether2D`) (Implemented)
 
 #### Objective
-Model non-linear elastic cables, recovery winches, towing bridles, and crane sling lines between arbitrary rigid bodies or terrain anchors with motor spooling and structural rupture thresholds.
+Model non-linear elastic cables, recovery winches, towing bridles, and crane sling lines between arbitrary rigid bodies or terrain anchors with motor spooling and structural rupture thresholds. Implemented via [CableTether2D.h](../libs/VehicleSimCore/physics/CableTether2D.h) and [CableTether2D.cpp](../libs/VehicleSimCore/physics/CableTether2D.cpp). Detailed architectural, multi-body joint, and winch spooling design specification: [Cable Tether Plan](CableTetherImplementationPlan.md).
 
 #### Technical Formulation
 - **Unilateral Elastic Formulation**:
@@ -1680,7 +1680,7 @@ graph TD
 | **Snowmobile, Bicycle & QuadBike Dynamics (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | [SnowmobileDynamics.h](../libs/VehicleSimCore/dynamics/SnowmobileDynamics.h), [BicycleDynamics.h](../libs/VehicleSimCore/dynamics/BicycleDynamics.h) |
 | **VTOLTiltRotorDynamics (Implemented)** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | [VTOLTiltRotorDynamics.h](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h), [VTOL Tilt-Rotor Plan](VTOLTiltRotorImplementationPlan.md) |
 | **Deterministic Snapshotting & Rollback Netcode (Implemented)** | Physics / Core | Medium | [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | [SimulationSnapshot2D.h](../libs/VehicleSimCore/physics/SimulationSnapshot2D.h), [Simulation Snapshot Plan](SimulationSnapshotImplementationPlan.md) - Rewind mechanics, GGPO rollback netcode |
-| **CableTether2D (Winch & Tow Cable)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Proposed - Off-road vehicle recovery, towing bridles, cranes |
+| **CableTether2D (Winch & Tow Cable) (Implemented)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | [CableTether2D.h](../libs/VehicleSimCore/physics/CableTether2D.h), [Cable Tether Plan](CableTetherImplementationPlan.md) - Off-road vehicle recovery, towing bridles, cranes |
 | **LiquidSloshCargo2D (Slosh & Granular Cargo)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Proposed - Dynamic center of gravity shifts in tankers & dumpers |
 | **SegmentedTrack2D (Articulated Crawler Tracks)** | Dynamics / Physics | High | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [DeformableTerrain](../libs/VehicleSimCore/terrain/DeformableTerrain.h) | Proposed - Discrete track shoes, idler tensioning, de-tracking |
 | **StructuralDamage2D (Plastic Crush Lattice)** | Physics | Med-High | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [Polygon2D](../libs/VehicleSimCore/math/Polygon2D.h) | Proposed - Permanent chassis crush, tie-rod bent alignment pull |

@@ -13,7 +13,8 @@ enum class JointType {
     Revolute, ///< Pin/hinge joint constraining translational anchors with optional limits and motor.
     Prismatic, ///< Linear slider joint constraining relative rotation and lateral translation.
     Wheel, ///< Suspension strut joint with soft compliance, limits, and rotating wheel hub.
-    Weld ///< 3-DOF fixed structural bond with optional elasticity and rupture mechanics.
+    Weld, ///< 3-DOF fixed structural bond with optional elasticity and rupture mechanics.
+    Cable ///< Unilateral tensile cable and winch tether constraint with spooling and rupture.
 };
 
 /// @struct JointConfig

@@ -43,6 +43,7 @@ add_executable(VehicleSimCoreTests
     Powertrain2DTest.cpp
     VTOLTiltRotorDynamicsTest.cpp
     SimulationSnapshotTest.cpp
+    CableTetherTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

@@ -77,6 +77,8 @@ add_library(VehicleSimCore STATIC
     physics/WheelJoint2D.cpp
     physics/WeldJoint2D.h
     physics/WeldJoint2D.cpp
+    physics/CableTether2D.h
+    physics/CableTether2D.cpp
     physics/FluidField2D.h
     physics/FluidField2D.cpp
     physics/FluidDrag2D.h
