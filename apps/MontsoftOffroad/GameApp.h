@@ -4,8 +4,10 @@
 #include <memory>
 #include <string>
 
+#include "apps/MontsoftOffroad/AudioSystem.h"
 #include "apps/MontsoftOffroad/BossController.h"
 #include "apps/MontsoftOffroad/Camera2D.h"
+#include "apps/MontsoftOffroad/CampaignManager.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CombatManager.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
@@ -51,8 +53,8 @@ public:
 
     GameApp(const GameApp&) = delete;
     GameApp& operator=(const GameApp&) = delete;
-    GameApp(GameApp&&) noexcept = default;
-    GameApp& operator=(GameApp&&) noexcept = default;
+    GameApp(GameApp&&) = delete;
+    GameApp& operator=(GameApp&&) = delete;
 
     /// @brief Initializes SDL context, window, renderer, and simulation subsystems.
     /// @return True on successful initialization, false on error.
@@ -194,6 +196,22 @@ public:
     /// @return Mutable reference to BossController.
     [[nodiscard]] BossController& getBossController() noexcept;
 
+    /// @brief Gets audio system coordinator.
+    /// @return Constant reference to AudioSystem.
+    [[nodiscard]] const AudioSystem& getAudio() const noexcept;
+
+    /// @brief Gets mutable audio system coordinator.
+    /// @return Mutable reference to AudioSystem.
+    [[nodiscard]] AudioSystem& getAudio() noexcept;
+
+    /// @brief Gets campaign lifecycle coordinator.
+    /// @return Constant reference to CampaignManager.
+    [[nodiscard]] const CampaignManager& getCampaign() const noexcept;
+
+    /// @brief Gets mutable campaign lifecycle coordinator.
+    /// @return Mutable reference to CampaignManager.
+    [[nodiscard]] CampaignManager& getCampaign() noexcept;
+
     /// @brief Queries whether simulation is currently paused.
     /// @return True if paused.
     [[nodiscard]] bool isPaused() const noexcept;
@@ -213,6 +231,8 @@ private:
     InputController inputController_ {};
     ParticleSystem particleSystem_ {};
     TruckRenderer truckRenderer_ {};
+    AudioSystem audioSystem_ {};
+    CampaignManager campaignManager_ {};
 
     vehicle_sim::physics::RigidBody2D truckBody_ {};
     vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};
@@ -227,6 +247,10 @@ private:
     std::uint64_t lastCounter_ { 0 };
     double prevRearComp_ { 0.0 };
     double prevFrontComp_ { 0.0 };
+    bool prevJump_ { false };
+    bool prevPrimary_ { false };
+    bool prevSecondary_ { false };
+    std::size_t prevShockwaveCount_ { 0 };
 };
 
 } // namespace montsoft_offroad

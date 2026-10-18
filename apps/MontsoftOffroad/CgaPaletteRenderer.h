@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -172,6 +173,25 @@ public:
     /// @param[in] colorKey Transparent color key value.
     void blitSprite(int dstX, int dstY, int width, int height,
                     const ColorRgba* spritePixels, ColorRgba colorKey) noexcept;
+
+    /// @brief Draws a single 5x7 ASCII character into the virtual backbuffer.
+    /// @param[in] x Top-left X coordinate.
+    /// @param[in] y Top-left Y coordinate.
+    /// @param[in] c Character to draw (ASCII 32 to 126).
+    /// @param[in] color Text color.
+    void drawChar(int x, int y, char c, ColorRgba color) noexcept;
+
+    /// @brief Draws a string of 5x7 ASCII characters into the backbuffer.
+    /// @param[in] x Top-left X coordinate.
+    /// @param[in] y Top-left Y coordinate.
+    /// @param[in] text String to draw.
+    /// @param[in] color Text color.
+    void drawText(int x, int y, const std::string& text, ColorRgba color) noexcept;
+
+    /// @brief Computes width of text string in pixels (6 pixels per character).
+    /// @param[in] text String to measure.
+    /// @return Width in pixels.
+    [[nodiscard]] int getTextWidth(const std::string& text) const noexcept;
 
     /// @brief Quantizes input color against active palette using nearest Euclidean distance.
     /// @param[in] in Color to quantize.

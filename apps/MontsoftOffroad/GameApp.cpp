@@ -37,8 +37,14 @@ bool GameApp::initialize()
     truckRenderer_.reset();
     prevRearComp_ = 0.0;
     prevFrontComp_ = 0.0;
+    prevJump_ = false;
+    prevPrimary_ = false;
+    prevSecondary_ = false;
+    prevShockwaveCount_ = 0;
 
     if (config_.headless) {
+        campaignManager_.setState(GameState::Playing);
+        static_cast<void>(audioSystem_.initialize(true));
         running_ = true;
         return true;
     }
@@ -47,6 +53,8 @@ bool GameApp::initialize()
     if (!sdlContext_->isInitialized()) {
         return false;
     }
+
+    static_cast<void>(audioSystem_.initialize(false));
 
     SDL_Window* rawWin { SDL_CreateWindow(
         config_.windowTitle.c_str(),
@@ -133,6 +141,12 @@ void GameApp::processEvents() noexcept
         if (event.type == SDL_QUIT) {
             stop();
         } else {
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_m) {
+                    audioSystem_.toggleMute();
+                }
+                campaignManager_.handleKeyPress(event.key.keysym.sym, courseManager_, audioSystem_);
+            }
             inputController_.handleEvent(event);
         }
     }
@@ -173,8 +187,30 @@ void GameApp::updateSimulation(double dt) noexcept
         return;
     }
 
+    audioSystem_.update(dt);
+    campaignManager_.update(dt, courseManager_, audioSystem_, truckBody_, truckDynamics_);
+
+    if (campaignManager_.getState() != GameState::Playing &&
+        campaignManager_.getState() != GameState::CheckpointPassed) {
+        return;
+    }
+
     inputController_.update(dt);
     const auto truckInput { inputController_.getTruckInput() };
+
+    // Procedural sound triggers for vehicle driver controls
+    if (truckInput.jump && !prevJump_) {
+        audioSystem_.playSfx(SoundEffect::JumpThruster);
+    }
+    if (truckInput.firePrimary && !prevPrimary_) {
+        audioSystem_.playSfx(SoundEffect::RocketLaunch);
+    }
+    if (truckInput.fireSecondary && !prevSecondary_) {
+        audioSystem_.playSfx(SoundEffect::MortarLaunch);
+    }
+    prevJump_ = truckInput.jump;
+    prevPrimary_ = truckInput.firePrimary;
+    prevSecondary_ = truckInput.fireSecondary;
 
     courseManager_.update(truckBody_.getPosition().x, dt);
 
@@ -255,9 +291,26 @@ void GameApp::updateSimulation(double dt) noexcept
         stageIdx
     );
 
+    // Detonation sound trigger
+    const std::size_t curShockwaves { combatManager_.getShockwaveCount() };
+    if (curShockwaves > prevShockwaveCount_) {
+        audioSystem_.playSfx(SoundEffect::ExplosionBlast);
+    }
+    prevShockwaveCount_ = curShockwaves;
+
     enemyManager_.applyCombatDamage(combatTargets_, particleSystem_, stageIdx);
     if (isStage8 || bossController_.isBossActive()) {
         bossController_.applyCombatDamage(combatTargets_, particleSystem_);
+    }
+
+    // Fatal vehicle crash into abyss/crevasse
+    if (truckBody_.getPosition().y < -15.0 && !campaignManager_.isInvulnerable()) {
+        campaignManager_.handleTruckCrash(courseManager_, audioSystem_, truckBody_, truckDynamics_);
+    }
+
+    // Boss victory trigger
+    if (isStage8 && bossController_.isBossDefeated()) {
+        campaignManager_.handleBossVictory(courseManager_, audioSystem_);
     }
 
     camera_.update(truckBody_.getPosition(), truckBody_.getLinearVelocity().x, dt);
@@ -266,6 +319,20 @@ void GameApp::updateSimulation(double dt) noexcept
 
 void GameApp::renderFrame() noexcept
 {
+    const auto state { campaignManager_.getState() };
+    if (state != GameState::Playing &&
+        state != GameState::StageClear &&
+        state != GameState::CheckpointPassed) {
+        campaignManager_.render(cgaRenderer_, courseManager_, truckBody_);
+        if (!config_.headless && window_ && renderer_) {
+            int w { config_.windowWidth };
+            int h { config_.windowHeight };
+            SDL_GetWindowSize(window_.get(), &w, &h);
+            cgaRenderer_.present(renderer_.get(), w, h);
+        }
+        return;
+    }
+
     // 1. Render 4-tier parallax scenery and foreground heightfield track
     parallax_.render(
         cgaRenderer_,
@@ -307,6 +374,9 @@ void GameApp::renderFrame() noexcept
 
     // 7. Render active ballistic projectiles, rockets, mortars, and shockwaves
     combatManager_.render(cgaRenderer_, camera_);
+
+    // 8. Render in-game HUD telemetry, milestone banners, and stage clear summary
+    campaignManager_.render(cgaRenderer_, courseManager_, truckBody_);
 
     if (!config_.headless && window_ && renderer_) {
         int w { config_.windowWidth };
@@ -475,6 +545,26 @@ bool GameApp::isPaused() const noexcept
 void GameApp::togglePause() noexcept
 {
     paused_ = !paused_;
+}
+
+const AudioSystem& GameApp::getAudio() const noexcept
+{
+    return audioSystem_;
+}
+
+AudioSystem& GameApp::getAudio() noexcept
+{
+    return audioSystem_;
+}
+
+const CampaignManager& GameApp::getCampaign() const noexcept
+{
+    return campaignManager_;
+}
+
+CampaignManager& GameApp::getCampaign() noexcept
+{
+    return campaignManager_;
 }
 
 } // namespace montsoft_offroad

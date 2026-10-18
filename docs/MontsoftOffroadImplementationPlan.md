@@ -917,6 +917,11 @@ private:
 +---------------------------------------------------------------------------------------------------+
 ```
 
+### Detailed Phase Implementation Plans
+- [Phase 6: Ground & Aerial Enemy AI Formations Implementation Plan](MontsoftOffroadPhase6EnemyAiImplementationPlan.md)
+- [Phase 7: Boss Battles (Giant Mech Head & Dreadnought Cruiser) Implementation Plan](MontsoftOffroadPhase7BossBattlesImplementationPlan.md)
+- [Phase 8: Sound Synthesis, Campaign Polish & Full Compliance Verification Implementation Plan](MontsoftOffroadPhase8SoundCampaignCompliancePlan.md)
+
 ---
 
 ## 11. Verification & Compliance Checklist

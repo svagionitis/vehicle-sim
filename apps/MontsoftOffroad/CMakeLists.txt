@@ -28,6 +28,12 @@ add_executable(MontsoftOffroad
     EnemyManager.cpp
     BossController.h
     BossController.cpp
+    AudioSystem.h
+    AudioSystem.cpp
+    HighScoreManager.h
+    HighScoreManager.cpp
+    CampaignManager.h
+    CampaignManager.cpp
     SDLWrappers.h
 )
 
@@ -83,6 +89,12 @@ if(BUILD_TESTING)
         EnemyManager.cpp
         BossController.h
         BossController.cpp
+        AudioSystem.h
+        AudioSystem.cpp
+        HighScoreManager.h
+        HighScoreManager.cpp
+        CampaignManager.h
+        CampaignManager.cpp
         SDLWrappers.h
     )
 

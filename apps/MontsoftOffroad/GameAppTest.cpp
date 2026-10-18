@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
+#include "apps/MontsoftOffroad/AudioSystem.h"
 #include "apps/MontsoftOffroad/BossController.h"
 #include "apps/MontsoftOffroad/Camera2D.h"
+#include "apps/MontsoftOffroad/CampaignManager.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CombatManager.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
 #include "apps/MontsoftOffroad/EnemyManager.h"
 #include "apps/MontsoftOffroad/GameApp.h"
+#include "apps/MontsoftOffroad/HighScoreManager.h"
 #include "apps/MontsoftOffroad/InputController.h"
 #include "apps/MontsoftOffroad/ParallaxRenderer.h"
 #include "apps/MontsoftOffroad/ParticleSystem.h"
@@ -1517,6 +1520,279 @@ TEST(GameAppPhase7IntegrationTest, FullBossBattleIntegration)
 
     // Verify boss encounter is actively ticking
     EXPECT_TRUE(app.getBossController().isBossActive());
+}
+
+// ============================================================================
+// Phase 8 Test Suite: PC-Speaker Audio, Bitmap Typography & Campaign Polish
+// ============================================================================
+
+TEST(AudioSystemTest, LifecycleAndHeadlessSafety)
+{
+    AudioSystem audio {};
+    EXPECT_TRUE(audio.initialize(true)); // Headless mode
+    EXPECT_FALSE(audio.isAudioActive());
+
+    // Volume & mute controls
+    audio.setMasterVolume(0.5);
+    EXPECT_DOUBLE_EQ(audio.getMasterVolume(), 0.5);
+
+    EXPECT_FALSE(audio.isMuted());
+    audio.toggleMute();
+    EXPECT_TRUE(audio.isMuted());
+    audio.toggleMute();
+    EXPECT_FALSE(audio.isMuted());
+
+    // Trigger all sound effects cleanly
+    audio.playSfx(SoundEffect::JumpThruster);
+    audio.playSfx(SoundEffect::RocketLaunch);
+    audio.playSfx(SoundEffect::MortarLaunch);
+    audio.playSfx(SoundEffect::ExplosionBlast);
+    audio.playSfx(SoundEffect::ArmorClink);
+    audio.playSfx(SoundEffect::CheckpointChime);
+    audio.playSfx(SoundEffect::BossWarning);
+    audio.playSfx(SoundEffect::BossRoar);
+    audio.playSfx(SoundEffect::StageClear);
+    audio.playSfx(SoundEffect::GameOver);
+
+    // Continuous engine sound modulation
+    audio.setEngineSpeed(25.0, 0.8, false);
+    audio.update(1.0 / 60.0);
+
+    audio.setEngineSpeed(35.0, 1.0, true);
+    audio.update(1.0 / 60.0);
+
+    // Audio stream processing callback
+    std::int16_t buffer[512] {};
+    AudioSystem::audioCallback(&audio, reinterpret_cast<Uint8*>(buffer), sizeof(buffer));
+
+    // Verify non-zero PCM samples generated
+    bool hasNonZero { false };
+    for (const auto sample : buffer) {
+        if (sample != 0) {
+            hasNonZero = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasNonZero);
+
+    audio.stopEngine();
+    audio.shutdown();
+}
+
+TEST(CgaRendererTest, BitmapFontTypography)
+{
+    CgaPaletteRenderer renderer {};
+    renderer.clear(ColorRgba{ 0, 0, 0, 255 });
+
+    EXPECT_EQ(renderer.getTextWidth(""), 0);
+    EXPECT_EQ(renderer.getTextWidth("A"), 6);
+    EXPECT_EQ(renderer.getTextWidth("TEST"), 24);
+
+    // Render characters and text string
+    renderer.drawText(10, 10, "MONTSOFT OFFROAD 1988", ColorRgba{ 255, 255, 255, 255 });
+
+    // Verify backbuffer pixels were modified
+    bool pixelRendered { false };
+    for (int y { 10 }; y < 20; ++y) {
+        for (int x { 10 }; x < 150; ++x) {
+            if (renderer.getPixel(x, y).r > 0) {
+                pixelRendered = true;
+                break;
+            }
+        }
+    }
+    EXPECT_TRUE(pixelRendered);
+
+    // Multiline text handling
+    renderer.drawText(20, 40, "LINE 1\nLINE 2", ColorRgba{ 85, 255, 255, 255 });
+    EXPECT_GT(renderer.getTextWidth("LINE 1\nLONGER LINE 2"), 0);
+}
+
+TEST(HighScoreManagerTest, DefaultLeaderboardAndRanking)
+{
+    HighScoreManager manager {};
+    const auto& records { manager.getRecords() };
+    EXPECT_EQ(records.size(), 10U);
+
+    // Verify descending order of initial records
+    for (std::size_t i { 0 }; i < records.size() - 1; ++i) {
+        EXPECT_GE(records[i].score, records[i + 1].score);
+    }
+
+    // Qualification tests
+    EXPECT_TRUE(manager.isHighScore(999999));
+    EXPECT_FALSE(manager.isHighScore(10));
+
+    // Submit top score
+    std::array<char, 3> topInitials { 'V', 'I', 'P' };
+    const int rank { manager.submitScore(topInitials, 75000, 8) };
+    EXPECT_EQ(rank, 0); // Ranked #1
+    EXPECT_EQ(manager.getRecords()[0].score, 75000);
+    EXPECT_EQ(manager.getRecords()[0].initials[0], 'V');
+
+    // Submit mid score
+    std::array<char, 3> midInitials { 'M', 'I', 'D' };
+    const int midRank { manager.submitScore(midInitials, 30000, 6) };
+    EXPECT_GT(midRank, 0);
+    EXPECT_LT(midRank, 10);
+    EXPECT_EQ(manager.getRecords()[static_cast<std::size_t>(midRank)].score, 30000);
+
+    // Persistence reload test
+    EXPECT_TRUE(manager.saveScores());
+    EXPECT_TRUE(manager.loadScores());
+}
+
+TEST(CampaignManagerTest, LifecycleAndStateTransitions)
+{
+    CampaignManager campaign {};
+    CourseManager course {};
+    AudioSystem audio {};
+    ASSERT_TRUE(audio.initialize(true));
+
+    vehicle_sim::physics::RigidBody2D truck {};
+    vehicle_sim::dynamics::OffroadTruckDynamics dynamics {};
+
+    // Initial state is TitleScreen
+    EXPECT_EQ(campaign.getState(), GameState::TitleScreen);
+    EXPECT_EQ(campaign.getLives(), 3);
+    EXPECT_FALSE(campaign.isInvulnerable());
+
+    // Start new game -> transitions to MissionBriefing
+    campaign.startNewGame(course);
+    EXPECT_EQ(campaign.getState(), GameState::MissionBriefing);
+    EXPECT_EQ(course.getCurrentStageIndex(), 1);
+
+    // Fast-forward briefing timer -> transitions to Playing
+    campaign.update(3.6, course, audio, truck, dynamics);
+    EXPECT_EQ(campaign.getState(), GameState::Playing);
+
+    // Truck crash handling and checkpoint respawn
+    campaign.handleTruckCrash(course, audio, truck, dynamics);
+    EXPECT_EQ(campaign.getLives(), 2);
+    EXPECT_TRUE(campaign.isInvulnerable());
+
+    // Step through invulnerability timer
+    campaign.update(2.6, course, audio, truck, dynamics);
+    EXPECT_FALSE(campaign.isInvulnerable());
+
+    // Stage clear handling
+    course.loadStage(1);
+    campaign.handleStageClear(course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::StageClear);
+
+    // Advance stage clear timer -> loads Stage 2 briefing
+    campaign.update(4.1, course, audio, truck, dynamics);
+    EXPECT_EQ(campaign.getState(), GameState::MissionBriefing);
+    EXPECT_EQ(course.getCurrentStageIndex(), 2);
+
+    // Life depletion -> GameOver
+    campaign.setLives(1);
+    campaign.handleTruckCrash(course, audio, truck, dynamics);
+    EXPECT_EQ(campaign.getLives(), 0);
+    EXPECT_EQ(campaign.getState(), GameState::GameOver);
+
+    // Boss victory handling
+    campaign.handleBossVictory(course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::CampaignVictory);
+
+    audio.shutdown();
+}
+
+TEST(CampaignManagerTest, KeyPressInputRouting)
+{
+    CampaignManager campaign {};
+    CourseManager course {};
+    AudioSystem audio {};
+    ASSERT_TRUE(audio.initialize(true));
+
+    // Space on TitleScreen starts game
+    campaign.setState(GameState::TitleScreen);
+    campaign.handleKeyPress(SDLK_SPACE, course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::MissionBriefing);
+
+    // Space on MissionBriefing skips directly to Playing
+    campaign.handleKeyPress(SDLK_SPACE, course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::Playing);
+
+    // 'H' key on TitleScreen opens HighScores
+    campaign.setState(GameState::TitleScreen);
+    campaign.handleKeyPress(SDLK_h, course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::HighScores);
+
+    // Esc on HighScores returns to TitleScreen
+    campaign.handleKeyPress(SDLK_ESCAPE, course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::TitleScreen);
+
+    // Name entry arrow key cycling
+    campaign.setState(GameState::NameEntry);
+    campaign.handleKeyPress(SDLK_UP, course, audio);
+    campaign.handleKeyPress(SDLK_RIGHT, course, audio);
+    campaign.handleKeyPress(SDLK_DOWN, course, audio);
+    campaign.handleKeyPress(SDLK_RETURN, course, audio);
+    EXPECT_EQ(campaign.getState(), GameState::HighScores);
+
+    audio.shutdown();
+}
+
+TEST(GameAppPhase8IntegrationTest, FullCampaignAudioAndRenderPasses)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    // Verify headless defaults
+    EXPECT_EQ(app.getCampaign().getState(), GameState::Playing);
+    EXPECT_EQ(app.getCampaign().getLives(), 3);
+
+    // Trigger driving controls and weapons
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    input.jump = true;
+    input.firePrimary = true;
+    input.fireSecondary = true;
+    app.setInput(input);
+
+    // Step 60 frames of simulation with audio and campaign tracking
+    for (int i { 0 }; i < 60; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Render frame cleanly in current palette
+    app.renderFrame();
+
+    // Verify rendering in all palette modes
+    app.getRenderer().setPaletteMode(PaletteMode::CgaPalette0);
+    app.renderFrame();
+
+    app.getRenderer().setPaletteMode(PaletteMode::CompositeNtsc);
+    app.renderFrame();
+
+    app.getRenderer().setPaletteMode(PaletteMode::EnhancedEga);
+    app.renderFrame();
+
+    // Verify campaign title and briefing screens render cleanly
+    app.getCampaign().setState(GameState::TitleScreen);
+    app.renderFrame();
+
+    app.getCampaign().setState(GameState::MissionBriefing);
+    app.renderFrame();
+
+    app.getCampaign().setState(GameState::StageClear);
+    app.renderFrame();
+
+    app.getCampaign().setState(GameState::GameOver);
+    app.renderFrame();
+
+    app.getCampaign().setState(GameState::NameEntry);
+    app.renderFrame();
+
+    app.getCampaign().setState(GameState::CampaignVictory);
+    app.renderFrame();
+
+    app.getCampaign().setState(GameState::HighScores);
+    app.renderFrame();
 }
 
 } // namespace montsoft_offroad
