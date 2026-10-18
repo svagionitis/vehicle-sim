@@ -17,6 +17,7 @@
 #include "libs/VehicleSimCore/dynamics/SubmarineDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrackedTankDynamics.h"
 #include "libs/VehicleSimCore/dynamics/TrialsBikeDynamics.h"
+#include "libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h"
 #include "libs/VehicleSimCore/dynamics/WatercraftDynamics.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
@@ -85,6 +86,7 @@ using vehicle_sim::dynamics::TrialsBikeDynamics;
 using vehicle_sim::dynamics::TrialsBikeInput;
 using vehicle_sim::dynamics::TrialsBikeTelemetry;
 using vehicle_sim::dynamics::TurnaroundState;
+using vehicle_sim::dynamics::VTOLTiltRotorDynamics;
 using vehicle_sim::dynamics::WatercraftConfig;
 using vehicle_sim::dynamics::WatercraftDynamics;
 using vehicle_sim::dynamics::WatercraftInput;
@@ -3503,10 +3505,10 @@ TEST(EarthRoverTest, DeterministicReplayability)
 }
 
 // -----------------------------------------------------------------------------
-// Fourteen-Way Swappable Coordinator Polymorphism Tests
+// Fifteen-Way Swappable Coordinator Polymorphism Tests
 // -----------------------------------------------------------------------------
 
-TEST(VehicleDynamicsCoordinatorTest, AllFourteenDynamicsModelsPolymorphicSwapping)
+TEST(VehicleDynamicsCoordinatorTest, AllFifteenDynamicsModelsPolymorphicSwapping)
 {
     RigidBodyConfig bodyConfig { };
     bodyConfig.mass = 2000.0;
@@ -3515,14 +3517,14 @@ TEST(VehicleDynamicsCoordinatorTest, AllFourteenDynamicsModelsPolymorphicSwappin
 
     constexpr double dt { 1.0 / 60.0 };
 
-    std::unique_ptr<IVehicleDynamics> models[14] { std::make_unique<ArcadeCarDynamics>(),
+    std::unique_ptr<IVehicleDynamics> models[15] { std::make_unique<ArcadeCarDynamics>(),
         std::make_unique<MonsterCarDynamics>(), std::make_unique<SideViewCarDynamics>(),
         std::make_unique<RocketDynamics>(), std::make_unique<TrackedTankDynamics>(),
         std::make_unique<AerodynamicPlaneDynamics>(), std::make_unique<HovercraftDynamics>(),
         std::make_unique<WatercraftDynamics>(), std::make_unique<TrialsBikeDynamics>(),
         std::make_unique<HelicopterDynamics>(), std::make_unique<SubmarineDynamics>(),
         std::make_unique<AntiGravityRacerDynamics>(), std::make_unique<ArticulatedTruckDynamics>(),
-        std::make_unique<EarthRoverDynamics>() };
+        std::make_unique<EarthRoverDynamics>(), std::make_unique<VTOLTiltRotorDynamics>() };
 
     for (auto& coordinator : models) {
         ASSERT_NE(coordinator, nullptr);

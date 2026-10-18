@@ -106,6 +106,8 @@ add_library(VehicleSimCore STATIC
     dynamics/TrialsBikeDynamics.cpp
     dynamics/HelicopterDynamics.h
     dynamics/HelicopterDynamics.cpp
+    dynamics/VTOLTiltRotorDynamics.h
+    dynamics/VTOLTiltRotorDynamics.cpp
     dynamics/SubmarineDynamics.h
     dynamics/SubmarineDynamics.cpp
     dynamics/AntiGravityRacerDynamics.h

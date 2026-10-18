@@ -1287,6 +1287,8 @@ graph TD
 
 #### 5.6.2 Tilt-Rotor VTOL Aircraft Dynamics (`VTOLTiltRotorDynamics`)
 
+*Full Architecture & Implementation Plan: [VTOLTiltRotorImplementationPlan.md](VTOLTiltRotorImplementationPlan.md)*
+
 ##### Objective
 Model vertical takeoff and landing (VTOL) tilt-rotor aircraft featuring rotatable nacelles transitioning smoothly between hover helicopter mode and fixed-wing aerodynamic cruising flight.
 
@@ -1427,7 +1429,7 @@ graph TD
 | **DriftCarDynamics & GoKartDynamics (Implemented)** | Dynamics | Low-Med | [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Drift & Go-Kart Plan](DriftCarGoKartImplementationPlan.md) - Oversteer slip-angle balance, solid rear axle spool cornering ([DriftCarDynamics.h](../libs/VehicleSimCore/dynamics/DriftCarDynamics.h), [GoKartDynamics.h](../libs/VehicleSimCore/dynamics/GoKartDynamics.h)) |
 | **TrainRailDynamics & ExcavatorDynamics (Implemented)** | Dynamics | Med-High | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h) | [TrainRail & Excavator Plan](TrainRailExcavatorImplementationPlan.md) - Guided track railway adhesion, dual-track excavator slew ring & multi-link arm ([TrainRailDynamics.h](../libs/VehicleSimCore/dynamics/TrainRailDynamics.h), [ExcavatorDynamics.h](../libs/VehicleSimCore/dynamics/ExcavatorDynamics.h)) |
 | **Snowmobile, Bicycle & QuadBike Dynamics (Implemented)** | Dynamics | Medium | [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h), [SurfaceMaterial](../libs/VehicleSimCore/terrain/SurfaceMaterial.h) | [Snowmobile, Bicycle & QuadBike Plan](SnowmobileBicycleQuadBikeImplementationPlan.md) - Ski carving, single-track Whipple counter-steering, balloon tire ATV ([SnowmobileDynamics.h](../libs/VehicleSimCore/dynamics/SnowmobileDynamics.h), [BicycleDynamics.h](../libs/VehicleSimCore/dynamics/BicycleDynamics.h), [QuadBikeDynamics.h](../libs/VehicleSimCore/dynamics/QuadBikeDynamics.h)) |
-| **VTOLTiltRotorDynamics** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | Tilt-rotor transition corridor between vertical hover and fixed-wing cruise |
+| **VTOLTiltRotorDynamics (Implemented)** | Dynamics | Medium | [AerodynamicPlaneDynamics](../libs/VehicleSimCore/dynamics/AerodynamicPlaneDynamics.h), [HelicopterDynamics](../libs/VehicleSimCore/dynamics/HelicopterDynamics.h) | [VTOL Tilt-Rotor Plan](VTOLTiltRotorImplementationPlan.md) - Tilt-rotor transition corridor between vertical hover and fixed-wing cruise ([VTOLTiltRotorDynamics.h](../libs/VehicleSimCore/dynamics/VTOLTiltRotorDynamics.h)) |
 
 ---
 
