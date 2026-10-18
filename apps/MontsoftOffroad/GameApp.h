@@ -4,7 +4,10 @@
 #include <memory>
 #include <string>
 
+#include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
+#include "apps/MontsoftOffroad/CourseManager.h"
+#include "apps/MontsoftOffroad/ParallaxRenderer.h"
 #include "apps/MontsoftOffroad/SDLWrappers.h"
 #include "libs/VehicleSimCore/dynamics/OffroadBallistics2D.h"
 #include "libs/VehicleSimCore/dynamics/OffroadTruckDynamics.h"
@@ -73,6 +76,14 @@ public:
     /// @return Constant reference to GameAppConfig.
     [[nodiscard]] const GameAppConfig& getConfig() const noexcept;
 
+    /// @brief Sets active driver control inputs.
+    /// @param[in] input Control input commands.
+    void setInput(const vehicle_sim::dynamics::OffroadTruckInput& input) noexcept;
+
+    /// @brief Gets active driver control inputs.
+    /// @return Constant reference to active OffroadTruckInput.
+    [[nodiscard]] const vehicle_sim::dynamics::OffroadTruckInput& getInput() const noexcept;
+
     /// @brief Gets 4WD truck dynamics coordinator.
     /// @return Constant reference to OffroadTruckDynamics.
     [[nodiscard]] const vehicle_sim::dynamics::OffroadTruckDynamics& getTruck() const noexcept;
@@ -105,6 +116,30 @@ public:
     /// @return Mutable reference to CgaPaletteRenderer.
     [[nodiscard]] CgaPaletteRenderer& getRenderer() noexcept;
 
+    /// @brief Gets active 2D camera tracker.
+    /// @return Constant reference to Camera2D.
+    [[nodiscard]] const Camera2D& getCamera() const noexcept;
+
+    /// @brief Gets mutable 2D camera tracker.
+    /// @return Mutable reference to Camera2D.
+    [[nodiscard]] Camera2D& getCamera() noexcept;
+
+    /// @brief Gets active course and terrain coordinator.
+    /// @return Constant reference to CourseManager.
+    [[nodiscard]] const CourseManager& getCourse() const noexcept;
+
+    /// @brief Gets mutable course and terrain coordinator.
+    /// @return Mutable reference to CourseManager.
+    [[nodiscard]] CourseManager& getCourse() noexcept;
+
+    /// @brief Gets multi-tier desert parallax renderer.
+    /// @return Constant reference to ParallaxRenderer.
+    [[nodiscard]] const ParallaxRenderer& getParallax() const noexcept;
+
+    /// @brief Gets mutable multi-tier desert parallax renderer.
+    /// @return Mutable reference to ParallaxRenderer.
+    [[nodiscard]] ParallaxRenderer& getParallax() noexcept;
+
     /// @brief Queries whether simulation is currently paused.
     /// @return True if paused.
     [[nodiscard]] bool isPaused() const noexcept;
@@ -121,6 +156,9 @@ private:
     UniqueWindow window_ { nullptr };
     UniqueRenderer renderer_ { nullptr };
     CgaPaletteRenderer cgaRenderer_ {};
+    Camera2D camera_ {};
+    CourseManager courseManager_ {};
+    ParallaxRenderer parallax_ {};
 
     vehicle_sim::physics::RigidBody2D truckBody_ {};
     vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};

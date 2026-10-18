@@ -22,13 +22,16 @@ GameApp::GameApp(const GameAppConfig& config)
 
 bool GameApp::initialize()
 {
+    truckDynamics_.setTerrain(&courseManager_.getHeightfield());
+    const double startY { courseManager_.getHeightfield().getHeight(0.0) + 1.2 };
     truckBody_.setMass(truckDynamics_.getConfig().mass);
     truckBody_.setInertia(truckDynamics_.getConfig().momentOfInertia);
-    truckBody_.setPosition(Vec2{ 0.0, 1.5 });
+    truckBody_.setPosition(Vec2{ 0.0, startY });
     truckBody_.setLinearVelocity(Vec2{ 0.0, 0.0 });
     truckBody_.setOrientation(0.0);
     truckBody_.setAngularVelocity(0.0);
     cgaRenderer_.setPaletteMode(config_.initialPalette);
+    camera_.reset(truckBody_.getPosition());
 
     if (config_.headless) {
         running_ = true;
@@ -214,6 +217,8 @@ void GameApp::updateSimulation(double dt) noexcept
         return;
     }
 
+    courseManager_.update(truckBody_.getPosition().x, dt);
+
     truckDynamics_.setInput(currentInput_);
     truckDynamics_.step(truckBody_, dt);
     vehicle_sim::physics::Integrator2D::integrate(truckBody_, dt);
@@ -225,6 +230,7 @@ void GameApp::updateSimulation(double dt) noexcept
             truckBody_.getOrientation(),
             truckBody_.getLinearVelocity()
         );
+        camera_.addTrauma(0.25);
         currentInput_.firePrimary = false;
     }
 
@@ -233,32 +239,76 @@ void GameApp::updateSimulation(double dt) noexcept
             truckBody_.getPosition() + Vec2{ 0.0, 0.4 },
             truckBody_.getLinearVelocity()
         );
+        camera_.addTrauma(0.35);
         currentInput_.fireSecondary = false;
     }
 
-    ballistics_.step(dt, nullptr);
+    ballistics_.step(dt, &courseManager_.getHeightfield());
+    camera_.update(truckBody_.getPosition(), truckBody_.getLinearVelocity().x, dt);
+    parallax_.update(dt);
 }
 
 void GameApp::renderFrame() noexcept
 {
-    cgaRenderer_.clear(ColorRgba{ 0, 0, 0, 255 });
+    // Render 4-tier parallax scenery and foreground heightfield track
+    parallax_.render(
+        cgaRenderer_,
+        camera_,
+        courseManager_.getHeightfield(),
+        courseManager_.getCurrentStageIndex()
+    );
 
-    // Ground reference baseline
-    cgaRenderer_.drawLine(0, 160, 319, 160, ColorRgba{ 85, 255, 255, 255 });
+    // Render checkpoint gantries & milestone flags
+    for (const auto& cp : courseManager_.getCheckpoints()) {
+        const double groundY { courseManager_.getHeightfield().getHeight(cp.worldX) };
+        const Vec2 baseScreen { camera_.worldToScreen(Vec2{ cp.worldX, groundY }) };
+        const int bx { static_cast<int>(std::round(baseScreen.x)) };
+        const int by { static_cast<int>(std::round(baseScreen.y)) };
 
-    // Chassis placeholder
-    cgaRenderer_.fillRect(60, 125, 45, 18, ColorRgba{ 255, 85, 255, 255 });
-    cgaRenderer_.drawRect(60, 125, 45, 18, ColorRgba{ 255, 255, 255, 255 });
+        if (bx >= -20 && bx < CgaPaletteRenderer::kNativeWidth + 20) {
+            // Checkpoint striped gantry pole (height 30px)
+            cgaRenderer_.fillRect(bx - 1, by - 30, 3, 30, ColorRgba{ 255, 255, 255, 255 });
+            cgaRenderer_.fillRect(bx - 1, by - 24, 3, 6, ColorRgba{ 255, 85, 85, 255 });
+            cgaRenderer_.fillRect(bx - 1, by - 12, 3, 6, ColorRgba{ 255, 85, 85, 255 });
 
-    // Wheels
-    cgaRenderer_.fillRect(64, 143, 10, 10, ColorRgba{ 255, 255, 255, 255 });
-    cgaRenderer_.fillRect(91, 143, 10, 10, ColorRgba{ 255, 255, 255, 255 });
+            // Milestone letter flag
+            const ColorRgba flagColor { cp.reached ? ColorRgba{ 85, 255, 85, 255 } : ColorRgba{ 255, 255, 85, 255 } };
+            cgaRenderer_.fillRect(bx + 2, by - 30, 8, 8, flagColor);
+        }
+    }
+
+    // Render truck chassis (projected via camera)
+    const Vec2 truckScreen { camera_.worldToScreen(truckBody_.getPosition()) };
+    const int tx { static_cast<int>(std::round(truckScreen.x)) };
+    const int ty { static_cast<int>(std::round(truckScreen.y)) };
+
+    // Truck cab and bed (48x14 px)
+    cgaRenderer_.fillRect(tx - 24, ty - 12, 48, 14, ColorRgba{ 255, 85, 255, 255 });
+    cgaRenderer_.drawRect(tx - 24, ty - 12, 48, 14, ColorRgba{ 255, 255, 255, 255 });
+    // Cab roof & windshield
+    cgaRenderer_.fillRect(tx - 6, ty - 20, 20, 8, ColorRgba{ 85, 255, 255, 255 });
+    cgaRenderer_.drawRect(tx - 6, ty - 20, 20, 8, ColorRgba{ 255, 255, 255, 255 });
+    // Rollbar
+    cgaRenderer_.drawLine(tx - 18, ty - 12, tx - 12, ty - 22, ColorRgba{ 255, 255, 255, 255 });
+    cgaRenderer_.drawLine(tx - 12, ty - 22, tx - 6, ty - 20, ColorRgba{ 255, 255, 255, 255 });
+
+    // Wheels rendered at axle world positions
+    for (std::size_t i { 0 }; i < 2; ++i) {
+        const Vec2 wheelScreen { camera_.worldToScreen(truckDynamics_.getAxleState(i).worldPos) };
+        const int wx { static_cast<int>(std::round(wheelScreen.x)) };
+        const int wy { static_cast<int>(std::round(wheelScreen.y)) };
+        cgaRenderer_.fillRect(wx - 5, wy - 5, 11, 11, ColorRgba{ 255, 255, 255, 255 });
+        cgaRenderer_.fillRect(wx - 2, wy - 2, 5, 5, ColorRgba{ 0, 0, 0, 255 });
+    }
 
     // Projectiles
     for (const auto& proj : ballistics_.getProjectiles()) {
-        const int px { static_cast<int>(proj.position.x * 20.0) % 320 };
-        const int py { static_cast<int>(160.0 - proj.position.y * 20.0) };
-        cgaRenderer_.fillRect(px - 1, py - 1, 3, 3, ColorRgba{ 255, 255, 255, 255 });
+        const Vec2 projScreen { camera_.worldToScreen(proj.position) };
+        const int px { static_cast<int>(std::round(projScreen.x)) };
+        const int py { static_cast<int>(std::round(projScreen.y)) };
+        if (px >= 0 && px < CgaPaletteRenderer::kNativeWidth && py >= 0 && py < CgaPaletteRenderer::kNativeHeight) {
+            cgaRenderer_.fillRect(px - 1, py - 1, 3, 3, ColorRgba{ 255, 255, 255, 255 });
+        }
     }
 
     if (!config_.headless && window_ && renderer_) {
@@ -277,6 +327,16 @@ bool GameApp::isRunning() const noexcept
 const GameAppConfig& GameApp::getConfig() const noexcept
 {
     return config_;
+}
+
+void GameApp::setInput(const vehicle_sim::dynamics::OffroadTruckInput& input) noexcept
+{
+    currentInput_ = input;
+}
+
+const vehicle_sim::dynamics::OffroadTruckInput& GameApp::getInput() const noexcept
+{
+    return currentInput_;
 }
 
 const vehicle_sim::dynamics::OffroadTruckDynamics& GameApp::getTruck() const noexcept
@@ -317,6 +377,36 @@ const CgaPaletteRenderer& GameApp::getRenderer() const noexcept
 CgaPaletteRenderer& GameApp::getRenderer() noexcept
 {
     return cgaRenderer_;
+}
+
+const Camera2D& GameApp::getCamera() const noexcept
+{
+    return camera_;
+}
+
+Camera2D& GameApp::getCamera() noexcept
+{
+    return camera_;
+}
+
+const CourseManager& GameApp::getCourse() const noexcept
+{
+    return courseManager_;
+}
+
+CourseManager& GameApp::getCourse() noexcept
+{
+    return courseManager_;
+}
+
+const ParallaxRenderer& GameApp::getParallax() const noexcept
+{
+    return parallax_;
+}
+
+ParallaxRenderer& GameApp::getParallax() noexcept
+{
+    return parallax_;
 }
 
 bool GameApp::isPaused() const noexcept

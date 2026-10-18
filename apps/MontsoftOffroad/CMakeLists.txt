@@ -10,6 +10,12 @@ add_executable(MontsoftOffroad
     GameApp.cpp
     CgaPaletteRenderer.h
     CgaPaletteRenderer.cpp
+    Camera2D.h
+    Camera2D.cpp
+    CourseManager.h
+    CourseManager.cpp
+    ParallaxRenderer.h
+    ParallaxRenderer.cpp
     SDLWrappers.h
 )
 
@@ -47,6 +53,12 @@ if(BUILD_TESTING)
         GameApp.cpp
         CgaPaletteRenderer.h
         CgaPaletteRenderer.cpp
+        Camera2D.h
+        Camera2D.cpp
+        CourseManager.h
+        CourseManager.cpp
+        ParallaxRenderer.h
+        ParallaxRenderer.cpp
         SDLWrappers.h
     )
 

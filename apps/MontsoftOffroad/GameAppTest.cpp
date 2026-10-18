@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
+#include "apps/MontsoftOffroad/CourseManager.h"
 #include "apps/MontsoftOffroad/GameApp.h"
+#include "apps/MontsoftOffroad/ParallaxRenderer.h"
 #include "apps/MontsoftOffroad/SDLWrappers.h"
 
 namespace montsoft_offroad {
@@ -232,6 +235,191 @@ TEST(GameAppTest, FireRocketAndMortarBallistics)
     EXPECT_EQ(app.getBallistics().getProjectiles()[1].type, vehicle_sim::dynamics::ProjectileType::AntiAirMortar);
 
     // Render frame in headless mode should execute without crash
+    app.renderFrame();
+}
+
+TEST(Camera2DTest, WorldToScreenInvertibility)
+{
+    Camera2D camera {};
+    const vehicle_sim::math::Vec2 testWorldPt{ 12.5, 3.2 };
+    const vehicle_sim::math::Vec2 screenPt{ camera.worldToScreen(testWorldPt) };
+    const vehicle_sim::math::Vec2 recoveredWorldPt{ camera.screenToWorld(screenPt) };
+
+    EXPECT_NEAR(recoveredWorldPt.x, testWorldPt.x, 1e-4);
+    EXPECT_NEAR(recoveredWorldPt.y, testWorldPt.y, 1e-4);
+}
+
+TEST(Camera2DTest, LookaheadLeadSpeedScaling)
+{
+    Camera2D camera {};
+    const vehicle_sim::math::Vec2 basePos{ 0.0, 0.0 };
+    camera.reset(basePos);
+
+    // Update with high forward speed (20 m/s)
+    for (int i { 0 }; i < 60; ++i) {
+        camera.update(basePos, 20.0, 1.0 / 60.0);
+    }
+
+    EXPECT_GT(camera.getPosition().x, basePos.x);
+    EXPECT_LE(camera.getPosition().x, basePos.x + camera.getConfig().maxLookahead + 0.1);
+}
+
+TEST(Camera2DTest, TraumaDecayAndShake)
+{
+    Camera2D camera {};
+    camera.addTrauma(0.8);
+    EXPECT_NEAR(camera.getTrauma(), 0.8, 1e-4);
+
+    camera.update(vehicle_sim::math::Vec2{ 0.0, 0.0 }, 0.0, 0.1);
+    EXPECT_LT(camera.getTrauma(), 0.8);
+
+    // Shake offset should be bounded by maxShakeDisplacement
+    EXPECT_LE(std::abs(camera.getShakeOffset().x), camera.getConfig().maxShakeDisplacement);
+    EXPECT_LE(std::abs(camera.getShakeOffset().y), camera.getConfig().maxShakeDisplacement);
+
+    // Step until trauma completely decays
+    for (int i { 0 }; i < 100; ++i) {
+        camera.update(vehicle_sim::math::Vec2{ 0.0, 0.0 }, 0.0, 0.05);
+    }
+    EXPECT_EQ(camera.getTrauma(), 0.0);
+    EXPECT_EQ(camera.getShakeOffset().x, 0.0);
+    EXPECT_EQ(camera.getShakeOffset().y, 0.0);
+}
+
+TEST(Camera2DTest, VisibleBoundsEvaluation)
+{
+    Camera2D camera {};
+    camera.reset(vehicle_sim::math::Vec2{ 10.0, 5.0 });
+
+    const double minX { camera.getVisibleMinX() };
+    const double maxX { camera.getVisibleMaxX() };
+    const double spanX { maxX - minX };
+
+    // At 320 px and 20 px/m, span should be exactly 16.0 meters
+    EXPECT_NEAR(spanX, 16.0, 1e-4);
+    EXPECT_LT(minX, 10.0);
+    EXPECT_GT(maxX, 10.0);
+}
+
+TEST(CourseManagerTest, StageCatalogueLoading)
+{
+    CourseManager course {};
+    for (int stage { 1 }; stage <= 8; ++stage) {
+        course.loadStage(stage);
+        EXPECT_EQ(course.getCurrentStageIndex(), stage);
+        EXPECT_FALSE(course.getCurrentStage().title.empty());
+        EXPECT_GT(course.getHeightfield().getSampleCount(), 100U);
+        EXPECT_EQ(course.getCheckpoints().size(), 5U);
+        EXPECT_FALSE(course.isStageComplete());
+        EXPECT_EQ(course.getNextCheckpointLetter(), 'A');
+        EXPECT_GT(course.getRemainingTime(), 50.0);
+    }
+}
+
+TEST(CourseManagerTest, HeightfieldContinuity)
+{
+    CourseManager course {};
+    course.loadStage(1); // Mojave Dunes
+
+    // Verify heightfield evaluation at various points
+    for (double x { 0.0 }; x <= 500.0; x += 10.0) {
+        const double h { course.getHeightfield().getHeight(x) };
+        EXPECT_FALSE(std::isnan(h));
+        EXPECT_FALSE(std::isinf(h));
+    }
+}
+
+TEST(CourseManagerTest, CheckpointProgression)
+{
+    CourseManager course {};
+    course.loadStage(1);
+    EXPECT_EQ(course.getNextCheckpointLetter(), 'A');
+    EXPECT_EQ(course.getScore(), 0);
+
+    // Cross Checkpoint A at 100m
+    course.update(105.0, 0.1);
+    EXPECT_EQ(course.getNextCheckpointLetter(), 'B');
+    EXPECT_GT(course.getScore(), 0);
+    EXPECT_FALSE(course.isStageComplete());
+
+    // Cross Checkpoints B, C, D
+    course.update(205.0, 0.1);
+    EXPECT_EQ(course.getNextCheckpointLetter(), 'C');
+    course.update(305.0, 0.1);
+    EXPECT_EQ(course.getNextCheckpointLetter(), 'D');
+    course.update(405.0, 0.1);
+    EXPECT_EQ(course.getNextCheckpointLetter(), 'E');
+
+    // Cross Checkpoint E at 500m (Finish)
+    course.update(505.0, 0.1);
+    EXPECT_TRUE(course.isStageComplete());
+    EXPECT_NEAR(course.getProgressFraction(), 1.0, 1e-4);
+
+    // Reset restores clean state
+    course.reset();
+    EXPECT_FALSE(course.isStageComplete());
+    EXPECT_EQ(course.getNextCheckpointLetter(), 'A');
+}
+
+TEST(ParallaxRendererTest, DeterministicExecutionAcrossPalettes)
+{
+    ParallaxRenderer parallax {};
+    Camera2D camera {};
+    CourseManager course {};
+    CgaPaletteRenderer cga {};
+
+    for (int stage { 1 }; stage <= 8; ++stage) {
+        course.loadStage(stage);
+        for (auto mode : { PaletteMode::CgaPalette1, PaletteMode::CgaPalette0, PaletteMode::CompositeNtsc, PaletteMode::EnhancedEga }) {
+            cga.setPaletteMode(mode);
+            parallax.update(0.1);
+            parallax.render(cga, camera, course.getHeightfield(), stage);
+
+            // Framebuffer must have non-zero pixels
+            EXPECT_NE(cga.getPixel(160, 180), (ColorRgba{ 0, 0, 0, 0 }));
+        }
+    }
+}
+
+TEST(ParallaxRendererTest, ZeroBufferSmearing)
+{
+    ParallaxRenderer parallax {};
+    Camera2D camera {};
+    CourseManager course {};
+    CgaPaletteRenderer cga {};
+
+    course.loadStage(1);
+    parallax.render(cga, camera, course.getHeightfield(), 1);
+
+    // For every column, pixels from the ground surface down to y = 199 must be rendered
+    for (int col { 0 }; col < CgaPaletteRenderer::kNativeWidth; col += 20) {
+        const ColorRgba bottomPixel { cga.getPixel(col, 199) };
+        EXPECT_EQ(bottomPixel.a, 255);
+    }
+}
+
+TEST(GameAppTest, FullTraversalAndCheckpointScoring)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    // Advance 60 simulation steps with full throttle
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    app.setInput(input);
+    for (int i { 0 }; i < 60; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Vehicle should have progressed forward
+    EXPECT_GT(app.getTruckBody().getPosition().x, 0.0);
+    // Camera should have tracked vehicle
+    EXPECT_GT(app.getCamera().getPosition().x, 0.0);
+
+    // Render frame executes cleanly
     app.renderFrame();
 }
 
