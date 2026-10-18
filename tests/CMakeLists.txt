@@ -40,6 +40,7 @@ add_executable(VehicleSimCoreTests
     ContinuousCollisionDetectionTest.cpp
     ExtendedJointTest.cpp
     BuoyancyTest.cpp
+    Powertrain2DTest.cpp
 )
 
 target_link_libraries(VehicleSimCoreTests PRIVATE

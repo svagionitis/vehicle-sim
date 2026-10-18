@@ -775,7 +775,7 @@ graph TD
 ### 5.1 Modular Internal Combustion Engine and Electric Powertrain (`Powertrain2D`)
 
 #### Objective
-Replace simplified wheel torque scaling in wheeled vehicles with realistic internal combustion and electric propulsion models, multi-gear transmissions, and differential torque vectoring.
+Replace simplified wheel torque scaling in wheeled vehicles with realistic internal combustion and electric propulsion models, multi-gear transmissions, and differential torque vectoring. Detailed architectural, physical, and engineering design specification: [Powertrain2D Plan](Powertrain2DImplementationPlan.md).
 
 #### Technical Formulation
 1. **Engine Model**:
@@ -1412,7 +1412,7 @@ graph TD
 | **Stanley Path Following & Speed Profiler (Implemented)** | Math / Dynamics | Low-Med | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [PIDController](../libs/VehicleSimCore/math/PIDController.h) | [Stanley Path Plan](StanleyPathFollowingImplementationPlan.md) - Racing AI, trajectory navigation, autopilot ([StanleyController.h](../libs/VehicleSimCore/math/StanleyController.h)) |
 | **DynamicBVH2D Broadphase (Implemented)** | Physics | Medium | [AABB2D](../libs/VehicleSimCore/math/AABB2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | [DynamicBVH Plan](DynamicBVHImplementationPlan.md) - Multi-car collision, scaling to 100+ bodies & obstacles ([DynamicBVH2D.h](../libs/VehicleSimCore/physics/DynamicBVH2D.h)) |
 | **Extended Joints (`Wheel`, `Prismatic`, `Weld`)** | Physics | Medium | [Joint2D](../libs/VehicleSimCore/physics/Joint2D.h), [PhysicsWorld2D](../libs/VehicleSimCore/physics/PhysicsWorld2D.h) | Suspension struts, breakable parts, hydraulic linkages |
-| **Modular Powertrain & Differentials** | Dynamics | High | [MathUtils](../libs/VehicleSimCore/math/MathUtils.h), [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | Realistic engine RPM, gearboxes, LSD / Torsen handling |
+| **Modular Powertrain & Differentials** | Dynamics | High | [MathUtils](../libs/VehicleSimCore/math/MathUtils.h), [PacejkaTireModel](../libs/VehicleSimCore/dynamics/PacejkaTireModel.h) | [Powertrain2D Plan](Powertrain2DImplementationPlan.md) - Realistic engine RPM, gearboxes, LSD / Torsen handling |
 | **Poisson-Disk Object Scattering** | Terrain | Medium | [Spline2D](../libs/VehicleSimCore/math/Spline2D.h), [TrackGenerator](../libs/VehicleSimCore/terrain/TrackGenerator.h) | Procedural track hazards, cones, obstacles |
 | **Continuous Collision Detection (CCD)** | Physics | High | [Narrowphase2D](../libs/VehicleSimCore/physics/Narrowphase2D.h), [Ray2D](../libs/VehicleSimCore/math/Ray2D.h) | Anti-tunneling for high-speed craft (AntiGravity, rockets) |
 | **Dynamic Shallow Water PDE** | Terrain / Physics | Med-High | [SurfaceMap2D](../libs/VehicleSimCore/terrain/SurfaceMap2D.h), [RigidBody2D](../libs/VehicleSimCore/physics/RigidBody2D.h) | Watercraft wakes, boat bobbing, wave forces |

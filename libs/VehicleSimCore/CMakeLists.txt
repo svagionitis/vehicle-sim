@@ -144,6 +144,19 @@ add_library(VehicleSimCore STATIC
     dynamics/QuadBikeDynamics.cpp
     dynamics/MotionLabCarDynamics.h
     dynamics/MotionLabCarDynamics.cpp
+    dynamics/IEngine2D.h
+    dynamics/InternalCombustionEngine2D.h
+    dynamics/InternalCombustionEngine2D.cpp
+    dynamics/ElectricMotor2D.h
+    dynamics/ElectricMotor2D.cpp
+    dynamics/FlywheelClutch2D.h
+    dynamics/FlywheelClutch2D.cpp
+    dynamics/Transmission2D.h
+    dynamics/Transmission2D.cpp
+    dynamics/Differential2D.h
+    dynamics/Differential2D.cpp
+    dynamics/Powertrain2D.h
+    dynamics/Powertrain2D.cpp
     terrain/SurfaceMaterial.h
     terrain/SurfaceMaterial.cpp
     terrain/GradientNoise.h
