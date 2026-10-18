@@ -1,0 +1,136 @@
+#pragma once
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
+#include "apps/MontsoftOffroad/SDLWrappers.h"
+#include "libs/VehicleSimCore/dynamics/OffroadBallistics2D.h"
+#include "libs/VehicleSimCore/dynamics/OffroadTruckDynamics.h"
+#include "libs/VehicleSimCore/physics/RigidBody2D.h"
+
+namespace montsoft_offroad {
+
+/// @struct GameAppConfig
+/// @brief Configuration settings for the Montsoft Offroad application.
+struct GameAppConfig {
+    int windowWidth { 1280 };                ///< Initial window width in pixels.
+    int windowHeight { 800 };                ///< Initial window height in pixels.
+    std::string windowTitle { "Montsoft Offroad (1988)" }; ///< Window titlebar string.
+    double targetFps { 60.0 };               ///< Display refresh target framerate.
+    double fixedDt { 1.0 / 60.0 };           ///< Invariant physics simulation timestep in seconds.
+    bool headless { false };                 ///< True to execute without opening an SDL window.
+    PaletteMode initialPalette { PaletteMode::CgaPalette1 }; ///< Starting retro color mode.
+};
+
+/// @class GameApp
+/// @brief Central application coordinator for Montsoft Offroad.
+/// @details Manages fixed 60 Hz accumulator game loop, input polling, dynamics simulation step,
+/// CGA emulation rendering, and headless automated testing.
+class GameApp final {
+public:
+    /// @brief Default constructor using standard application configuration.
+    GameApp();
+
+    /// @brief Parameterized constructor using custom configuration.
+    /// @param[in] config Application settings.
+    explicit GameApp(const GameAppConfig& config);
+
+    /// @brief Destructor.
+    ~GameApp() noexcept = default;
+
+    GameApp(const GameApp&) = delete;
+    GameApp& operator=(const GameApp&) = delete;
+    GameApp(GameApp&&) noexcept = default;
+    GameApp& operator=(GameApp&&) noexcept = default;
+
+    /// @brief Initializes SDL context, window, renderer, and simulation subsystems.
+    /// @return True on successful initialization, false on error.
+    [[nodiscard]] bool initialize();
+
+    /// @brief Executes the main application loop until stopped or window closed.
+    void run();
+
+    /// @brief Requests termination of the main application loop.
+    void stop() noexcept;
+
+    /// @brief Polls and processes pending SDL input and window events.
+    void processEvents() noexcept;
+
+    /// @brief Advances simulation dynamics and ballistics by timestep dt.
+    /// @param[in] dt Timestep duration in seconds.
+    void updateSimulation(double dt) noexcept;
+
+    /// @brief Renders active scene into the 320x200 CGA framebuffer and presents to window.
+    void renderFrame() noexcept;
+
+    /// @brief Queries whether the application loop is actively executing.
+    /// @return True if running.
+    [[nodiscard]] bool isRunning() const noexcept;
+
+    /// @brief Gets active application configuration.
+    /// @return Constant reference to GameAppConfig.
+    [[nodiscard]] const GameAppConfig& getConfig() const noexcept;
+
+    /// @brief Gets 4WD truck dynamics coordinator.
+    /// @return Constant reference to OffroadTruckDynamics.
+    [[nodiscard]] const vehicle_sim::dynamics::OffroadTruckDynamics& getTruck() const noexcept;
+
+    /// @brief Gets mutable 4WD truck dynamics coordinator.
+    /// @return Mutable reference to OffroadTruckDynamics.
+    [[nodiscard]] vehicle_sim::dynamics::OffroadTruckDynamics& getTruck() noexcept;
+
+    /// @brief Gets truck rigid body chassis.
+    /// @return Constant reference to RigidBody2D.
+    [[nodiscard]] const vehicle_sim::physics::RigidBody2D& getTruckBody() const noexcept;
+
+    /// @brief Gets mutable truck rigid body chassis.
+    /// @return Mutable reference to RigidBody2D.
+    [[nodiscard]] vehicle_sim::physics::RigidBody2D& getTruckBody() noexcept;
+
+    /// @brief Gets ballistics coordinator.
+    /// @return Constant reference to OffroadBallistics2D.
+    [[nodiscard]] const vehicle_sim::dynamics::OffroadBallistics2D& getBallistics() const noexcept;
+
+    /// @brief Gets mutable ballistics coordinator.
+    /// @return Mutable reference to OffroadBallistics2D.
+    [[nodiscard]] vehicle_sim::dynamics::OffroadBallistics2D& getBallistics() noexcept;
+
+    /// @brief Gets CGA palette renderer.
+    /// @return Constant reference to CgaPaletteRenderer.
+    [[nodiscard]] const CgaPaletteRenderer& getRenderer() const noexcept;
+
+    /// @brief Gets mutable CGA palette renderer.
+    /// @return Mutable reference to CgaPaletteRenderer.
+    [[nodiscard]] CgaPaletteRenderer& getRenderer() noexcept;
+
+    /// @brief Queries whether simulation is currently paused.
+    /// @return True if paused.
+    [[nodiscard]] bool isPaused() const noexcept;
+
+    /// @brief Toggles simulation pause state.
+    void togglePause() noexcept;
+
+private:
+    void handleKeyDown(SDL_Keycode key) noexcept;
+    void handleKeyUp(SDL_Keycode key) noexcept;
+
+    GameAppConfig config_ {};
+    std::unique_ptr<SDLContext> sdlContext_ { nullptr };
+    UniqueWindow window_ { nullptr };
+    UniqueRenderer renderer_ { nullptr };
+    CgaPaletteRenderer cgaRenderer_ {};
+
+    vehicle_sim::physics::RigidBody2D truckBody_ {};
+    vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};
+    vehicle_sim::dynamics::OffroadBallistics2D ballistics_ {};
+    vehicle_sim::dynamics::OffroadTruckInput currentInput_ {};
+
+    bool running_ { false };
+    bool paused_ { false };
+    double accumulator_ { 0.0 };
+    std::uint64_t lastCounter_ { 0 };
+};
+
+} // namespace montsoft_offroad
