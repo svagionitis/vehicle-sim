@@ -7,8 +7,11 @@
 #include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
+#include "apps/MontsoftOffroad/InputController.h"
 #include "apps/MontsoftOffroad/ParallaxRenderer.h"
+#include "apps/MontsoftOffroad/ParticleSystem.h"
 #include "apps/MontsoftOffroad/SDLWrappers.h"
+#include "apps/MontsoftOffroad/TruckRenderer.h"
 #include "libs/VehicleSimCore/dynamics/OffroadBallistics2D.h"
 #include "libs/VehicleSimCore/dynamics/OffroadTruckDynamics.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
@@ -140,6 +143,30 @@ public:
     /// @return Mutable reference to ParallaxRenderer.
     [[nodiscard]] ParallaxRenderer& getParallax() noexcept;
 
+    /// @brief Gets input controller coordinator.
+    /// @return Constant reference to InputController.
+    [[nodiscard]] const InputController& getInputController() const noexcept;
+
+    /// @brief Gets mutable input controller coordinator.
+    /// @return Mutable reference to InputController.
+    [[nodiscard]] InputController& getInputController() noexcept;
+
+    /// @brief Gets terramechanic particle system.
+    /// @return Constant reference to ParticleSystem.
+    [[nodiscard]] const ParticleSystem& getParticleSystem() const noexcept;
+
+    /// @brief Gets mutable terramechanic particle system.
+    /// @return Mutable reference to ParticleSystem.
+    [[nodiscard]] ParticleSystem& getParticleSystem() noexcept;
+
+    /// @brief Gets truck procedural renderer.
+    /// @return Constant reference to TruckRenderer.
+    [[nodiscard]] const TruckRenderer& getTruckRenderer() const noexcept;
+
+    /// @brief Gets mutable truck procedural renderer.
+    /// @return Mutable reference to TruckRenderer.
+    [[nodiscard]] TruckRenderer& getTruckRenderer() noexcept;
+
     /// @brief Queries whether simulation is currently paused.
     /// @return True if paused.
     [[nodiscard]] bool isPaused() const noexcept;
@@ -148,9 +175,6 @@ public:
     void togglePause() noexcept;
 
 private:
-    void handleKeyDown(SDL_Keycode key) noexcept;
-    void handleKeyUp(SDL_Keycode key) noexcept;
-
     GameAppConfig config_ {};
     std::unique_ptr<SDLContext> sdlContext_ { nullptr };
     UniqueWindow window_ { nullptr };
@@ -159,16 +183,20 @@ private:
     Camera2D camera_ {};
     CourseManager courseManager_ {};
     ParallaxRenderer parallax_ {};
+    InputController inputController_ {};
+    ParticleSystem particleSystem_ {};
+    TruckRenderer truckRenderer_ {};
 
     vehicle_sim::physics::RigidBody2D truckBody_ {};
     vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};
     vehicle_sim::dynamics::OffroadBallistics2D ballistics_ {};
-    vehicle_sim::dynamics::OffroadTruckInput currentInput_ {};
 
     bool running_ { false };
     bool paused_ { false };
     double accumulator_ { 0.0 };
     std::uint64_t lastCounter_ { 0 };
+    double prevRearComp_ { 0.0 };
+    double prevFrontComp_ { 0.0 };
 };
 
 } // namespace montsoft_offroad

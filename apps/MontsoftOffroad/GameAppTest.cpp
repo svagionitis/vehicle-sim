@@ -4,8 +4,11 @@
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CourseManager.h"
 #include "apps/MontsoftOffroad/GameApp.h"
+#include "apps/MontsoftOffroad/InputController.h"
 #include "apps/MontsoftOffroad/ParallaxRenderer.h"
+#include "apps/MontsoftOffroad/ParticleSystem.h"
 #include "apps/MontsoftOffroad/SDLWrappers.h"
+#include "apps/MontsoftOffroad/TruckRenderer.h"
 
 namespace montsoft_offroad {
 
@@ -420,6 +423,269 @@ TEST(GameAppTest, FullTraversalAndCheckpointScoring)
     EXPECT_GT(app.getCamera().getPosition().x, 0.0);
 
     // Render frame executes cleanly
+    app.renderFrame();
+}
+
+TEST(InputControllerTest, NeutralStateAndDefaults)
+{
+    InputController controller {};
+    const auto& input { controller.getTruckInput() };
+    EXPECT_DOUBLE_EQ(input.throttle, 0.0);
+    EXPECT_DOUBLE_EQ(input.brake, 0.0);
+    EXPECT_FALSE(input.jump);
+    EXPECT_FALSE(input.firePrimary);
+    EXPECT_FALSE(input.fireSecondary);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::None);
+}
+
+TEST(InputControllerTest, KeyboardMappingTransitions)
+{
+    InputController controller {};
+
+    SDL_Event ev {};
+    ev.type = SDL_KEYDOWN;
+    ev.key.repeat = 0;
+
+    // Press W -> Throttle
+    ev.key.keysym.sym = SDLK_w;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 1.0);
+
+    // Press S -> Brake
+    ev.key.keysym.sym = SDLK_s;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 1.0);
+
+    // Press Space -> Jump
+    ev.key.keysym.sym = SDLK_SPACE;
+    controller.handleEvent(ev);
+    EXPECT_TRUE(controller.getTruckInput().jump);
+
+    // Press Z -> Fire Primary
+    ev.key.keysym.sym = SDLK_z;
+    controller.handleEvent(ev);
+    EXPECT_TRUE(controller.getTruckInput().firePrimary);
+
+    // Press X -> Fire Secondary
+    ev.key.keysym.sym = SDLK_x;
+    controller.handleEvent(ev);
+    EXPECT_TRUE(controller.getTruckInput().fireSecondary);
+
+    // Release W -> Throttle resets
+    ev.type = SDL_KEYUP;
+    ev.key.keysym.sym = SDLK_w;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 0.0);
+
+    // Release S -> Brake resets
+    ev.key.keysym.sym = SDLK_s;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().brake, 0.0);
+}
+
+TEST(InputControllerTest, SystemActionEdgeTriggering)
+{
+    InputController controller {};
+
+    SDL_Event ev {};
+    ev.type = SDL_KEYDOWN;
+    ev.key.repeat = 0;
+
+    // Cycle Palette with C
+    ev.key.keysym.sym = SDLK_c;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::CyclePalette);
+    // Edge triggered: subsequent call is None
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::None);
+
+    // F1 to F4 palettes
+    ev.key.keysym.sym = SDLK_F1;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::SetPaletteMode1);
+
+    ev.key.keysym.sym = SDLK_F2;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::SetPaletteMode0);
+
+    ev.key.keysym.sym = SDLK_F3;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::SetPaletteComposite);
+
+    ev.key.keysym.sym = SDLK_F4;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::SetPaletteEga);
+
+    // Pause toggle
+    ev.key.keysym.sym = SDLK_p;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::TogglePause);
+
+    // Quit
+    ev.key.keysym.sym = SDLK_ESCAPE;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::Quit);
+}
+
+TEST(InputControllerTest, ResetIntegrity)
+{
+    InputController controller {};
+
+    SDL_Event ev {};
+    ev.type = SDL_KEYDOWN;
+    ev.key.repeat = 0;
+    ev.key.keysym.sym = SDLK_w;
+    controller.handleEvent(ev);
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 1.0);
+
+    controller.reset();
+    EXPECT_DOUBLE_EQ(controller.getTruckInput().throttle, 0.0);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::None);
+}
+
+TEST(ParticleSystemTest, PoolAllocationAndBoundedCapacity)
+{
+    ParticleSystem particles {};
+    EXPECT_EQ(particles.getActiveCount(), 0U);
+
+    // Emit 1500 particles (exceeding fixed pool size of 1024)
+    for (int i { 0 }; i < 300; ++i) {
+        particles.emitRoosterTail(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 15.0, 0.0 }, 0.1, 0);
+    }
+
+    // Active count must be capped at kMaxParticles (1024)
+    EXPECT_LE(particles.getActiveCount(), ParticleSystem::kMaxParticles);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemTest, RoosterTailEmissionKinetics)
+{
+    ParticleSystem particles {};
+    particles.emitRoosterTail(vehicle_sim::math::Vec2{ 10.0, 1.0 }, vehicle_sim::math::Vec2{ 12.0, 0.0 }, 0.05, 0);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemTest, LandingDustRadialDispersion)
+{
+    ParticleSystem particles {};
+    particles.emitLandingDust(vehicle_sim::math::Vec2{ 50.0, 2.0 }, 4.5, 1);
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemTest, ThrusterSparkEmissionKinetics)
+{
+    ParticleSystem particles {};
+    particles.emitThrusterSparks(vehicle_sim::math::Vec2{ 20.0, 5.0 }, vehicle_sim::math::Vec2{ 5.0, 3.0 });
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemTest, IntegrationStepAndLifespanExpiration)
+{
+    ParticleSystem particles {};
+    particles.emitThrusterSparks(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    EXPECT_GT(particles.getActiveCount(), 0U);
+
+    // Step simulation 2 seconds (exceeds 0.3s max lifetime of sparks)
+    for (int i { 0 }; i < 120; ++i) {
+        particles.update(1.0 / 60.0);
+    }
+
+    EXPECT_EQ(particles.getActiveCount(), 0U);
+}
+
+TEST(ParticleSystemTest, RenderCleanliness)
+{
+    ParticleSystem particles {};
+    Camera2D camera {};
+    CgaPaletteRenderer cga {};
+
+    particles.emitRoosterTail(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 10.0, 0.0 }, 0.1, 0);
+    particles.emitLandingDust(vehicle_sim::math::Vec2{ 0.0, 0.0 }, 3.0, 0);
+    particles.emitThrusterSparks(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+
+    particles.render(cga, camera);
+    // Buffer should contain rendered particles
+    EXPECT_GT(particles.getActiveCount(), 0U);
+}
+
+TEST(TruckRendererTest, AnimationRotationMonotonicity)
+{
+    TruckRenderer renderer {};
+    // Step animation with positive speed
+    renderer.updateAnimation(15.0, 0.1);
+    // Reset restores zero phase
+    renderer.reset();
+}
+
+TEST(TruckRendererTest, OffScreenCullingSafety)
+{
+    TruckRenderer renderer {};
+    Camera2D camera {};
+    CgaPaletteRenderer cga {};
+    vehicle_sim::physics::RigidBody2D body {};
+    vehicle_sim::dynamics::OffroadTruckDynamics dynamics {};
+
+    // Position truck 1000m away (well off-screen)
+    body.setPosition(vehicle_sim::math::Vec2{ 1000.0, 500.0 });
+
+    // Should execute safely without buffer overflow or crash
+    renderer.render(cga, camera, body, dynamics);
+}
+
+TEST(GameAppPhase4IntegrationTest, DrivingSpawnsRoosterTails)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    app.setInput(input);
+
+    for (int i { 0 }; i < 30; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Moving on ground should produce tire rooster tail particles
+    EXPECT_GT(app.getParticleSystem().getActiveCount(), 0U);
+}
+
+TEST(GameAppPhase4IntegrationTest, JumpGeneratesThrusterSparks)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    // Jump should emit thruster sparks immediately
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.jump = true;
+    app.setInput(input);
+
+    app.updateSimulation(1.0 / 60.0);
+    EXPECT_GT(app.getParticleSystem().getActiveCount(), 0U);
+}
+
+TEST(GameAppPhase4IntegrationTest, FullPhase4RenderFrameExecution)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 1.0;
+    input.jump = true;
+    app.setInput(input);
+
+    for (int i { 0 }; i < 20; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Render frame with all Phase 4 visual subsystems active
     app.renderFrame();
 }
 

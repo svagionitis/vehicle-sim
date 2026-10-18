@@ -176,6 +176,60 @@ void CgaPaletteRenderer::fillRect(int x, int y, int width, int height, ColorRgba
     }
 }
 
+void CgaPaletteRenderer::drawCircle(int cx, int cy, int radius, ColorRgba color) noexcept
+{
+    if (radius <= 0) {
+        setPixel(cx, cy, color);
+        return;
+    }
+
+    int x { radius };
+    int y { 0 };
+    int err { 0 };
+
+    while (x >= y) {
+        setPixel(cx + x, cy + y, color);
+        setPixel(cx + y, cy + x, color);
+        setPixel(cx - y, cy + x, color);
+        setPixel(cx - x, cy + y, color);
+        setPixel(cx - x, cy - y, color);
+        setPixel(cx - y, cy - x, color);
+        setPixel(cx + y, cy - x, color);
+        setPixel(cx + x, cy - y, color);
+
+        if (err <= 0) {
+            y += 1;
+            err += 2 * y + 1;
+        }
+        if (err > 0) {
+            x -= 1;
+            err -= 2 * x + 1;
+        }
+    }
+}
+
+void CgaPaletteRenderer::fillCircle(int cx, int cy, int radius, ColorRgba color) noexcept
+{
+    if (radius <= 0) {
+        setPixel(cx, cy, color);
+        return;
+    }
+
+    for (int dy { -radius }; dy <= radius; ++dy) {
+        const int dx { static_cast<int>(std::round(std::sqrt(radius * radius - dy * dy))) };
+        const int py { cy + dy };
+        if (py >= 0 && py < kNativeHeight) {
+            const int xStart { std::clamp(cx - dx, 0, kNativeWidth - 1) };
+            const int xEnd { std::clamp(cx + dx, 0, kNativeWidth - 1) };
+            const std::uint32_t packed { quantizeColor(color).toUint32() };
+            const std::size_t rowOffset { static_cast<std::size_t>(py * kNativeWidth) };
+            for (int px { xStart }; px <= xEnd; ++px) {
+                backbuffer_[rowOffset + static_cast<std::size_t>(px)] = packed;
+            }
+        }
+    }
+}
+
 void CgaPaletteRenderer::blitSprite(
     int dstX, int dstY, int width, int height,
     const ColorRgba* spritePixels, ColorRgba colorKey) noexcept

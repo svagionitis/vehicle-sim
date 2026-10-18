@@ -14,6 +14,12 @@ add_executable(MontsoftOffroad
     Camera2D.cpp
     CourseManager.h
     CourseManager.cpp
+    InputController.h
+    InputController.cpp
+    ParticleSystem.h
+    ParticleSystem.cpp
+    TruckRenderer.h
+    TruckRenderer.cpp
     ParallaxRenderer.h
     ParallaxRenderer.cpp
     SDLWrappers.h
@@ -57,6 +63,12 @@ if(BUILD_TESTING)
         Camera2D.cpp
         CourseManager.h
         CourseManager.cpp
+        InputController.h
+        InputController.cpp
+        ParticleSystem.h
+        ParticleSystem.cpp
+        TruckRenderer.h
+        TruckRenderer.cpp
         ParallaxRenderer.h
         ParallaxRenderer.cpp
         SDLWrappers.h

@@ -149,6 +149,20 @@ public:
     /// @param[in] color Fill color.
     void fillRect(int x, int y, int width, int height, ColorRgba color) noexcept;
 
+    /// @brief Draws an unfilled circle using midpoint circle algorithm.
+    /// @param[in] cx Center X coordinate.
+    /// @param[in] cy Center Y coordinate.
+    /// @param[in] radius Circle radius in pixels.
+    /// @param[in] color Circle line color.
+    void drawCircle(int cx, int cy, int radius, ColorRgba color) noexcept;
+
+    /// @brief Draws a solid filled circle.
+    /// @param[in] cx Center X coordinate.
+    /// @param[in] cy Center Y coordinate.
+    /// @param[in] radius Circle radius in pixels.
+    /// @param[in] color Circle fill color.
+    void fillCircle(int cx, int cy, int radius, ColorRgba color) noexcept;
+
     /// @brief Blits a sprite with color key transparency.
     /// @param[in] dstX Target buffer X.
     /// @param[in] dstY Target buffer Y.

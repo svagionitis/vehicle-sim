@@ -32,6 +32,11 @@ bool GameApp::initialize()
     truckBody_.setAngularVelocity(0.0);
     cgaRenderer_.setPaletteMode(config_.initialPalette);
     camera_.reset(truckBody_.getPosition());
+    inputController_.reset();
+    particleSystem_.reset();
+    truckRenderer_.reset();
+    prevRearComp_ = 0.0;
+    prevFrontComp_ = 0.0;
 
     if (config_.headless) {
         running_ = true;
@@ -127,122 +132,108 @@ void GameApp::processEvents() noexcept
     while (SDL_PollEvent(&event) != 0) {
         if (event.type == SDL_QUIT) {
             stop();
-        } else if (event.type == SDL_KEYDOWN) {
-            handleKeyDown(event.key.keysym.sym);
-        } else if (event.type == SDL_KEYUP) {
-            handleKeyUp(event.key.keysym.sym);
+        } else {
+            inputController_.handleEvent(event);
         }
-    }
-}
-
-void GameApp::handleKeyDown(SDL_Keycode key) noexcept
-{
-    switch (key) {
-    case SDLK_UP:
-    case SDLK_w:
-        currentInput_.throttle = 1.0;
-        break;
-    case SDLK_DOWN:
-    case SDLK_s:
-        currentInput_.brake = 1.0;
-        break;
-    case SDLK_SPACE:
-        currentInput_.jump = true;
-        break;
-    case SDLK_z:
-    case SDLK_j:
-        currentInput_.firePrimary = true;
-        break;
-    case SDLK_x:
-    case SDLK_k:
-        currentInput_.fireSecondary = true;
-        break;
-    case SDLK_c:
-    case SDLK_TAB:
-        cgaRenderer_.cyclePaletteMode();
-        break;
-    case SDLK_F1:
-        cgaRenderer_.setPaletteMode(PaletteMode::CgaPalette1);
-        break;
-    case SDLK_F2:
-        cgaRenderer_.setPaletteMode(PaletteMode::CgaPalette0);
-        break;
-    case SDLK_F3:
-        cgaRenderer_.setPaletteMode(PaletteMode::CompositeNtsc);
-        break;
-    case SDLK_F4:
-        cgaRenderer_.setPaletteMode(PaletteMode::EnhancedEga);
-        break;
-    case SDLK_p:
-        togglePause();
-        break;
-    case SDLK_ESCAPE:
-        stop();
-        break;
-    default:
-        break;
-    }
-}
-
-void GameApp::handleKeyUp(SDL_Keycode key) noexcept
-{
-    switch (key) {
-    case SDLK_UP:
-    case SDLK_w:
-        currentInput_.throttle = 0.0;
-        break;
-    case SDLK_DOWN:
-    case SDLK_s:
-        currentInput_.brake = 0.0;
-        break;
-    case SDLK_SPACE:
-        currentInput_.jump = false;
-        break;
-    case SDLK_z:
-    case SDLK_j:
-        currentInput_.firePrimary = false;
-        break;
-    case SDLK_x:
-    case SDLK_k:
-        currentInput_.fireSecondary = false;
-        break;
-    default:
-        break;
     }
 }
 
 void GameApp::updateSimulation(double dt) noexcept
 {
+    // Process latched system-level actions
+    const SystemAction action { inputController_.consumeSystemAction() };
+    switch (action) {
+    case SystemAction::CyclePalette:
+        cgaRenderer_.cyclePaletteMode();
+        break;
+    case SystemAction::SetPaletteMode1:
+        cgaRenderer_.setPaletteMode(PaletteMode::CgaPalette1);
+        break;
+    case SystemAction::SetPaletteMode0:
+        cgaRenderer_.setPaletteMode(PaletteMode::CgaPalette0);
+        break;
+    case SystemAction::SetPaletteComposite:
+        cgaRenderer_.setPaletteMode(PaletteMode::CompositeNtsc);
+        break;
+    case SystemAction::SetPaletteEga:
+        cgaRenderer_.setPaletteMode(PaletteMode::EnhancedEga);
+        break;
+    case SystemAction::TogglePause:
+        togglePause();
+        break;
+    case SystemAction::Quit:
+        stop();
+        break;
+    case SystemAction::None:
+    default:
+        break;
+    }
+
     if (paused_) {
         return;
     }
 
+    inputController_.update(dt);
+    const auto truckInput { inputController_.getTruckInput() };
+
     courseManager_.update(truckBody_.getPosition().x, dt);
 
-    truckDynamics_.setInput(currentInput_);
+    truckDynamics_.setInput(truckInput);
     truckDynamics_.step(truckBody_, dt);
     vehicle_sim::physics::Integrator2D::integrate(truckBody_, dt);
     truckBody_.clearForces();
 
-    if (currentInput_.firePrimary) {
+    // Weapon projectile firing
+    if (truckInput.firePrimary) {
         ballistics_.fireRocket(
             truckBody_.getPosition() + Vec2{ 1.2, 0.2 },
             truckBody_.getOrientation(),
             truckBody_.getLinearVelocity()
         );
         camera_.addTrauma(0.25);
-        currentInput_.firePrimary = false;
     }
 
-    if (currentInput_.fireSecondary) {
+    if (truckInput.fireSecondary) {
         ballistics_.fireMortar(
             truckBody_.getPosition() + Vec2{ 0.0, 0.4 },
             truckBody_.getLinearVelocity()
         );
         camera_.addTrauma(0.35);
-        currentInput_.fireSecondary = false;
     }
 
+    // Terramechanic dust and spark emission
+    const auto& rearAxle { truckDynamics_.getAxleState(0) };
+    const auto& frontAxle { truckDynamics_.getAxleState(1) };
+    const std::size_t stageIdx { static_cast<std::size_t>(std::max(0, courseManager_.getCurrentStageIndex())) };
+
+    // 1. Sand Rooster Tails
+    if (rearAxle.isGrounded) {
+        particleSystem_.emitRoosterTail(rearAxle.worldPos, truckBody_.getLinearVelocity(), rearAxle.soilSinkage, stageIdx);
+    }
+    if (frontAxle.isGrounded) {
+        particleSystem_.emitRoosterTail(frontAxle.worldPos, truckBody_.getLinearVelocity(), frontAxle.soilSinkage, stageIdx);
+    }
+
+    // 2. Landing Dust Plumes
+    const double rearCompVel { (rearAxle.compression - prevRearComp_) / dt };
+    const double frontCompVel { (frontAxle.compression - prevFrontComp_) / dt };
+    prevRearComp_ = rearAxle.compression;
+    prevFrontComp_ = frontAxle.compression;
+
+    if (rearAxle.isGrounded && rearCompVel > 1.8) {
+        particleSystem_.emitLandingDust(rearAxle.worldPos, rearCompVel, stageIdx);
+    }
+    if (frontAxle.isGrounded && frontCompVel > 1.8) {
+        particleSystem_.emitLandingDust(frontAxle.worldPos, frontCompVel, stageIdx);
+    }
+
+    // 3. Jump Thruster Sparks
+    if (truckInput.jump) {
+        particleSystem_.emitThrusterSparks(truckBody_.getPosition() - Vec2{ 0.0, 0.15 }, truckBody_.getLinearVelocity());
+    }
+
+    particleSystem_.update(dt);
+    truckRenderer_.updateAnimation(truckBody_.getLinearVelocity().x, dt);
     ballistics_.step(dt, &courseManager_.getHeightfield());
     camera_.update(truckBody_.getPosition(), truckBody_.getLinearVelocity().x, dt);
     parallax_.update(dt);
@@ -250,7 +241,7 @@ void GameApp::updateSimulation(double dt) noexcept
 
 void GameApp::renderFrame() noexcept
 {
-    // Render 4-tier parallax scenery and foreground heightfield track
+    // 1. Render 4-tier parallax scenery and foreground heightfield track
     parallax_.render(
         cgaRenderer_,
         camera_,
@@ -258,7 +249,7 @@ void GameApp::renderFrame() noexcept
         courseManager_.getCurrentStageIndex()
     );
 
-    // Render checkpoint gantries & milestone flags
+    // 2. Render checkpoint gantries & milestone flags
     for (const auto& cp : courseManager_.getCheckpoints()) {
         const double groundY { courseManager_.getHeightfield().getHeight(cp.worldX) };
         const Vec2 baseScreen { camera_.worldToScreen(Vec2{ cp.worldX, groundY }) };
@@ -277,31 +268,13 @@ void GameApp::renderFrame() noexcept
         }
     }
 
-    // Render truck chassis (projected via camera)
-    const Vec2 truckScreen { camera_.worldToScreen(truckBody_.getPosition()) };
-    const int tx { static_cast<int>(std::round(truckScreen.x)) };
-    const int ty { static_cast<int>(std::round(truckScreen.y)) };
+    // 3. Render terramechanic dust plumes & rooster tails (Layer behind truck)
+    particleSystem_.render(cgaRenderer_, camera_);
 
-    // Truck cab and bed (48x14 px)
-    cgaRenderer_.fillRect(tx - 24, ty - 12, 48, 14, ColorRgba{ 255, 85, 255, 255 });
-    cgaRenderer_.drawRect(tx - 24, ty - 12, 48, 14, ColorRgba{ 255, 255, 255, 255 });
-    // Cab roof & windshield
-    cgaRenderer_.fillRect(tx - 6, ty - 20, 20, 8, ColorRgba{ 85, 255, 255, 255 });
-    cgaRenderer_.drawRect(tx - 6, ty - 20, 20, 8, ColorRgba{ 255, 255, 255, 255 });
-    // Rollbar
-    cgaRenderer_.drawLine(tx - 18, ty - 12, tx - 12, ty - 22, ColorRgba{ 255, 255, 255, 255 });
-    cgaRenderer_.drawLine(tx - 12, ty - 22, tx - 6, ty - 20, ColorRgba{ 255, 255, 255, 255 });
+    // 4. Render articulated 4WD desert truck chassis, suspension, knobby tires, weapons
+    truckRenderer_.render(cgaRenderer_, camera_, truckBody_, truckDynamics_);
 
-    // Wheels rendered at axle world positions
-    for (std::size_t i { 0 }; i < 2; ++i) {
-        const Vec2 wheelScreen { camera_.worldToScreen(truckDynamics_.getAxleState(i).worldPos) };
-        const int wx { static_cast<int>(std::round(wheelScreen.x)) };
-        const int wy { static_cast<int>(std::round(wheelScreen.y)) };
-        cgaRenderer_.fillRect(wx - 5, wy - 5, 11, 11, ColorRgba{ 255, 255, 255, 255 });
-        cgaRenderer_.fillRect(wx - 2, wy - 2, 5, 5, ColorRgba{ 0, 0, 0, 255 });
-    }
-
-    // Projectiles
+    // 5. Render active ballistic projectiles
     for (const auto& proj : ballistics_.getProjectiles()) {
         const Vec2 projScreen { camera_.worldToScreen(proj.position) };
         const int px { static_cast<int>(std::round(projScreen.x)) };
@@ -331,12 +304,13 @@ const GameAppConfig& GameApp::getConfig() const noexcept
 
 void GameApp::setInput(const vehicle_sim::dynamics::OffroadTruckInput& input) noexcept
 {
-    currentInput_ = input;
+    inputController_.setTruckInput(input);
+    truckDynamics_.setInput(input);
 }
 
 const vehicle_sim::dynamics::OffroadTruckInput& GameApp::getInput() const noexcept
 {
-    return currentInput_;
+    return inputController_.getTruckInput();
 }
 
 const vehicle_sim::dynamics::OffroadTruckDynamics& GameApp::getTruck() const noexcept
@@ -407,6 +381,36 @@ const ParallaxRenderer& GameApp::getParallax() const noexcept
 ParallaxRenderer& GameApp::getParallax() noexcept
 {
     return parallax_;
+}
+
+const InputController& GameApp::getInputController() const noexcept
+{
+    return inputController_;
+}
+
+InputController& GameApp::getInputController() noexcept
+{
+    return inputController_;
+}
+
+const ParticleSystem& GameApp::getParticleSystem() const noexcept
+{
+    return particleSystem_;
+}
+
+ParticleSystem& GameApp::getParticleSystem() noexcept
+{
+    return particleSystem_;
+}
+
+const TruckRenderer& GameApp::getTruckRenderer() const noexcept
+{
+    return truckRenderer_;
+}
+
+TruckRenderer& GameApp::getTruckRenderer() noexcept
+{
+    return truckRenderer_;
 }
 
 bool GameApp::isPaused() const noexcept
