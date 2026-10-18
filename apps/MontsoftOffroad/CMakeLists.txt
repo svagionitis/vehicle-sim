@@ -26,6 +26,8 @@ add_executable(MontsoftOffroad
     CombatManager.cpp
     EnemyManager.h
     EnemyManager.cpp
+    BossController.h
+    BossController.cpp
     SDLWrappers.h
 )
 
@@ -79,6 +81,8 @@ if(BUILD_TESTING)
         CombatManager.cpp
         EnemyManager.h
         EnemyManager.cpp
+        BossController.h
+        BossController.cpp
         SDLWrappers.h
     )
 

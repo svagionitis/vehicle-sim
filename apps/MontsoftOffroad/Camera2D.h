@@ -102,6 +102,11 @@ public:
     /// @param[in] config New configuration parameters.
     void setConfig(const CameraConfig& config) noexcept;
 
+    /// @brief Clamps camera tracking X position within specified world bounds.
+    /// @param[in] minX Minimum world X coordinate in meters.
+    /// @param[in] maxX Maximum world X coordinate in meters.
+    void clampPositionX(double minX, double maxX) noexcept;
+
 private:
     CameraConfig config_ {};
     vehicle_sim::math::Vec2 position_ { 0.0, 0.0 };

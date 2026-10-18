@@ -136,4 +136,9 @@ void Camera2D::setConfig(const CameraConfig& config) noexcept
     config_ = config;
 }
 
+void Camera2D::clampPositionX(double minX, double maxX) noexcept
+{
+    position_.x = std::clamp(position_.x, minX, maxX);
+}
+
 } // namespace montsoft_offroad

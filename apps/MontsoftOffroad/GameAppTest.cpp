@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "apps/MontsoftOffroad/BossController.h"
 #include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CombatManager.h"
@@ -1211,6 +1212,311 @@ TEST(GameAppPhase6IntegrationTest, FullCombatLoopWithEnemies)
 
     // Verify enemy subsystem is actively ticking
     EXPECT_GE(app.getEnemyManager().getConfig().maxEnemies, 16U);
+}
+
+TEST(BossControllerTest, DefaultStateAndInactive)
+{
+    BossController boss {};
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::Inactive);
+    EXPECT_FALSE(boss.isBossActive());
+    EXPECT_FALSE(boss.isBossDefeated());
+    EXPECT_DOUBLE_EQ(boss.getHealthFraction(), 0.0);
+    EXPECT_DOUBLE_EQ(boss.getRemainingBossHp(), 0.0);
+}
+
+TEST(BossControllerTest, ArenaTriggerAndChassisClamping)
+{
+    BossController boss {};
+    vehicle_sim::physics::RigidBody2D truck {};
+    Camera2D camera {};
+    ParticleSystem particles {};
+
+    // 1. Truck before trigger (x = 400.0) -> inactive
+    truck.setPosition(vehicle_sim::math::Vec2{ 400.0, 0.0 });
+    boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    EXPECT_FALSE(boss.isBossActive());
+
+    // 2. Cross trigger boundary (x = 436.0) -> triggers MechHeadEntrance
+    truck.setPosition(vehicle_sim::math::Vec2{ 436.0, 0.0 });
+    boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    EXPECT_TRUE(boss.isBossActive());
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::MechHeadEntrance);
+
+    // 3. Retreat left of arena min bound (x = 415.0) -> receives restoring force
+    truck.setPosition(vehicle_sim::math::Vec2{ 415.0, 0.0 });
+    boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    EXPECT_GT(truck.getAccumulatedForce().x, 0.0);
+
+    // 4. Advance right of arena max bound (x = 480.0) -> receives opposing force
+    truck.clearForces();
+    truck.setPosition(vehicle_sim::math::Vec2{ 480.0, 0.0 });
+    boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    EXPECT_LT(truck.getAccumulatedForce().x, 0.0);
+}
+
+TEST(BossControllerTest, MechHeadEntranceToCombat)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::MechHeadEntrance);
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::MechHeadEntrance);
+
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    Camera2D camera {};
+    ParticleSystem particles {};
+
+    // Step through 2.1 seconds of entrance ascent
+    for (int i { 0 }; i < 130; ++i) {
+        boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    }
+
+    // Should transition to active combat
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::MechHeadCombat);
+    EXPECT_GT(boss.getHealthFraction(), 0.9);
+}
+
+TEST(BossControllerTest, WeakPointTargetSync)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::MechHeadCombat);
+
+    std::vector<CombatTargetAabb> targets {};
+
+    // Run 120 steps to cycle through attack telegraphs and exposures
+    bool sawMouthExposed { false };
+    bool sawEyesExposed { false };
+
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    Camera2D camera {};
+    ParticleSystem particles {};
+
+    for (int i { 0 }; i < 350; ++i) {
+        boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+        targets.clear();
+        boss.syncCombatTargets(targets);
+
+        for (const auto& t : targets) {
+            EXPECT_EQ(t.type, CombatTargetType::BossComponent);
+            if (t.targetId == BossController::kTargetMechMouth) {
+                sawMouthExposed = true;
+            }
+            if (t.targetId == BossController::kTargetMechEyes) {
+                sawEyesExposed = true;
+            }
+        }
+    }
+
+    EXPECT_TRUE(sawMouthExposed);
+    EXPECT_TRUE(sawEyesExposed);
+}
+
+TEST(BossControllerTest, CombatDamageApplication)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::MechHeadCombat);
+    ParticleSystem particles {};
+
+    // Simulate hitting the mouth weak point
+    std::vector<CombatTargetAabb> targets {};
+    CombatTargetAabb mouth {};
+    mouth.targetId = BossController::kTargetMechMouth;
+    mouth.type = CombatTargetType::BossComponent;
+    mouth.health = 50.0; // Reduced from 200.0
+    targets.push_back(mouth);
+
+    boss.applyCombatDamage(targets, particles);
+
+    // Remaining HP should reflect the damage dealt
+    EXPECT_LT(boss.getRemainingBossHp(), 400.0);
+}
+
+TEST(BossControllerTest, TransitionToCruiser)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::MechHeadCombat);
+    ParticleSystem particles {};
+
+    // Inflict lethal damage to both mouth and eyes
+    std::vector<CombatTargetAabb> targets {};
+    CombatTargetAabb mouth {};
+    mouth.targetId = BossController::kTargetMechMouth;
+    mouth.type = CombatTargetType::BossComponent;
+    mouth.health = 0.0;
+    targets.push_back(mouth);
+
+    CombatTargetAabb eyes {};
+    eyes.targetId = BossController::kTargetMechEyes;
+    eyes.type = CombatTargetType::BossComponent;
+    eyes.health = 0.0;
+    targets.push_back(eyes);
+
+    boss.applyCombatDamage(targets, particles);
+
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    Camera2D camera {};
+
+    // Step 1 frame to trigger defeat state
+    boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::MechHeadDefeated);
+
+    // Step 2.6 seconds to finish defeat explosions and begin cruiser descent
+    for (int i { 0 }; i < 160; ++i) {
+        boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    }
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::CruiserDescent);
+
+    // Step 2.6 seconds of cruiser descent
+    for (int i { 0 }; i < 160; ++i) {
+        boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    }
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::CruiserCombat);
+}
+
+TEST(BossControllerTest, DreadnoughtShieldInvulnerability)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::CruiserCombat);
+
+    EXPECT_TRUE(boss.isShieldActive());
+
+    std::vector<CombatTargetAabb> targets {};
+    boss.syncCombatTargets(targets);
+
+    // Core should NOT be exposed while both turrets are alive
+    for (const auto& t : targets) {
+        EXPECT_NE(t.targetId, BossController::kTargetCruiserCore);
+    }
+}
+
+TEST(BossControllerTest, DreadnoughtTurretDestructionAndCoreExposure)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::CruiserCombat);
+    ParticleSystem particles {};
+
+    // 1. Destroy Port turret only -> shield remains active
+    std::vector<CombatTargetAabb> targets {};
+    CombatTargetAabb port {};
+    port.targetId = BossController::kTargetCruiserPort;
+    port.type = CombatTargetType::BossComponent;
+    port.health = 0.0;
+    targets.push_back(port);
+    boss.applyCombatDamage(targets, particles);
+
+    EXPECT_TRUE(boss.isShieldActive());
+
+    // 2. Destroy Starboard turret -> shield collapses!
+    targets.clear();
+    CombatTargetAabb star {};
+    star.targetId = BossController::kTargetCruiserStarboard;
+    star.type = CombatTargetType::BossComponent;
+    star.health = 0.0;
+    targets.push_back(star);
+    boss.applyCombatDamage(targets, particles);
+
+    EXPECT_FALSE(boss.isShieldActive());
+
+    // Now core must be exposed in targets
+    targets.clear();
+    boss.syncCombatTargets(targets);
+
+    bool coreExposed { false };
+    for (const auto& t : targets) {
+        if (t.targetId == BossController::kTargetCruiserCore) {
+            coreExposed = true;
+        }
+    }
+    EXPECT_TRUE(coreExposed);
+}
+
+TEST(BossControllerTest, DreadnoughtDefeatAndVictory)
+{
+    BossController boss {};
+    boss.triggerBossEncounter(BossPhase::CruiserCombat);
+    ParticleSystem particles {};
+
+    // Destroy all sub-components
+    std::vector<CombatTargetAabb> targets {};
+    CombatTargetAabb port { BossController::kTargetCruiserPort, CombatTargetType::BossComponent, {}, {}, 0.0, false };
+    CombatTargetAabb star { BossController::kTargetCruiserStarboard, CombatTargetType::BossComponent, {}, {}, 0.0, false };
+    CombatTargetAabb core { BossController::kTargetCruiserCore, CombatTargetType::BossComponent, {}, {}, 0.0, false };
+    targets.push_back(port);
+    targets.push_back(star);
+    targets.push_back(core);
+    boss.applyCombatDamage(targets, particles);
+
+    vehicle_sim::physics::RigidBody2D truck {};
+    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    Camera2D camera {};
+
+    boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::CruiserDefeated);
+
+    // Step 3.2 seconds through cruiser overload
+    for (int i { 0 }; i < 200; ++i) {
+        boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
+    }
+    EXPECT_EQ(boss.getActivePhase(), BossPhase::VictoryCleared);
+    EXPECT_TRUE(boss.isBossDefeated());
+}
+
+TEST(BossControllerTest, RenderCleanlinessAcrossPalettes)
+{
+    BossController boss {};
+    Camera2D camera {};
+    CgaPaletteRenderer cga {};
+
+    // 1. Render Mech Head in Mode 1
+    boss.triggerBossEncounter(BossPhase::MechHeadCombat);
+    cga.setPaletteMode(PaletteMode::CgaPalette1);
+    boss.render(cga, camera);
+
+    // 2. Render Mech Head in Mode 0
+    cga.setPaletteMode(PaletteMode::CgaPalette0);
+    boss.render(cga, camera);
+
+    // 3. Render Cruiser in Composite NTSC
+    boss.triggerBossEncounter(BossPhase::CruiserCombat);
+    cga.setPaletteMode(PaletteMode::CompositeNtsc);
+    boss.render(cga, camera);
+
+    // 4. Render Cruiser in EGA
+    cga.setPaletteMode(PaletteMode::EnhancedEga);
+    boss.render(cga, camera);
+}
+
+TEST(GameAppPhase7IntegrationTest, FullBossBattleIntegration)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app{ config };
+    ASSERT_TRUE(app.initialize());
+
+    // Load Stage 8 (Montsoft Secret Fortress)
+    app.getCourse().loadStage(8);
+    EXPECT_EQ(app.getCourse().getCurrentStageIndex(), 8);
+
+    // Move truck to boss arena threshold (x = 436.0m)
+    app.getTruckBody().setPosition(vehicle_sim::math::Vec2{ 436.0, 0.0 });
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.throttle = 0.5;
+    input.firePrimary = true;
+    app.setInput(input);
+
+    // Run 60 frames (1 second of simulation)
+    for (int i { 0 }; i < 60; ++i) {
+        app.updateSimulation(1.0 / 60.0);
+    }
+
+    // Must execute renderFrame cleanly without exceptions
+    app.renderFrame();
+
+    // Verify boss encounter is actively ticking
+    EXPECT_TRUE(app.getBossController().isBossActive());
 }
 
 } // namespace montsoft_offroad

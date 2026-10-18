@@ -232,6 +232,17 @@ void GameApp::updateSimulation(double dt) noexcept
     enemyManager_.update(dt, &courseManager_.getHeightfield(), camera_, truckBody_, particleSystem_);
 
     enemyManager_.syncCombatTargets(combatTargets_);
+    const bool isStage8 { courseManager_.getCurrentStageIndex() == 8 };
+    if (isStage8 || bossController_.isBossActive()) {
+        bossController_.update(
+            dt,
+            &courseManager_.getHeightfield(),
+            camera_,
+            truckBody_,
+            particleSystem_
+        );
+        bossController_.syncCombatTargets(combatTargets_);
+    }
 
     const std::vector<vehicle_sim::physics::RigidBody2D*> sceneBodies{ &truckBody_ };
     combatManager_.update(
@@ -245,6 +256,9 @@ void GameApp::updateSimulation(double dt) noexcept
     );
 
     enemyManager_.applyCombatDamage(combatTargets_, particleSystem_, stageIdx);
+    if (isStage8 || bossController_.isBossActive()) {
+        bossController_.applyCombatDamage(combatTargets_, particleSystem_);
+    }
 
     camera_.update(truckBody_.getPosition(), truckBody_.getLinearVelocity().x, dt);
     parallax_.update(dt);
@@ -285,10 +299,13 @@ void GameApp::renderFrame() noexcept
     // 4. Render active enemy units and incoming projectiles
     enemyManager_.render(cgaRenderer_, camera_);
 
-    // 5. Render articulated 4WD desert truck chassis, suspension, knobby tires, weapons
+    // 5. Render active boss battle entities (Mech Head / Dreadnought Cruiser)
+    bossController_.render(cgaRenderer_, camera_);
+
+    // 6. Render articulated 4WD desert truck chassis, suspension, knobby tires, weapons
     truckRenderer_.render(cgaRenderer_, camera_, truckBody_, truckDynamics_);
 
-    // 6. Render active ballistic projectiles, rockets, mortars, and shockwaves
+    // 7. Render active ballistic projectiles, rockets, mortars, and shockwaves
     combatManager_.render(cgaRenderer_, camera_);
 
     if (!config_.headless && window_ && renderer_) {
@@ -438,6 +455,16 @@ const TruckRenderer& GameApp::getTruckRenderer() const noexcept
 TruckRenderer& GameApp::getTruckRenderer() noexcept
 {
     return truckRenderer_;
+}
+
+const BossController& GameApp::getBossController() const noexcept
+{
+    return bossController_;
+}
+
+BossController& GameApp::getBossController() noexcept
+{
+    return bossController_;
 }
 
 bool GameApp::isPaused() const noexcept

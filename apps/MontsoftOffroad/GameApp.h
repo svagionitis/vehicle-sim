@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "apps/MontsoftOffroad/BossController.h"
 #include "apps/MontsoftOffroad/Camera2D.h"
 #include "apps/MontsoftOffroad/CgaPaletteRenderer.h"
 #include "apps/MontsoftOffroad/CombatManager.h"
@@ -185,6 +186,14 @@ public:
     /// @return Mutable reference to TruckRenderer.
     [[nodiscard]] TruckRenderer& getTruckRenderer() noexcept;
 
+    /// @brief Gets boss battle coordinator.
+    /// @return Constant reference to BossController.
+    [[nodiscard]] const BossController& getBossController() const noexcept;
+
+    /// @brief Gets mutable boss battle coordinator.
+    /// @return Mutable reference to BossController.
+    [[nodiscard]] BossController& getBossController() noexcept;
+
     /// @brief Queries whether simulation is currently paused.
     /// @return True if paused.
     [[nodiscard]] bool isPaused() const noexcept;
@@ -209,6 +218,7 @@ private:
     vehicle_sim::dynamics::OffroadTruckDynamics truckDynamics_ {};
     CombatManager combatManager_ {};
     EnemyManager enemyManager_ {};
+    BossController bossController_ {};
     std::vector<CombatTargetAabb> combatTargets_ {};
 
     bool running_ { false };
