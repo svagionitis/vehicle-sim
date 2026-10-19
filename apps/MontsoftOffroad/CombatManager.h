@@ -165,9 +165,10 @@ private:
         ParticleSystem& particleSystem,
         Camera2D& camera,
         const std::vector<vehicle_sim::physics::RigidBody2D*>& rigidBodies,
+        std::vector<CombatTargetAabb>* targets,
         std::size_t stageIndex
     ) noexcept;
-    void performSweepCollisions(std::vector<CombatTargetAabb>& targets) noexcept;
+    void performSweepCollisions(std::vector<CombatTargetAabb>& targets, double dt) noexcept;
     void spawnShockwave(const vehicle_sim::math::Vec2& epicenter, double radius) noexcept;
     void updateShockwaves(double dt) noexcept;
 
@@ -177,6 +178,7 @@ private:
     double mortarTimer_ { 0.0 };
     std::array<ShockwaveRing, kMaxShockwaves> shockwaves_ {};
     std::size_t nextShockwaveSlot_ { 0 };
+    std::vector<std::uint32_t> directHitIds_ {};
 };
 
 } // namespace montsoft_offroad

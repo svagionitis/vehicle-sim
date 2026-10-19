@@ -91,6 +91,11 @@ public:
     /// @param[in] index Index of projectile in active collection.
     void detonate(std::size_t index) noexcept;
 
+    /// @brief Detonates a projectile at given index at specified world impact point.
+    /// @param[in] index Index of projectile in active collection.
+    /// @param[in] impactPoint Epicenter coordinate of detonation.
+    void detonateAt(std::size_t index, const math::Vec2& impactPoint) noexcept;
+
     /// @brief Gets constant reference to active projectiles.
     /// @return Vector of active ProjectileState instances.
     [[nodiscard]] const std::vector<ProjectileState>& getProjectiles() const noexcept;

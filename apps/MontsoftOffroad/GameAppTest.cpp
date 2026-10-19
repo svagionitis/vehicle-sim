@@ -1942,4 +1942,81 @@ TEST(Camera2DTest, CameraClampsVehicleWithinVerticalScreenBounds)
     EXPECT_LE(screenPosAfterJump.y, 180.0 + 1e-4);
 }
 
+TEST(GameAppTest, RocketDestroysOncomingEnemy)
+{
+    GameAppConfig config {};
+    config.headless = true;
+    GameApp app { config };
+    ASSERT_TRUE(app.initialize());
+
+    // Advance truck a bit with throttle to settle on terrain and get moving
+    vehicle_sim::dynamics::OffroadTruckInput driveInput {};
+    driveInput.throttle = 1.0;
+    app.setInput(driveInput);
+    constexpr double dt { 1.0 / 60.0 };
+    for (int f { 0 }; f < 60; ++f) {
+        app.updateSimulation(dt);
+    }
+
+    const double truckX { app.getTruckBody().getPosition().x };
+    const double enemyX { truckX + 25.0 };
+    const double groundY { app.getCourse().getHeightfield().sampleSurface(enemyX).elevation };
+    app.getEnemyManager().reset();
+    app.getEnemyManager().spawnEnemy(
+        EnemyType::ScoutDirtBike,
+        vehicle_sim::math::Vec2 { enemyX, groundY + 0.6 },
+        vehicle_sim::math::Vec2 { -12.0, 0.0 }
+    );
+    ASSERT_EQ(app.getEnemyManager().getActiveCount(), 1U);
+
+    driveInput.firePrimary = true;
+    app.setInput(driveInput);
+
+    bool hitOccurred { false };
+    for (int frame { 0 }; frame < 60; ++frame) {
+        app.updateSimulation(dt);
+        if (app.getEnemyManager().getAccumulatedScore() > 0U) {
+            hitOccurred = true;
+            break;
+        }
+    }
+
+    EXPECT_TRUE(hitOccurred);
+}
+
+TEST(GameAppTest, RocketDestroysLandmine)
+{
+    GameAppConfig config {};
+    config.headless = true;
+    GameApp app { config };
+    ASSERT_TRUE(app.initialize());
+
+    const double truckX { app.getTruckBody().getPosition().x };
+    const double enemyX { truckX + 15.0 };
+    const double groundY { app.getCourse().getHeightfield().sampleSurface(enemyX).elevation };
+    app.getEnemyManager().spawnEnemy(
+        EnemyType::BuriedLandmine,
+        vehicle_sim::math::Vec2 { enemyX, groundY },
+        vehicle_sim::math::Vec2 { 0.0, 0.0 }
+    );
+    ASSERT_EQ(app.getEnemyManager().getActiveCount(), 1U);
+
+    vehicle_sim::dynamics::OffroadTruckInput input {};
+    input.firePrimary = true;
+    app.setInput(input);
+
+    constexpr double dt { 1.0 / 60.0 };
+    bool hitOccurred { false };
+    for (int frame { 0 }; frame < 60; ++frame) {
+        app.updateSimulation(dt);
+        if (app.getEnemyManager().getActiveCount() == 0U ||
+            app.getEnemyManager().getAccumulatedScore() > 0U) {
+            hitOccurred = true;
+            break;
+        }
+    }
+
+    EXPECT_TRUE(hitOccurred);
+}
+
 } // namespace montsoft_offroad

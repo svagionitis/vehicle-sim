@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <vector>
 
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 
@@ -164,7 +166,7 @@ void OffroadBallistics2D::applyBlast(
     }
 }
 
-void OffroadBallistics2D::detonate(std::size_t index) noexcept
+void OffroadBallistics2D::detonateAt(std::size_t index, const math::Vec2& impactPoint) noexcept
 {
     if (index >= projectiles_.size()) {
         return;
@@ -176,8 +178,17 @@ void OffroadBallistics2D::detonate(std::size_t index) noexcept
     }
 
     proj.isAlive = false;
+    proj.position = impactPoint;
     const auto& cfg { (proj.type == ProjectileType::ForwardRocket) ? rocketConfig_ : mortarConfig_ };
-    pendingBlasts_.push_back(BlastEvent { proj.position, cfg.blastRadius, cfg.baseDamage, cfg.blastMaxImpulse });
+    pendingBlasts_.push_back(BlastEvent { impactPoint, cfg.blastRadius, cfg.baseDamage, cfg.blastMaxImpulse });
+}
+
+void OffroadBallistics2D::detonate(std::size_t index) noexcept
+{
+    if (index >= projectiles_.size()) {
+        return;
+    }
+    detonateAt(index, projectiles_[index].position);
 }
 
 const std::vector<ProjectileState>& OffroadBallistics2D::getProjectiles() const noexcept
