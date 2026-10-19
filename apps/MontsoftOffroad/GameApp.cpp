@@ -46,6 +46,7 @@ bool GameApp::initialize()
     if (config_.headless) {
         campaignManager_.setState(GameState::Playing);
         static_cast<void>(audioSystem_.initialize(true));
+        audioSystem_.setMuted(config_.audioMuted);
         running_ = true;
         return true;
     }
@@ -56,6 +57,7 @@ bool GameApp::initialize()
     }
 
     static_cast<void>(audioSystem_.initialize(false));
+    audioSystem_.setMuted(config_.audioMuted);
 
     SDL_Window* rawWin { SDL_CreateWindow(config_.windowTitle.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         config_.windowWidth, config_.windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE) };

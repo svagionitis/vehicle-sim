@@ -98,6 +98,11 @@ public:
     /// @brief Toggles audio mute state.
     void toggleMute() noexcept;
 
+    /// @brief Sets audio mute state.
+    /// @details Silences all procedural sound generators and music playback when enabled.
+    /// @param[in] muted True to silence audio output, false to enable.
+    void setMuted(bool muted) noexcept;
+
     /// @brief Queries whether audio is currently muted.
     /// @return True if muted.
     [[nodiscard]] bool isMuted() const noexcept;
@@ -118,7 +123,7 @@ private:
 
     SDL_AudioDeviceID deviceId_ { 0 };
     bool audioActive_ { false };
-    std::atomic<bool> muted_ { false };
+    std::atomic<bool> muted_ { true };
     std::atomic<double> masterVolume_ { 0.75 };
 
     mutable std::mutex audioMutex_ {};

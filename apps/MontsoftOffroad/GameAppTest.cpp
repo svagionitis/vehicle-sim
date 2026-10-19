@@ -1607,14 +1607,16 @@ TEST(AudioSystemTest, LifecycleAndHeadlessSafety)
     EXPECT_TRUE(audio.initialize(true)); // Headless mode
     EXPECT_FALSE(audio.isAudioActive());
 
-    // Volume & mute controls
+    // Volume & mute controls (music and audio off by default)
     audio.setMasterVolume(0.5);
     EXPECT_DOUBLE_EQ(audio.getMasterVolume(), 0.5);
 
+    EXPECT_TRUE(audio.isMuted());
+    audio.toggleMute();
     EXPECT_FALSE(audio.isMuted());
     audio.toggleMute();
     EXPECT_TRUE(audio.isMuted());
-    audio.toggleMute();
+    audio.setMuted(false);
     EXPECT_FALSE(audio.isMuted());
 
     // Trigger all sound effects cleanly
@@ -1636,7 +1638,7 @@ TEST(AudioSystemTest, LifecycleAndHeadlessSafety)
     audio.setEngineSpeed(35.0, 1.0, true);
     audio.update(1.0 / 60.0);
 
-    // Audio stream processing callback
+    // Audio stream processing callback when unmuted
     std::int16_t buffer[512] {};
     AudioSystem::audioCallback(&audio, reinterpret_cast<Uint8*>(buffer), sizeof(buffer));
 
@@ -1649,6 +1651,19 @@ TEST(AudioSystemTest, LifecycleAndHeadlessSafety)
         }
     }
     EXPECT_TRUE(hasNonZero);
+
+    // Verify stream processing outputs silence when muted
+    audio.setMuted(true);
+    std::int16_t mutedBuffer[512] {};
+    AudioSystem::audioCallback(&audio, reinterpret_cast<Uint8*>(mutedBuffer), sizeof(mutedBuffer));
+    bool mutedHasNonZero { false };
+    for (const auto sample : mutedBuffer) {
+        if (sample != 0) {
+            mutedHasNonZero = true;
+            break;
+        }
+    }
+    EXPECT_FALSE(mutedHasNonZero);
 
     audio.stopEngine();
     audio.shutdown();
@@ -1823,6 +1838,8 @@ TEST(GameAppPhase8IntegrationTest, FullCampaignAudioAndRenderPasses)
     // Verify headless defaults
     EXPECT_EQ(app.getCampaign().getState(), GameState::Playing);
     EXPECT_EQ(app.getCampaign().getLives(), 3);
+    EXPECT_TRUE(app.getConfig().audioMuted);
+    EXPECT_TRUE(app.getAudio().isMuted());
 
     // Trigger driving controls and weapons
     vehicle_sim::dynamics::OffroadTruckInput input {};

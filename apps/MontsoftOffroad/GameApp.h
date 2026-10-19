@@ -35,6 +35,7 @@ struct GameAppConfig {
     double fixedDt { 1.0 / 60.0 }; ///< Invariant physics simulation timestep in seconds.
     bool headless { false }; ///< True to execute without opening an SDL window.
     PaletteMode initialPalette { PaletteMode::CgaPalette1 }; ///< Starting retro color mode.
+    bool audioMuted { true }; ///< True to silence audio and music playback by default.
 };
 
 /// @class GameApp

@@ -288,6 +288,11 @@ void AudioSystem::toggleMute() noexcept
     muted_.store(!muted_.load());
 }
 
+void AudioSystem::setMuted(bool muted) noexcept
+{
+    muted_.store(muted);
+}
+
 bool AudioSystem::isMuted() const noexcept
 {
     return muted_.load();
