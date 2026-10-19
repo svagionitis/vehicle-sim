@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace earth_patrol {
@@ -10,7 +11,7 @@ namespace {
     inline constexpr int kSampleRate { 44100 };
     inline constexpr double kPi { 3.14159265358979323846 };
 
-    uint32_t gAudioRnd { 0x54321098u };
+    std::uint32_t gAudioRnd { 0x54321098u };
 
     double nextAudioRandom() noexcept
     {
@@ -68,14 +69,14 @@ bool AudioSystem::initialize(bool headless) noexcept
         return false;
     }
 
-    SDL_AudioSpec desired { };
+    SDL_AudioSpec desired {};
     desired.freq = kSampleRate;
     desired.format = AUDIO_S16SYS;
     desired.channels = 1;
     desired.samples = 1024;
     desired.callback = nullptr;
 
-    SDL_AudioSpec obtained { };
+    SDL_AudioSpec obtained {};
     deviceId_ = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
 
     if (deviceId_ == 0) {
@@ -133,7 +134,7 @@ void AudioSystem::playEffect(SoundEffect effect) noexcept
         return;
     }
 
-    std::vector<int16_t> samples { };
+    std::vector<std::int16_t> samples {};
 
     if (effect == SoundEffect::JumpThruster) {
         constexpr double duration { 0.22 };
@@ -151,7 +152,7 @@ void AudioSystem::playEffect(SoundEffect effect) noexcept
             const double env { 1.0 - (t / duration) };
             wave *= env * 0.55;
 
-            samples[i] = static_cast<int16_t>(std::clamp(wave * 26000.0, -32000.0, 32000.0));
+            samples[i] = static_cast<std::int16_t>(std::clamp(wave * 26000.0, -32000.0, 32000.0));
         }
     } else if (effect == SoundEffect::WheelLanding) {
         constexpr double duration { 0.12 };
@@ -168,7 +169,7 @@ void AudioSystem::playEffect(SoundEffect effect) noexcept
             const double env { std::exp(-t * 28.0) };
             wave *= env * 0.65;
 
-            samples[i] = static_cast<int16_t>(std::clamp(wave * 28000.0, -32000.0, 32000.0));
+            samples[i] = static_cast<std::int16_t>(std::clamp(wave * 28000.0, -32000.0, 32000.0));
         }
     } else if (effect == SoundEffect::CrashExplosion) {
         constexpr double duration { 0.45 };
@@ -185,7 +186,7 @@ void AudioSystem::playEffect(SoundEffect effect) noexcept
             const double env { std::exp(-t * 7.5) };
             const double wave { ((0.75 * noise) + (0.35 * rumble)) * env * 0.75 };
 
-            samples[i] = static_cast<int16_t>(std::clamp(wave * 30000.0, -32000.0, 32000.0));
+            samples[i] = static_cast<std::int16_t>(std::clamp(wave * 30000.0, -32000.0, 32000.0));
         }
     } else if (effect == SoundEffect::MilestoneChime) {
         constexpr double duration { 0.28 };
@@ -201,7 +202,7 @@ void AudioSystem::playEffect(SoundEffect effect) noexcept
             const double env { (t < 0.10) ? (1.0 - (t / 0.10)) : (1.0 - ((t - 0.10) / 0.18)) };
             const double wave { std::sin(phase) * env * 0.50 };
 
-            samples[i] = static_cast<int16_t>(std::clamp(wave * 26000.0, -32000.0, 32000.0));
+            samples[i] = static_cast<std::int16_t>(std::clamp(wave * 26000.0, -32000.0, 32000.0));
         }
     } else if (effect == SoundEffect::StageClearFanfare) {
         constexpr double duration { 0.44 };
@@ -223,12 +224,12 @@ void AudioSystem::playEffect(SoundEffect effect) noexcept
             phase += 2.0 * kPi * freq / static_cast<double>(kSampleRate);
             const double wave { std::sin(phase) * 0.45 };
 
-            samples[i] = static_cast<int16_t>(std::clamp(wave * 26000.0, -32000.0, 32000.0));
+            samples[i] = static_cast<std::int16_t>(std::clamp(wave * 26000.0, -32000.0, 32000.0));
         }
     }
 
     if (!samples.empty()) {
-        const auto byteCount { static_cast<Uint32>(samples.size() * sizeof(int16_t)) };
+        const auto byteCount { static_cast<Uint32>(samples.size() * sizeof(std::int16_t)) };
         SDL_QueueAudio(deviceId_, samples.data(), byteCount);
     }
 }

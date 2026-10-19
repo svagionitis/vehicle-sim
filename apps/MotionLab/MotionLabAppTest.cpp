@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #include "apps/MotionLab/MotionLabApp.h"
@@ -6,7 +7,7 @@ using namespace motion_lab;
 
 TEST(MotionLabAppTest, HeadlessInitializationAndDefaultState)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -24,7 +25,7 @@ TEST(MotionLabAppTest, HeadlessInitializationAndDefaultState)
 
 TEST(MotionLabAppTest, PhysicsStepAdvancesSimulation)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -43,7 +44,7 @@ TEST(MotionLabAppTest, PhysicsStepAdvancesSimulation)
 
 TEST(MotionLabAppTest, TogglesAlterAppState)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -77,7 +78,7 @@ TEST(MotionLabAppTest, TogglesAlterAppState)
 
 TEST(MotionLabAppTest, CameraResizeUpdatesBaseZoomAndBounds)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     config.windowWidth = 1280;
     config.windowHeight = 720;
@@ -99,7 +100,7 @@ TEST(MotionLabAppTest, CameraResizeUpdatesBaseZoomAndBounds)
 
 TEST(MotionLabAppTest, TerrainDefaultAndDirectSelection)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -124,7 +125,7 @@ TEST(MotionLabAppTest, TerrainDefaultAndDirectSelection)
 
 TEST(MotionLabAppTest, CycleTerrainSequencesAllPresets)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -157,7 +158,7 @@ TEST(MotionLabAppTest, CycleTerrainSequencesAllPresets)
 
 TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -267,7 +268,7 @@ TEST(MotionLabAppTest, VehicleDefaultAndDirectSelection)
 
 TEST(MotionLabAppTest, CycleVehicleSequencesAllPresets)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -315,7 +316,7 @@ TEST(MotionLabAppTest, CycleVehicleSequencesAllPresets)
 
 TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -346,7 +347,7 @@ TEST(MotionLabAppTest, PhysicsStepAdvancesAllVehicleModels)
 
 TEST(MotionLabAppTest, CircuitTrackInitializationAndGeneration)
 {
-    CircuitTrackCoordinator coordinator { };
+    CircuitTrackCoordinator coordinator {};
     EXPECT_FALSE(coordinator.isEnabled());
     coordinator.toggleEnabled();
     EXPECT_TRUE(coordinator.isEnabled());
@@ -361,7 +362,7 @@ TEST(MotionLabAppTest, CircuitTrackInitializationAndGeneration)
 
 TEST(MotionLabAppTest, CircuitTrackResetPositionsVehicleOnGrid)
 {
-    CircuitTrackCoordinator coordinator { };
+    CircuitTrackCoordinator coordinator {};
     coordinator.toggleEnabled();
 
     vehicle_sim::physics::RigidBody2D body { vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 } };
@@ -377,7 +378,7 @@ TEST(MotionLabAppTest, CircuitTrackResetPositionsVehicleOnGrid)
 
 TEST(MotionLabAppTest, CircuitTrackSurfaceMaterialTransitions)
 {
-    CircuitTrackCoordinator coordinator { };
+    CircuitTrackCoordinator coordinator {};
     coordinator.toggleEnabled();
 
     vehicle_sim::physics::RigidBody2D body { vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 } };
@@ -404,7 +405,7 @@ TEST(MotionLabAppTest, CircuitTrackSurfaceMaterialTransitions)
 
 TEST(MotionLabAppTest, CircuitTrackAppTogglesAndRegeneration)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
 
     MotionLabApp app { config };
@@ -434,7 +435,7 @@ TEST(MotionLabAppTest, CircuitTrackAppTogglesAndRegeneration)
 
 TEST(MotionLabAppTest, CircuitTrackTimingGatesTraverseLap)
 {
-    CircuitTrackCoordinator coordinator { };
+    CircuitTrackCoordinator coordinator {};
     coordinator.toggleEnabled();
 
     vehicle_sim::physics::RigidBody2D body { vehicle_sim::physics::RigidBodyConfig { 1000.0, 1666.667 } };
@@ -459,7 +460,7 @@ TEST(MotionLabAppTest, CircuitTrackTimingGatesTraverseLap)
 
 TEST(MotionLabAppTest, SlalomCourseGeometryLayout)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     const auto& pylons = coordinator.getPylons();
 
     EXPECT_EQ(pylons.size(), 10U);
@@ -476,9 +477,9 @@ TEST(MotionLabAppTest, SlalomCourseGeometryLayout)
 
 TEST(MotionLabAppTest, SlalomStartGateTriggerSpeedSensitivity)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Staged behind start line
     body.setPosition(vehicle_sim::math::Vec2 { -1.0, 0.0 });
@@ -503,9 +504,9 @@ TEST(MotionLabAppTest, SlalomStartGateTriggerSpeedSensitivity)
 
 TEST(MotionLabAppTest, SlalomPylonHitLatchingAndPenalties)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Trigger start
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -535,9 +536,9 @@ TEST(MotionLabAppTest, SlalomPylonHitLatchingAndPenalties)
 
 TEST(MotionLabAppTest, SlalomWeaveComplianceValidation)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Start run
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -569,9 +570,9 @@ TEST(MotionLabAppTest, SlalomWeaveComplianceValidation)
 
 TEST(MotionLabAppTest, SlalomSectorSplitsAndFinishTiming)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Start run
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -601,9 +602,9 @@ TEST(MotionLabAppTest, SlalomSectorSplitsAndFinishTiming)
 
 TEST(MotionLabAppTest, SlalomResetRestoresCleanState)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Start and hit a cone
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -631,7 +632,7 @@ TEST(MotionLabAppTest, SlalomResetRestoresCleanState)
 
 TEST(MotionLabAppTest, SlalomAppTogglesAndExclusivity)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
 
@@ -653,7 +654,7 @@ TEST(MotionLabAppTest, SlalomAppTogglesAndExclusivity)
 
 TEST(MotionLabAppTest, MooseTestDimensionsScaling)
 {
-    MooseTestCoordinator coordinator { };
+    MooseTestCoordinator coordinator {};
     coordinator.setEnabled(true);
 
     // Default vehicle width: 2.0m
@@ -689,9 +690,9 @@ TEST(MotionLabAppTest, MooseTestDimensionsScaling)
 
 TEST(MotionLabAppTest, MooseTestStartGateSensitivity)
 {
-    MooseTestCoordinator coordinator { };
+    MooseTestCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Stage behind line at x = -1.0m, creeping forward below 1.0 m/s threshold
     body.setPosition(vehicle_sim::math::Vec2 { -1.0, 0.0 });
@@ -717,9 +718,9 @@ TEST(MotionLabAppTest, MooseTestStartGateSensitivity)
 
 TEST(MotionLabAppTest, MooseTestPylonCollisionAndSingleHitLatching)
 {
-    MooseTestCoordinator coordinator { };
+    MooseTestCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Trigger start at 60 km/h
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -749,9 +750,9 @@ TEST(MotionLabAppTest, MooseTestPylonCollisionAndSingleHitLatching)
 
 TEST(MotionLabAppTest, MooseTestThrottleAndBrakeViolations)
 {
-    MooseTestCoordinator coordinator { };
+    MooseTestCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Trigger start
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -771,9 +772,9 @@ TEST(MotionLabAppTest, MooseTestThrottleAndBrakeViolations)
 
 TEST(MotionLabAppTest, MooseTestCleanPassAndBestSpeedRecord)
 {
-    MooseTestCoordinator coordinator { };
+    MooseTestCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Start run at 70 km/h (19.444 m/s)
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -808,9 +809,9 @@ TEST(MotionLabAppTest, MooseTestCleanPassAndBestSpeedRecord)
 
 TEST(MotionLabAppTest, MooseTestResetIntegrity)
 {
-    MooseTestCoordinator coordinator { };
+    MooseTestCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Trigger start and hit a cone
     body.setPosition(vehicle_sim::math::Vec2 { -0.5, 0.0 });
@@ -837,7 +838,7 @@ TEST(MotionLabAppTest, MooseTestResetIntegrity)
 
 TEST(MotionLabAppTest, MooseTestAppTogglesAndExclusivity)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
 
@@ -865,7 +866,7 @@ TEST(MotionLabAppTest, MooseTestAppTogglesAndExclusivity)
 
 TEST(MotionLabAppTest, SkidpadPylonLayout15m)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setRadiusPreset(SkidpadRadiusPreset::Radius15m);
     EXPECT_EQ(coordinator.getRadiusPreset(), SkidpadRadiusPreset::Radius15m);
     EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 15.0);
@@ -889,7 +890,7 @@ TEST(MotionLabAppTest, SkidpadPylonLayout15m)
 
 TEST(MotionLabAppTest, SkidpadPylonLayout30m)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setRadiusPreset(SkidpadRadiusPreset::Radius30m);
     EXPECT_EQ(coordinator.getRadiusPreset(), SkidpadRadiusPreset::Radius30m);
     EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 30.0);
@@ -913,9 +914,9 @@ TEST(MotionLabAppTest, SkidpadPylonLayout30m)
 
 TEST(MotionLabAppTest, SkidpadKinematicLatAcc)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Speed corresponding to exactly 1.0G on 30m circle: v = sqrt(9.80665 * 30) = 17.152 m/s
     constexpr double targetSpeed { 17.15227 };
@@ -930,9 +931,9 @@ TEST(MotionLabAppTest, SkidpadKinematicLatAcc)
 
 TEST(MotionLabAppTest, SkidpadDirectionAndGateEvaluation)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     constexpr double r { 30.0 };
     constexpr double dt { 0.05 };
@@ -957,9 +958,9 @@ TEST(MotionLabAppTest, SkidpadDirectionAndGateEvaluation)
 
 TEST(MotionLabAppTest, SkidpadUndersteerGradientAndBalance)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     constexpr double r { 30.0 };
     constexpr double wheelbase { 2.6 };
@@ -984,9 +985,9 @@ TEST(MotionLabAppTest, SkidpadUndersteerGradientAndBalance)
 
 TEST(MotionLabAppTest, SkidpadPylonCollisionOBB)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Find first inner pylon position
     const auto& pylons = coordinator.getPylons();
@@ -1003,9 +1004,9 @@ TEST(MotionLabAppTest, SkidpadPylonCollisionOBB)
 
 TEST(MotionLabAppTest, SkidpadStagingReset)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     coordinator.setEnabled(true);
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
 
     // Move somewhere and hit a cone
     body.setPosition(coordinator.getPylons()[0].position);
@@ -1024,7 +1025,7 @@ TEST(MotionLabAppTest, SkidpadStagingReset)
 
 TEST(MotionLabAppTest, SkidpadAppTogglesAndExclusivity)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
 
@@ -1073,7 +1074,7 @@ TEST(MotionLabAppTest, SkidpadAppTogglesAndExclusivity)
 
 TEST(MotionLabAppTest, FleetExpansionDistinctModelProperties)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
@@ -1097,7 +1098,7 @@ TEST(MotionLabAppTest, FleetExpansionDistinctModelProperties)
 
 TEST(MotionLabAppTest, SlalomDimensionsDynamicScaling)
 {
-    SlalomCourseCoordinator coordinator { };
+    SlalomCourseCoordinator coordinator {};
     EXPECT_DOUBLE_EQ(coordinator.getPylonSpacing(), 10.0);
     EXPECT_NEAR(coordinator.getApexOffset(), 1.55, 1e-4);
     EXPECT_DOUBLE_EQ(coordinator.getStagingX(), -15.0);
@@ -1131,7 +1132,7 @@ TEST(MotionLabAppTest, SlalomDimensionsDynamicScaling)
 
 TEST(MotionLabAppTest, SkidpadDimensionsDynamicScaling)
 {
-    SkidpadCoordinator coordinator { };
+    SkidpadCoordinator coordinator {};
     // Default Car (W = 2.0, L = 4.0) at 30m preset
     EXPECT_DOUBLE_EQ(coordinator.getTargetRadius(), 30.0);
     EXPECT_DOUBLE_EQ(coordinator.getCorridorWidth(), 3.5);
@@ -1159,7 +1160,7 @@ TEST(MotionLabAppTest, SkidpadDimensionsDynamicScaling)
 
 TEST(MotionLabAppTest, CircuitTrackDimensionsDynamicScaling)
 {
-    CircuitTrackCoordinator coordinator { };
+    CircuitTrackCoordinator coordinator {};
     EXPECT_DOUBLE_EQ(coordinator.getTrackWidth(), 10.0);
 
     // Scale for Semi-Truck (W = 2.5, L = 12.0)
@@ -1170,7 +1171,7 @@ TEST(MotionLabAppTest, CircuitTrackDimensionsDynamicScaling)
 
 TEST(MotionLabAppTest, VehicleCyclingPropagatesDimensionsToAllCoordinators)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
@@ -1189,11 +1190,11 @@ TEST(MotionLabAppTest, VehicleCyclingPropagatesDimensionsToAllCoordinators)
 
 TEST(MotionLabAppTest, TelemetryCoordinatorBasicOperations)
 {
-    TelemetryCoordinator coordinator { };
+    TelemetryCoordinator coordinator {};
     EXPECT_TRUE(coordinator.getBuffer().isEmpty());
     EXPECT_FALSE(coordinator.isRecording());
 
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
     body.setPosition({ 10.0, 20.0 });
     body.setLinearVelocity({ 15.0, 0.0 });
 
@@ -1201,7 +1202,7 @@ TEST(MotionLabAppTest, TelemetryCoordinatorBasicOperations)
     EXPECT_FALSE(coordinator.getBuffer().isEmpty());
     EXPECT_EQ(coordinator.getBuffer().getCount(), 1U);
 
-    ExtendedTelemetrySnapshot snapshot { };
+    ExtendedTelemetrySnapshot snapshot {};
     coordinator.populateSnapshot(snapshot);
     EXPECT_NEAR(snapshot.speedMps, 15.0, 1e-3);
     EXPECT_GT(snapshot.wheelLoads.frontLeftLoad, 0.0);
@@ -1211,7 +1212,7 @@ TEST(MotionLabAppTest, TelemetryCoordinatorBasicOperations)
 
 TEST(MotionLabAppTest, TelemetryCoordinatorRecordingSession)
 {
-    TelemetryCoordinator coordinator { };
+    TelemetryCoordinator coordinator {};
     EXPECT_FALSE(coordinator.isRecording());
 
     // Start recording
@@ -1219,7 +1220,7 @@ TEST(MotionLabAppTest, TelemetryCoordinatorRecordingSession)
     EXPECT_TRUE(coordinator.isRecording());
     EXPECT_FALSE(coordinator.getRecordFile().empty());
 
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
     body.setPosition({ 0.0, 0.0 });
     body.setLinearVelocity({ 20.0, 0.0 });
 
@@ -1235,7 +1236,7 @@ TEST(MotionLabAppTest, TelemetryCoordinatorRecordingSession)
 
 TEST(MotionLabAppTest, MotionLabAppTelemetryIntegration)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
@@ -1273,7 +1274,7 @@ TEST(MotionLabAppTest, MotionLabAppTelemetryIntegration)
 
 TEST(MotionLabAppTest, WindCoordinatorPresetsAndCycling)
 {
-    WindTurbulenceCoordinator coordinator { };
+    WindTurbulenceCoordinator coordinator {};
     EXPECT_TRUE(coordinator.isWindActive());
     EXPECT_EQ(coordinator.getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::Calm);
     EXPECT_DOUBLE_EQ(coordinator.getSnapshot().trueWindSpeed, 0.0);
@@ -1303,17 +1304,17 @@ TEST(MotionLabAppTest, WindCoordinatorPresetsAndCycling)
     coordinator.adjustWindSpeed(1.25);
     coordinator.rotateWindHeading(15.0);
 
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
     coordinator.stepPhysics(body, MotionLabVehicleType::ClassicCar, 0.01);
     EXPECT_GT(coordinator.getSnapshot().trueWindSpeed, initialSpeed);
 }
 
 TEST(MotionLabAppTest, WindCoordinatorAeroInjectionAcrossFleet)
 {
-    WindTurbulenceCoordinator coordinator { };
+    WindTurbulenceCoordinator coordinator {};
     coordinator.setPreset(vehicle_sim::physics::WindEnvironmentPreset::CrosswindGale);
 
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
     body.setBodyType(vehicle_sim::physics::BodyType::Dynamic);
     body.setMass(1200.0);
 
@@ -1343,7 +1344,7 @@ TEST(MotionLabAppTest, WindCoordinatorAeroInjectionAcrossFleet)
 
 TEST(MotionLabAppTest, WindVectorFieldRendererParticleLifecycle)
 {
-    WindVectorFieldRenderer renderer { };
+    WindVectorFieldRenderer renderer {};
     EXPECT_TRUE(renderer.isOverlayEnabled());
 
     renderer.toggleOverlay();
@@ -1351,9 +1352,9 @@ TEST(MotionLabAppTest, WindVectorFieldRendererParticleLifecycle)
     renderer.setOverlayEnabled(true);
     EXPECT_TRUE(renderer.isOverlayEnabled());
 
-    WindTurbulenceCoordinator coordinator { };
+    WindTurbulenceCoordinator coordinator {};
     coordinator.setPreset(vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
-    MotionLabCamera camera { };
+    MotionLabCamera camera {};
 
     // Advance particle updates across multiple frames
     for (int i { 0 }; i < 30; ++i) {
@@ -1361,7 +1362,7 @@ TEST(MotionLabAppTest, WindVectorFieldRendererParticleLifecycle)
     }
 
     // Advance with moving vehicle body to verify aerodynamic wake emission
-    vehicle_sim::physics::RigidBody2D body { };
+    vehicle_sim::physics::RigidBody2D body {};
     body.setLinearVelocity({ 25.0, 0.0 });
     for (int i { 0 }; i < 20; ++i) {
         renderer.updateParticles(coordinator, camera, 0.016, &body);
@@ -1370,7 +1371,7 @@ TEST(MotionLabAppTest, WindVectorFieldRendererParticleLifecycle)
 
 TEST(MotionLabAppTest, MotionLabAppWindIntegration)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
@@ -1380,8 +1381,8 @@ TEST(MotionLabAppTest, MotionLabAppWindIntegration)
 
     // Switch to Severe Storm and step physics
     app.getWindCoordinator().setPreset(vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
-    EXPECT_EQ(app.getWindCoordinator().getSnapshot().activePreset,
-              vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
+    EXPECT_EQ(
+        app.getWindCoordinator().getSnapshot().activePreset, vehicle_sim::physics::WindEnvironmentPreset::SevereStorm);
 
     // Step physics: crosswind force pushes vehicle from origin
     for (int i { 0 }; i < 60; ++i) {
@@ -1395,7 +1396,7 @@ TEST(MotionLabAppTest, MotionLabAppWindIntegration)
 
 TEST(MotionLabAppTest, WindHudVisibilityToggle)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
@@ -1419,18 +1420,13 @@ TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
         return !noOverlap;
     };
 
-    const std::vector<std::pair<int, int>> testResolutions {
-        { 1280, 720 },
-        { 1920, 1080 },
-        { 1024, 768 },
-        { 800, 600 }
-    };
+    const std::vector<std::pair<int, int>> testResolutions { { 1280, 720 }, { 1920, 1080 }, { 1024, 768 },
+        { 800, 600 } };
 
     for (const auto& [w, h] : testResolutions) {
         for (const bool circuitActive : { false, true }) {
             for (const bool advancedHudActive : { false, true }) {
-                const auto pos = WindVectorFieldRenderer::computeHudCardPos(
-                    w, h, circuitActive, advancedHudActive);
+                const auto pos = WindVectorFieldRenderer::computeHudCardPos(w, h, circuitActive, advancedHudActive);
 
                 // Ensure HUD card fits inside viewport
                 EXPECT_GE(pos.x, 0);
@@ -1445,11 +1441,10 @@ TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
                     constexpr int advW { 228 };
                     constexpr int advH { 232 };
 
-                    EXPECT_FALSE(intersects(
-                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
-                        advX, advY, advW, advH))
-                        << "Overlap detected with Advanced HUD at res (" << w << "x" << h << "), circuit: "
-                        << circuitActive << ", advanced: " << advancedHudActive;
+                    EXPECT_FALSE(intersects(pos.x, pos.y, WindVectorFieldRenderer::kCardWidth,
+                        WindVectorFieldRenderer::kCardHeight, advX, advY, advW, advH))
+                        << "Overlap detected with Advanced HUD at res (" << w << "x" << h
+                        << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive;
                 }
 
                 // 2. Verify no overlap with Circuit Radar
@@ -1459,9 +1454,8 @@ TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
                     constexpr int radarW { 140 };
                     constexpr int radarH { 140 };
 
-                    EXPECT_FALSE(intersects(
-                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
-                        radarX, radarY, radarW, radarH))
+                    EXPECT_FALSE(intersects(pos.x, pos.y, WindVectorFieldRenderer::kCardWidth,
+                        WindVectorFieldRenderer::kCardHeight, radarX, radarY, radarW, radarH))
                         << "Overlap detected with Circuit Radar at res (" << w << "x" << h << ")";
                 }
 
@@ -1472,11 +1466,10 @@ TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
                     constexpr int inputW { 250 };
                     constexpr int inputH { 20 };
 
-                    EXPECT_FALSE(intersects(
-                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
-                        inputX, inputY, inputW, inputH))
-                        << "Overlap detected with Input HUD at res (" << w << "x" << h << "), circuit: "
-                        << circuitActive << ", advanced: " << advancedHudActive;
+                    EXPECT_FALSE(intersects(pos.x, pos.y, WindVectorFieldRenderer::kCardWidth,
+                        WindVectorFieldRenderer::kCardHeight, inputX, inputY, inputW, inputH))
+                        << "Overlap detected with Input HUD at res (" << w << "x" << h
+                        << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive;
                 }
 
                 // 4. Verify no overlap with Live Telemetry metrics text (top-left)
@@ -1486,11 +1479,10 @@ TEST(MotionLabAppTest, WindHudNoOverlapWithOtherHuds)
                     constexpr int textW { 180 };
                     constexpr int textH { 180 };
 
-                    EXPECT_FALSE(intersects(
-                        pos.x, pos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight,
-                        textX, textY, textW, textH))
-                        << "Overlap detected with Live Metrics text at res (" << w << "x" << h << "), circuit: "
-                        << circuitActive << ", advanced: " << advancedHudActive;
+                    EXPECT_FALSE(intersects(pos.x, pos.y, WindVectorFieldRenderer::kCardWidth,
+                        WindVectorFieldRenderer::kCardHeight, textX, textY, textW, textH))
+                        << "Overlap detected with Live Metrics text at res (" << w << "x" << h
+                        << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive;
                 }
             }
         }
@@ -1504,12 +1496,8 @@ TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
         return !noOverlap;
     };
 
-    const std::vector<std::pair<int, int>> testResolutions {
-        { 1280, 720 },
-        { 1920, 1080 },
-        { 1024, 768 },
-        { 800, 600 }
-    };
+    const std::vector<std::pair<int, int>> testResolutions { { 1280, 720 }, { 1920, 1080 }, { 1024, 768 },
+        { 800, 600 } };
 
     for (const auto& [w, h] : testResolutions) {
         for (const bool circuitActive : { false, true }) {
@@ -1532,11 +1520,11 @@ TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
                             constexpr int advW { 228 };
                             constexpr int advH { 232 };
 
-                            EXPECT_FALSE(intersects(
-                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
-                                advX, advY, advW, advH))
-                                << "Overlap detected with Advanced HUD at res (" << w << "x" << h << "), circuit: "
-                                << circuitActive << ", advanced: " << advancedHudActive << ", wind: " << windHudActive;
+                            EXPECT_FALSE(intersects(pos.x, pos.y, TireThermalRenderer::kCardWidth,
+                                TireThermalRenderer::kCardHeight, advX, advY, advW, advH))
+                                << "Overlap detected with Advanced HUD at res (" << w << "x" << h
+                                << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive
+                                << ", wind: " << windHudActive;
                         }
 
                         // 2. Verify no overlap with Circuit Radar
@@ -1546,22 +1534,22 @@ TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
                             constexpr int radarW { 140 };
                             constexpr int radarH { 140 };
 
-                            EXPECT_FALSE(intersects(
-                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
-                                radarX, radarY, radarW, radarH))
+                            EXPECT_FALSE(intersects(pos.x, pos.y, TireThermalRenderer::kCardWidth,
+                                TireThermalRenderer::kCardHeight, radarX, radarY, radarW, radarH))
                                 << "Overlap detected with Circuit Radar at res (" << w << "x" << h << ")";
                         }
 
                         // 3. Verify no overlap with Wind HUD
                         if (windHudActive) {
-                            const auto wPos = WindVectorFieldRenderer::computeHudCardPos(
-                                w, h, circuitActive, advancedHudActive);
+                            const auto wPos
+                                = WindVectorFieldRenderer::computeHudCardPos(w, h, circuitActive, advancedHudActive);
 
-                            EXPECT_FALSE(intersects(
-                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
-                                wPos.x, wPos.y, WindVectorFieldRenderer::kCardWidth, WindVectorFieldRenderer::kCardHeight))
-                                << "Overlap detected with Wind HUD at res (" << w << "x" << h << "), circuit: "
-                                << circuitActive << ", advanced: " << advancedHudActive << ", wind: " << windHudActive;
+                            EXPECT_FALSE(intersects(pos.x, pos.y, TireThermalRenderer::kCardWidth,
+                                TireThermalRenderer::kCardHeight, wPos.x, wPos.y, WindVectorFieldRenderer::kCardWidth,
+                                WindVectorFieldRenderer::kCardHeight))
+                                << "Overlap detected with Wind HUD at res (" << w << "x" << h
+                                << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive
+                                << ", wind: " << windHudActive;
                         }
 
                         // 4. Verify no overlap with Proving Ground HUD
@@ -1571,9 +1559,8 @@ TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
                             constexpr int pgW { 220 };
                             constexpr int pgH { 145 };
 
-                            EXPECT_FALSE(intersects(
-                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
-                                pgX, pgY, pgW, pgH))
+                            EXPECT_FALSE(intersects(pos.x, pos.y, TireThermalRenderer::kCardWidth,
+                                TireThermalRenderer::kCardHeight, pgX, pgY, pgW, pgH))
                                 << "Overlap detected with Proving Ground HUD at res (" << w << "x" << h << ")";
                         }
 
@@ -1584,11 +1571,10 @@ TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
                             constexpr int inputW { 250 };
                             constexpr int inputH { 20 };
 
-                            EXPECT_FALSE(intersects(
-                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
-                                inputX, inputY, inputW, inputH))
-                                << "Overlap detected with Input HUD at res (" << w << "x" << h << "), circuit: "
-                                << circuitActive << ", advanced: " << advancedHudActive;
+                            EXPECT_FALSE(intersects(pos.x, pos.y, TireThermalRenderer::kCardWidth,
+                                TireThermalRenderer::kCardHeight, inputX, inputY, inputW, inputH))
+                                << "Overlap detected with Input HUD at res (" << w << "x" << h
+                                << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive;
                         }
 
                         // 6. Verify no overlap with Live Telemetry metrics text (top-left)
@@ -1598,11 +1584,10 @@ TEST(MotionLabAppTest, TireHudNoOverlapWithOtherHuds)
                             constexpr int textW { 180 };
                             constexpr int textH { 180 };
 
-                            EXPECT_FALSE(intersects(
-                                pos.x, pos.y, TireThermalRenderer::kCardWidth, TireThermalRenderer::kCardHeight,
-                                textX, textY, textW, textH))
-                                << "Overlap detected with Live Metrics text at res (" << w << "x" << h << "), circuit: "
-                                << circuitActive << ", advanced: " << advancedHudActive;
+                            EXPECT_FALSE(intersects(pos.x, pos.y, TireThermalRenderer::kCardWidth,
+                                TireThermalRenderer::kCardHeight, textX, textY, textW, textH))
+                                << "Overlap detected with Live Metrics text at res (" << w << "x" << h
+                                << "), circuit: " << circuitActive << ", advanced: " << advancedHudActive;
                         }
                     }
                 }
@@ -1656,7 +1641,8 @@ TEST(MotionLabAppTest, TireThermalScrubHeatingAcrossFleet)
 
     // Intense rear wheel scrub
     for (int i { 0 }; i < 300; ++i) {
-        coordinator.updateWheel(2, 4000.0, 2000.0, 4500.0, 6.0, 3.0, 35.0, 0.32, 12.0, { -1.3, 0.8 }, 0.016, smokeBuffer);
+        coordinator.updateWheel(
+            2, 4000.0, 2000.0, 4500.0, 6.0, 3.0, 35.0, 0.32, 12.0, { -1.3, 0.8 }, 0.016, smokeBuffer);
     }
 
     const auto& stateRL = coordinator.getWheelState(2);
@@ -1708,7 +1694,7 @@ TEST(MotionLabAppTest, MotionLabAppTireThermalIntegrationAndToggles)
 
 TEST(MotionLabAppTest, AudioSystemAppIntegrationAndToggles)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());
@@ -1743,7 +1729,7 @@ TEST(MotionLabAppTest, AudioSystemAppIntegrationAndToggles)
 
 TEST(MotionLabAppTest, BarrierImpactTriggersAudioClang)
 {
-    MotionLabAppConfig config { };
+    MotionLabAppConfig config {};
     config.headless = true;
     MotionLabApp app { config };
     EXPECT_TRUE(app.initialize());

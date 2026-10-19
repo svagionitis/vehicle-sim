@@ -2,26 +2,27 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace motion_lab {
 
-SlalomCourseCoordinator::SlalomCourseCoordinator() noexcept {
+SlalomCourseCoordinator::SlalomCourseCoordinator() noexcept
+{
     recomputeLayout();
 }
 
-void SlalomCourseCoordinator::updateDimensions(double vehicleWidth, double vehicleLength) noexcept {
+void SlalomCourseCoordinator::updateDimensions(double vehicleWidth, double vehicleLength) noexcept
+{
     mVehicleWidth = std::max(vehicleWidth, 0.5);
     mVehicleLength = std::max(vehicleLength, 0.5);
     mPylonSpacing = std::max(10.0, 2.5 * mVehicleLength);
     recomputeLayout();
 }
 
-void SlalomCourseCoordinator::recomputeLayout() noexcept {
+void SlalomCourseCoordinator::recomputeLayout() noexcept
+{
     for (std::size_t i { 0U }; i < kPylonCount; ++i) {
-        mPylons[i].position = vehicle_sim::math::Vec2 {
-            static_cast<double>(i + 1U) * mPylonSpacing,
-            0.0
-        };
+        mPylons[i].position = vehicle_sim::math::Vec2 { static_cast<double>(i + 1U) * mPylonSpacing, 0.0 };
         mPylons[i].radius = 0.4;
         mPylons[i].toppleDir = vehicle_sim::math::Vec2 { 1.0, 0.0 };
         mPylons[i].toppleAngle = 0.0;
@@ -32,7 +33,8 @@ void SlalomCourseCoordinator::recomputeLayout() noexcept {
     }
 }
 
-void SlalomCourseCoordinator::stepPhysics(vehicle_sim::physics::RigidBody2D& body, double dt) noexcept {
+void SlalomCourseCoordinator::stepPhysics(vehicle_sim::physics::RigidBody2D& body, double dt) noexcept
+{
     if (!mEnabled) {
         return;
     }
@@ -47,7 +49,8 @@ void SlalomCourseCoordinator::stepPhysics(vehicle_sim::physics::RigidBody2D& bod
     mLastPos = body.getPosition();
 }
 
-void SlalomCourseCoordinator::updateIdle(const vehicle_sim::physics::RigidBody2D& body) noexcept {
+void SlalomCourseCoordinator::updateIdle(const vehicle_sim::physics::RigidBody2D& body) noexcept
+{
     const vehicle_sim::math::Vec2 currPos { body.getPosition() };
     const vehicle_sim::math::Vec2 vel { body.getLinearVelocity() };
     const double speed { vel.length() };
@@ -77,7 +80,8 @@ void SlalomCourseCoordinator::updateIdle(const vehicle_sim::physics::RigidBody2D
     }
 }
 
-void SlalomCourseCoordinator::updateRunning(vehicle_sim::physics::RigidBody2D& body, double dt) noexcept {
+void SlalomCourseCoordinator::updateRunning(vehicle_sim::physics::RigidBody2D& body, double dt) noexcept
+{
     mMetrics.elapsedTime += dt;
     mMetrics.finalTime = mMetrics.elapsedTime + mMetrics.penaltyTime;
 
@@ -85,7 +89,8 @@ void SlalomCourseCoordinator::updateRunning(vehicle_sim::physics::RigidBody2D& b
     checkGates(mLastPos, body.getPosition());
 }
 
-void SlalomCourseCoordinator::checkCollisions(const vehicle_sim::physics::RigidBody2D& body) noexcept {
+void SlalomCourseCoordinator::checkCollisions(const vehicle_sim::physics::RigidBody2D& body) noexcept
+{
     const vehicle_sim::math::Vec2 center { body.getPosition() };
     const double angle { body.getOrientation() };
     const double cosA { std::cos(angle) };
@@ -125,8 +130,9 @@ void SlalomCourseCoordinator::checkCollisions(const vehicle_sim::physics::RigidB
     }
 }
 
-void SlalomCourseCoordinator::checkGates(const vehicle_sim::math::Vec2& prevPos,
-                                        const vehicle_sim::math::Vec2& currPos) noexcept {
+void SlalomCourseCoordinator::checkGates(
+    const vehicle_sim::math::Vec2& prevPos, const vehicle_sim::math::Vec2& currPos) noexcept
+{
     // Check Sector 1 split (midway between Cone 3 and Cone 4: 3.5 * mPylonSpacing)
     if (!mSec1Recorded && currPos.x >= getSector1X()) {
         mSec1Recorded = true;
@@ -174,7 +180,8 @@ void SlalomCourseCoordinator::checkGates(const vehicle_sim::math::Vec2& prevPos,
     }
 }
 
-void SlalomCourseCoordinator::resetCourse(vehicle_sim::physics::RigidBody2D& body) noexcept {
+void SlalomCourseCoordinator::resetCourse(vehicle_sim::physics::RigidBody2D& body) noexcept
+{
     const double stagingX { getStagingX() };
     body.setPosition(vehicle_sim::math::Vec2 { stagingX, 0.0 });
     body.setOrientation(0.0);
@@ -205,71 +212,88 @@ void SlalomCourseCoordinator::resetCourse(vehicle_sim::physics::RigidBody2D& bod
     }
 }
 
-void SlalomCourseCoordinator::toggleEnabled() noexcept {
+void SlalomCourseCoordinator::toggleEnabled() noexcept
+{
     mEnabled = !mEnabled;
 }
 
-void SlalomCourseCoordinator::setEnabled(bool enabled) noexcept {
+void SlalomCourseCoordinator::setEnabled(bool enabled) noexcept
+{
     mEnabled = enabled;
 }
 
-bool SlalomCourseCoordinator::isEnabled() const noexcept {
+bool SlalomCourseCoordinator::isEnabled() const noexcept
+{
     return mEnabled;
 }
 
-SlalomState SlalomCourseCoordinator::getState() const noexcept {
+SlalomState SlalomCourseCoordinator::getState() const noexcept
+{
     return mState;
 }
 
-const SlalomMetrics& SlalomCourseCoordinator::getMetrics() const noexcept {
+const SlalomMetrics& SlalomCourseCoordinator::getMetrics() const noexcept
+{
     return mMetrics;
 }
 
-const std::array<SlalomPylon, SlalomCourseCoordinator::kPylonCount>& SlalomCourseCoordinator::getPylons() const noexcept {
+const std::array<SlalomPylon, SlalomCourseCoordinator::kPylonCount>& SlalomCourseCoordinator::getPylons() const noexcept
+{
     return mPylons;
 }
 
-double SlalomCourseCoordinator::getNextWeaveSign() const noexcept {
+double SlalomCourseCoordinator::getNextWeaveSign() const noexcept
+{
     return (mNextConeIdx % 2U == 0U) ? 1.0 : -1.0;
 }
 
-std::uint32_t SlalomCourseCoordinator::getNextConeIndex() const noexcept {
+std::uint32_t SlalomCourseCoordinator::getNextConeIndex() const noexcept
+{
     return static_cast<std::uint32_t>(mNextConeIdx + 1U);
 }
 
-double SlalomCourseCoordinator::getPylonSpacing() const noexcept {
+double SlalomCourseCoordinator::getPylonSpacing() const noexcept
+{
     return mPylonSpacing;
 }
 
-double SlalomCourseCoordinator::getVehicleWidth() const noexcept {
+double SlalomCourseCoordinator::getVehicleWidth() const noexcept
+{
     return mVehicleWidth;
 }
 
-double SlalomCourseCoordinator::getVehicleLength() const noexcept {
+double SlalomCourseCoordinator::getVehicleLength() const noexcept
+{
     return mVehicleLength;
 }
 
-double SlalomCourseCoordinator::getFinishX() const noexcept {
+double SlalomCourseCoordinator::getFinishX() const noexcept
+{
     return 11.0 * mPylonSpacing;
 }
 
-double SlalomCourseCoordinator::getSector1X() const noexcept {
+double SlalomCourseCoordinator::getSector1X() const noexcept
+{
     return 3.5 * mPylonSpacing;
 }
 
-double SlalomCourseCoordinator::getSector2X() const noexcept {
+double SlalomCourseCoordinator::getSector2X() const noexcept
+{
     return 7.5 * mPylonSpacing;
 }
 
-double SlalomCourseCoordinator::getStagingX() const noexcept {
+double SlalomCourseCoordinator::getStagingX() const noexcept
+{
     return -1.5 * mPylonSpacing;
 }
 
-double SlalomCourseCoordinator::getGateWidth() const noexcept {
+double SlalomCourseCoordinator::getGateWidth() const noexcept
+{
     return std::max(10.0, 4.0 * mVehicleWidth);
 }
 
-double SlalomCourseCoordinator::getApexOffset() const noexcept {
+double SlalomCourseCoordinator::getApexOffset() const noexcept
+{
     return 0.40 + (mVehicleWidth * 0.5) + 0.15;
 }
 

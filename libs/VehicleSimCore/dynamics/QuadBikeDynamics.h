@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/dynamics/PacejkaTireModel.h"
@@ -15,7 +16,7 @@ namespace vehicle_sim::dynamics {
 
 /// @enum QuadDiffMode
 /// @brief Rear axle differential operational mode for QuadBikeDynamics.
-enum class QuadDiffMode : uint8_t {
+enum class QuadDiffMode : std::uint8_t {
     LockedSpool = 0, ///< Solid spool drive axle forcing equal wheel speeds (tire scrub in corners).
     OpenDifferential = 1 ///< Open differential dividing drive torque 50/50 with independent wheel speeds.
 };
@@ -154,12 +155,12 @@ public:
     [[nodiscard]] const QuadBikeTelemetry& getTelemetry() const noexcept;
 
 private:
-    QuadBikeConfig m_config{};
-    QuadBikeInput m_input{};
-    QuadBikeTelemetry m_telemetry{};
+    QuadBikeConfig m_config {};
+    QuadBikeInput m_input {};
+    QuadBikeTelemetry m_telemetry {};
 
-    double m_lastForwardSpeed{ 0.0 };
-    bool m_isAirborne{ false };
+    double m_lastForwardSpeed { 0.0 };
+    bool m_isAirborne { false };
 };
 
 } // namespace vehicle_sim::dynamics

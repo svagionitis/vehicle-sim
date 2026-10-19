@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "libs/VehicleSimCore/dynamics/InternalCombustionEngine2D.h"
 
@@ -13,31 +14,28 @@ Powertrain2D::Powertrain2D() noexcept
     , transmission_ {}
     , differential_ {}
     , config_ {}
-    , lastState_ {} {
+    , lastState_ {}
+{
 }
 
-Powertrain2D::Powertrain2D(std::unique_ptr<IEngine2D> engine,
-                           const ClutchConfig& clutchConfig,
-                           const TransmissionConfig& transConfig,
-                           const DifferentialConfig& diffConfig,
-                           const PowertrainConfig& powertrainConfig) noexcept
+Powertrain2D::Powertrain2D(std::unique_ptr<IEngine2D> engine, const ClutchConfig& clutchConfig,
+    const TransmissionConfig& transConfig, const DifferentialConfig& diffConfig,
+    const PowertrainConfig& powertrainConfig) noexcept
     : engine_ { std::move(engine) }
     , clutch_ { clutchConfig }
     , transmission_ { transConfig }
     , differential_ { diffConfig }
     , config_ { powertrainConfig }
-    , lastState_ {} {
+    , lastState_ {}
+{
     if (!engine_) {
         engine_ = std::make_unique<InternalCombustionEngine2D>();
     }
 }
 
-PowertrainState Powertrain2D::step(double throttle,
-                                   double brake,
-                                   double clutchPedal,
-                                   double leftWheelSpeed,
-                                   double rightWheelSpeed,
-                                   double dt) noexcept {
+PowertrainState Powertrain2D::step(double throttle, double brake, double clutchPedal, double leftWheelSpeed,
+    double rightWheelSpeed, double dt) noexcept
+{
     PowertrainState state {};
 
     if (dt <= 0.0) {
@@ -63,22 +61,13 @@ PowertrainState Powertrain2D::step(double throttle,
     const EngineOutput engOut { engine_->step(effectiveThrottle, clutch_.getEngineSpeed(), dt) };
 
     const double loadTorque { 0.05 * clutch_.getTransSpeed() };
-    const ClutchState clutchState { clutch_.step(engOut.torque,
-                                                 loadTorque,
-                                                 engineInertia,
-                                                 transInertia,
-                                                 clutchPedal,
-                                                 dt) };
+    const ClutchState clutchState { clutch_.step(
+        engOut.torque, loadTorque, engineInertia, transInertia, clutchPedal, dt) };
 
-    const TransmissionOutput transOut { transmission_.step(clutchState.transferredTorque,
-                                                           driveWheelSpeed,
-                                                           engOut.rpm,
-                                                           dt) };
+    const TransmissionOutput transOut { transmission_.step(
+        clutchState.transferredTorque, driveWheelSpeed, engOut.rpm, dt) };
 
-    const DifferentialOutput diffOut { differential_.step(transOut.propTorque,
-                                                          leftWheelSpeed,
-                                                          rightWheelSpeed,
-                                                          0.0) };
+    const DifferentialOutput diffOut { differential_.step(transOut.propTorque, leftWheelSpeed, rightWheelSpeed, 0.0) };
 
     state.engineRpm = engOut.rpm;
     state.engineTorque = engOut.torque;
@@ -98,7 +87,8 @@ PowertrainState Powertrain2D::step(double throttle,
     return state;
 }
 
-void Powertrain2D::reset() noexcept {
+void Powertrain2D::reset() noexcept
+{
     if (engine_) {
         engine_->reset();
     }
@@ -107,45 +97,55 @@ void Powertrain2D::reset() noexcept {
     lastState_ = PowertrainState {};
 }
 
-bool Powertrain2D::shiftUp() noexcept {
+bool Powertrain2D::shiftUp() noexcept
+{
     return transmission_.shiftUp();
 }
 
-bool Powertrain2D::shiftDown() noexcept {
+bool Powertrain2D::shiftDown() noexcept
+{
     return transmission_.shiftDown();
 }
 
-bool Powertrain2D::selectGear(std::int32_t gear) noexcept {
+bool Powertrain2D::selectGear(std::int32_t gear) noexcept
+{
     return transmission_.selectGear(gear);
 }
 
-void Powertrain2D::setEngine(std::unique_ptr<IEngine2D> newEngine) noexcept {
+void Powertrain2D::setEngine(std::unique_ptr<IEngine2D> newEngine) noexcept
+{
     if (newEngine) {
         engine_ = std::move(newEngine);
     }
 }
 
-IEngine2D& Powertrain2D::getEngine() noexcept {
+IEngine2D& Powertrain2D::getEngine() noexcept
+{
     return *engine_;
 }
 
-Transmission2D& Powertrain2D::getTransmission() noexcept {
+Transmission2D& Powertrain2D::getTransmission() noexcept
+{
     return transmission_;
 }
 
-Differential2D& Powertrain2D::getDifferential() noexcept {
+Differential2D& Powertrain2D::getDifferential() noexcept
+{
     return differential_;
 }
 
-const PowertrainState& Powertrain2D::getState() const noexcept {
+const PowertrainState& Powertrain2D::getState() const noexcept
+{
     return lastState_;
 }
 
-DrivetrainLayout Powertrain2D::getLayout() const noexcept {
+DrivetrainLayout Powertrain2D::getLayout() const noexcept
+{
     return config_.layout;
 }
 
-void Powertrain2D::setLayout(DrivetrainLayout layout) noexcept {
+void Powertrain2D::setLayout(DrivetrainLayout layout) noexcept
+{
     config_.layout = layout;
 }
 

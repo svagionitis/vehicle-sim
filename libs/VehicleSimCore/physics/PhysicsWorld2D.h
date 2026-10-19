@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "BroadphasePair2D.h"
@@ -146,8 +147,7 @@ public:
     /// @param[out] outHit RayHit2D containing hit distance, point, and normal.
     /// @param[out] outCollider Reference receiving pointer to struck Collider2D or nullptr.
     /// @return True if a collider was struck within the ray's maximum distance.
-    [[nodiscard]] bool raycast(
-        const math::Ray2D& ray, math::RayHit2D& outHit, Collider2D*& outCollider) const noexcept;
+    [[nodiscard]] bool raycast(const math::Ray2D& ray, math::RayHit2D& outHit, Collider2D*& outCollider) const noexcept;
 
     /// @brief Gets active broadphase dynamic bounding volume hierarchy tree.
     /// @return Const reference to internal DynamicBVH2D instance.
@@ -193,8 +193,7 @@ public:
     /// @param[in] frameIndex Current simulation frame sequence number.
     /// @param[out] snapshot Destination snapshot structure to populate.
     /// @return True if state was completely captured within capacity limits.
-    [[nodiscard]] bool captureSnapshot(std::uint32_t frameIndex,
-                                       SimulationSnapshot2D& snapshot) const noexcept;
+    [[nodiscard]] bool captureSnapshot(std::uint32_t frameIndex, SimulationSnapshot2D& snapshot) const noexcept;
 
     /// @brief Restores the physics simulation state from a snapshot.
     /// @param[in] snapshot Valid snapshot to restore into the world.
@@ -209,10 +208,8 @@ public:
     /// @param[in] applyInputs Callback applying inputs prior to each step.
     /// @return True if rollback and resimulation succeeded.
     template <typename InputFn>
-    bool rollbackAndReplay(const SimulationSnapshot2D& snapshot,
-                           std::uint32_t targetFrame,
-                           double timeStep,
-                           InputFn applyInputs) noexcept
+    bool rollbackAndReplay(
+        const SimulationSnapshot2D& snapshot, std::uint32_t targetFrame, double timeStep, InputFn applyInputs) noexcept
     {
         if (!restoreSnapshot(snapshot)) {
             return false;

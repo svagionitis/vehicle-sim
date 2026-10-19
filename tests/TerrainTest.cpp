@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
@@ -19,7 +20,7 @@ namespace vehicle_sim::testing {
 
 TEST(SurfaceMaterialTest, DefaultConstructionIsTarmac)
 {
-    const terrain::SurfaceMaterial mat { };
+    const terrain::SurfaceMaterial mat {};
     EXPECT_EQ(mat.type, terrain::MaterialType::Tarmac);
     EXPECT_DOUBLE_EQ(mat.friction, 1.0);
     EXPECT_DOUBLE_EQ(mat.rollingDrag, 1.0);
@@ -166,7 +167,7 @@ TEST(GradientNoiseTest, AnalyticalGradientAccuracy2D)
 
 TEST(FractalNoiseTest, DefaultConfigurationAndGetters)
 {
-    const terrain::FractalNoise fractal { };
+    const terrain::FractalNoise fractal {};
     const auto& cfg = fractal.getConfig();
 
     EXPECT_EQ(cfg.octaves, 4U);
@@ -191,7 +192,7 @@ TEST(FractalNoiseTest, DefaultConfigurationAndGetters)
 
 TEST(FractalNoiseTest, DeterministicRepeatability)
 {
-    terrain::FractalConfig config { };
+    terrain::FractalConfig config {};
     config.seed = 777U;
     config.octaves = 5U;
     config.frequency = 0.5;
@@ -216,7 +217,7 @@ TEST(FractalNoiseTest, DeterministicRepeatability)
 
 TEST(FractalNoiseTest, OctaveOctaveAccumulation)
 {
-    terrain::FractalConfig config { };
+    terrain::FractalConfig config {};
     config.seed = 2026U;
     config.frequency = 1.0;
     config.amplitude = 1.0;
@@ -245,7 +246,7 @@ TEST(FractalNoiseTest, OctaveOctaveAccumulation)
 
 TEST(FractalNoiseTest, SynthesisVariantsFbmBillowRidged)
 {
-    terrain::FractalConfig config { };
+    terrain::FractalConfig config {};
     config.seed = 456U;
     config.octaves = 3U;
 
@@ -271,7 +272,7 @@ TEST(FractalNoiseTest, SynthesisVariantsFbmBillowRidged)
 
 TEST(FractalNoiseTest, AnalyticalDerivativeAndSurfaceNormal)
 {
-    terrain::FractalConfig config { };
+    terrain::FractalConfig config {};
     config.seed = 987U;
     config.octaves = 4U;
     config.frequency = 0.25;
@@ -308,7 +309,7 @@ TEST(FractalNoiseTest, AnalyticalDerivativeAndSurfaceNormal)
 
 TEST(Heightfield1DTest, DefaultConfigurationAndBaseHeight)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
 
     EXPECT_DOUBLE_EQ(hf.getBaseHeight(), 0.0);
     EXPECT_FALSE(hf.isNoiseEnabled());
@@ -337,7 +338,7 @@ TEST(Heightfield1DTest, DefaultConfigurationAndBaseHeight)
 
 TEST(Heightfield1DTest, DiscreteSamplesLinearInterpolation)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
 
     const std::vector<terrain::HeightSample1D> samples { { 0.0, 0.0 }, { 10.0, 5.0 }, { 20.0, 5.0 }, { 30.0, 0.0 } };
     hf.setSamples(samples);
@@ -364,7 +365,7 @@ TEST(Heightfield1DTest, DiscreteSamplesLinearInterpolation)
 
 TEST(Heightfield1DTest, DiscreteSamplesCubicHermiteSmoothness)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setInterpolation(terrain::HeightfieldInterp::CubicHermite);
 
     const std::vector<terrain::HeightSample1D> samples { { -20.0, 0.0 }, { -10.0, 4.0 }, { 0.0, 8.0 }, { 10.0, 4.0 },
@@ -387,7 +388,7 @@ TEST(Heightfield1DTest, DiscreteSamplesCubicHermiteSmoothness)
 
 TEST(Heightfield1DTest, BoundaryHandlingModes)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setSamples({ { 0.0, 2.0 }, { 10.0, 6.0 } }); // slope = 0.4
 
     // Mode 1: Clamp
@@ -412,10 +413,10 @@ TEST(Heightfield1DTest, BoundaryHandlingModes)
 
 TEST(Heightfield1DTest, ProceduralNoiseLayerAndAnalyticalGradients)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setBaseHeight(5.0);
 
-    terrain::FractalConfig noiseConfig { };
+    terrain::FractalConfig noiseConfig {};
     noiseConfig.seed = 333U;
     noiseConfig.octaves = 4U;
     noiseConfig.frequency = 0.1;
@@ -447,7 +448,7 @@ TEST(Heightfield1DTest, ProceduralNoiseLayerAndAnalyticalGradients)
 
 TEST(Heightfield1DTest, MaterialZonesAndLookup)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setDefaultMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Tarmac));
 
     // Add material zones
@@ -473,7 +474,7 @@ TEST(Heightfield1DTest, MaterialZonesAndLookup)
 
 TEST(Heightfield1DTest, PenetrationAndUndergroundQueries)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setBaseHeight(10.0);
 
     // Above ground
@@ -494,7 +495,7 @@ TEST(Heightfield1DTest, PenetrationAndUndergroundQueries)
 
 TEST(Heightfield1DTest, PlatformExtractionFlatPlateau)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
 
     // Build terrain:
     // Plateau A: x in [0, 20], y = 0
@@ -505,7 +506,7 @@ TEST(Heightfield1DTest, PlatformExtractionFlatPlateau)
     hf.addMaterialZone(0.0, 25.0, terrain::MaterialType::Tarmac);
     hf.addMaterialZone(25.0, 50.0, terrain::MaterialType::Dirt);
 
-    terrain::PlatformExtractionConfig config { };
+    terrain::PlatformExtractionConfig config {};
     config.minX = 0.0;
     config.maxX = 50.0;
     config.sampleStep = 0.5;
@@ -531,12 +532,12 @@ TEST(Heightfield1DTest, PlatformExtractionFlatPlateau)
 
 TEST(Heightfield1DTest, PlatformExtractionStepQuantization)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
 
     // Continuous linear slope: y = 0.1 * x from x = 0 to 60 (y from 0 to 6)
     hf.setSamples({ { 0.0, 0.0 }, { 60.0, 6.0 } });
 
-    terrain::PlatformExtractionConfig config { };
+    terrain::PlatformExtractionConfig config {};
     config.minX = 0.0;
     config.maxX = 60.0;
     config.sampleStep = 0.5;
@@ -557,19 +558,19 @@ TEST(Heightfield1DTest, PlatformExtractionStepQuantization)
 
 TEST(Heightfield1DTest, PopulateSideViewCarDynamicsIntegration)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
 
     // Ground platform at y = 0, x in [-50, 50]
     hf.setSamples({ { -50.0, 0.0 }, { 50.0, 0.0 } });
     hf.setDefaultMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Concrete));
 
-    terrain::PlatformExtractionConfig config { };
+    terrain::PlatformExtractionConfig config {};
     config.minX = -50.0;
     config.maxX = 50.0;
     config.sampleStep = 1.0;
     config.minWidth = 10.0;
 
-    dynamics::SideViewCarDynamics car { };
+    dynamics::SideViewCarDynamics car {};
     hf.populateSideViewCar(car, config, true);
 
     ASSERT_EQ(car.getPlatformCount(), 1U);
@@ -580,7 +581,7 @@ TEST(Heightfield1DTest, PopulateSideViewCarDynamicsIntegration)
     EXPECT_DOUBLE_EQ(plat.friction, 1.05); // Concrete
 
     // Simulate vehicle falling onto extracted platform
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1000.0;
     bodyConfig.inertia = 1500.0;
     bodyConfig.position = math::Vec2 { 0.0, 2.0 }; // Start 2 meters in the air
@@ -601,14 +602,14 @@ TEST(Heightfield1DTest, PopulateSideViewCarDynamicsIntegration)
 
 TEST(SurfaceMap2DTest, DefaultConfigurationAndBaseHeight)
 {
-    const terrain::SurfaceMap2D map { };
+    const terrain::SurfaceMap2D map {};
     EXPECT_DOUBLE_EQ(map.getBaseHeight(), 0.0);
     EXPECT_FALSE(map.hasGrid());
     EXPECT_EQ(map.getMaterialZoneCount(), 0U);
     EXPECT_FALSE(map.isNoiseEnabled());
     EXPECT_EQ(map.getDefaultMaterial().type, terrain::MaterialType::Tarmac);
 
-    terrain::SurfaceMap2D elevatedMap { };
+    terrain::SurfaceMap2D elevatedMap {};
     elevatedMap.setBaseHeight(15.0);
     EXPECT_DOUBLE_EQ(elevatedMap.getBaseHeight(), 15.0);
 
@@ -627,7 +628,7 @@ TEST(SurfaceMap2DTest, DefaultConfigurationAndBaseHeight)
 
 TEST(SurfaceMap2DTest, DiscreteGridBilinearInterpolationAndGradients)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
 
     // 3x3 regular grid spanning [0, 4] x [0, 4] with cell size (2, 2)
     // Linear inclined plane: h(x, y) = 0.5 * x + 0.25 * y
@@ -672,7 +673,7 @@ TEST(SurfaceMap2DTest, DiscreteGridBilinearInterpolationAndGradients)
 
 TEST(SurfaceMap2DTest, DiscreteGridBicubicSmoothnessAndBoundaryModes)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
 
     // 4x4 grid
     const std::vector<double> elevations { 0.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0, 2.0, 2.0, 4.0, 5.0, 3.0, 1.0, 2.0, 3.0,
@@ -706,10 +707,10 @@ TEST(SurfaceMap2DTest, DiscreteGridBicubicSmoothnessAndBoundaryModes)
 
 TEST(SurfaceMap2DTest, ProceduralNoiseLayerAndCompositeElevation)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
     map.setBaseHeight(5.0);
 
-    terrain::FractalConfig noiseCfg { };
+    terrain::FractalConfig noiseCfg {};
     noiseCfg.octaves = 3U;
     noiseCfg.frequency = 0.1;
     noiseCfg.amplitude = 1.0;
@@ -747,7 +748,7 @@ TEST(SurfaceMap2DTest, ProceduralNoiseLayerAndCompositeElevation)
 
 TEST(SurfaceMap2DTest, MaterialZonesBoxAndCircleWithLiquid)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
 
     // Default: Tarmac
     EXPECT_EQ(map.getMaterial(0.0, 0.0).type, terrain::MaterialType::Tarmac);
@@ -787,14 +788,14 @@ TEST(SurfaceMap2DTest, MaterialZonesBoxAndCircleWithLiquid)
 
 TEST(SurfaceMap2DTest, DownhillSlopeForceAndLiquidDrag)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
 
     // 2x2 grid with constant incline: dh/dx = 0.2, dh/dy = 0.0
     const std::vector<double> elev { 0.0, 0.2, 0.0, 0.2 };
     map.setGrid(math::Vec2 { 0.0, 0.0 }, math::Vec2 { 1.0, 1.0 }, 2U, 2U, elev);
     map.setInterpolation(terrain::ElevationInterp2D::Bilinear);
 
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1000.0;
     bodyConfig.position = math::Vec2 { 0.5, 0.5 };
     physics::RigidBody2D body { bodyConfig };
@@ -819,17 +820,17 @@ TEST(SurfaceMap2DTest, DownhillSlopeForceAndLiquidDrag)
 
 TEST(SurfaceMap2DTest, ArcadeCarDynamicsIntegration)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
 
     // Ice patch at front wheels (x in [1.5, 4.0]), dry tarmac elsewhere
     map.addBoxZone(math::Vec2 { 1.5, -2.0 }, math::Vec2 { 4.0, 2.0 }, terrain::MaterialType::Ice);
 
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.position = math::Vec2 { 1.0, 0.0 }; // Car center at x = 1.0
     bodyConfig.orientation = 0.0; // Facing east (+X)
     physics::RigidBody2D body { bodyConfig };
 
-    dynamics::ArcadeCarDynamics car { };
+    dynamics::ArcadeCarDynamics car {};
 
     map.applySurfaceToCar(car, body);
     car.step(body, 1.0 / 60.0);
@@ -845,7 +846,7 @@ TEST(SurfaceMap2DTest, ArcadeCarDynamicsIntegration)
 
 TEST(SurfaceMap2DTest, ElevationMap2DAliasEquivalence)
 {
-    terrain::ElevationMap2D elevationMap { };
+    terrain::ElevationMap2D elevationMap {};
     elevationMap.setBaseHeight(42.0);
     EXPECT_DOUBLE_EQ(elevationMap.getBaseHeight(), 42.0);
     EXPECT_DOUBLE_EQ(elevationMap.getHeight(0.0, 0.0), 42.0);
@@ -853,7 +854,7 @@ TEST(SurfaceMap2DTest, ElevationMap2DAliasEquivalence)
 
 TEST(TrackGeneratorTest, TrialsCourseProfileAndFeatures)
 {
-    terrain::TrialsCourseConfig config { };
+    terrain::TrialsCourseConfig config {};
     config.startLength = 20.0;
     config.humpCount = 3;
     config.humpSpacing = 5.0;
@@ -889,8 +890,8 @@ TEST(TrackGeneratorTest, TrialsCourseProfileAndFeatures)
     EXPECT_EQ(humpSample.material.type, terrain::MaterialType::Dirt);
 
     // Test SideViewCarDynamics integration
-    dynamics::SideViewCarDynamics car { };
-    terrain::PlatformExtractionConfig platConfig { };
+    dynamics::SideViewCarDynamics car {};
+    terrain::PlatformExtractionConfig platConfig {};
     platConfig.minX = 0.0;
     platConfig.maxX = course.totalLength;
     platConfig.minWidth = 3.0;
@@ -907,7 +908,7 @@ TEST(TrackGeneratorTest, TrialsCourseProfileAndFeatures)
 
 TEST(TrackGeneratorTest, PlatformerLevelTiersAndHazards)
 {
-    terrain::PlatformerLevelConfig config { };
+    terrain::PlatformerLevelConfig config {};
     config.levelWidth = 100.0;
     config.tierHeight = 4.0;
     config.tierCount = 3;
@@ -950,7 +951,7 @@ TEST(TrackGeneratorTest, PlatformerLevelTiersAndHazards)
     EXPECT_TRUE(foundHazard);
 
     // Test SideViewCarDynamics integration
-    dynamics::SideViewCarDynamics car { };
+    dynamics::SideViewCarDynamics car {};
     level.populateSideViewCar(car, true);
     EXPECT_EQ(car.getPlatformCount(), level.platforms.size());
 
@@ -962,7 +963,7 @@ TEST(TrackGeneratorTest, PlatformerLevelTiersAndHazards)
 
 TEST(TrackGeneratorTest, HillClimbElevationGainAndSteepPitches)
 {
-    terrain::HillClimbConfig config { };
+    terrain::HillClimbConfig config {};
     config.totalLength = 200.0;
     config.baseSlope = 0.15;
     config.steepPitchCount = 2;
@@ -983,8 +984,8 @@ TEST(TrackGeneratorTest, HillClimbElevationGainAndSteepPitches)
     EXPECT_EQ(baseSample.material.type, terrain::MaterialType::Dirt);
 
     // Populate car platforms
-    dynamics::SideViewCarDynamics car { };
-    terrain::PlatformExtractionConfig platConfig { };
+    dynamics::SideViewCarDynamics car {};
+    terrain::PlatformExtractionConfig platConfig {};
     platConfig.minX = 0.0;
     platConfig.maxX = config.totalLength;
     platConfig.sampleStep = 0.5;
@@ -1003,7 +1004,7 @@ TEST(TrackGeneratorTest, HillClimbElevationGainAndSteepPitches)
 
 TEST(TrackGeneratorTest, CircuitTrackCenterlineAndRibbonQueries)
 {
-    terrain::CircuitTrackConfig config { };
+    terrain::CircuitTrackConfig config {};
     config.radiusX = 80.0;
     config.radiusY = 50.0;
     config.waypointCount = 16;
@@ -1058,7 +1059,7 @@ TEST(TrackGeneratorTest, CircuitTrackCenterlineAndRibbonQueries)
 
 TEST(Heightfield1DTest, RaycastHitsAndMisses)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setBaseHeight(0.0);
     hf.setDefaultMaterial(terrain::SurfaceMaterial::getPreset(terrain::MaterialType::Concrete));
     hf.addMaterialZone(15.0, 30.0, terrain::MaterialType::Mud);
@@ -1112,9 +1113,9 @@ TEST(Heightfield1DTest, RaycastHitsAndMisses)
 TEST(TerrainGeometricInvariantsTest, NormalAndTangentUnitLengthInvariants)
 {
     // 1D Heightfield normal & tangent unit length and orthogonality
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.enableNoise(true);
-    terrain::FractalConfig config { };
+    terrain::FractalConfig config {};
     config.octaves = 4U;
     config.amplitude = 12.0;
     config.frequency = 0.05;
@@ -1133,7 +1134,7 @@ TEST(TerrainGeometricInvariantsTest, NormalAndTangentUnitLengthInvariants)
     }
 
     // 2D SurfaceMap normal unit length invariant
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
     map.enableNoise(true);
     map.setNoiseConfig(config);
 
@@ -1150,13 +1151,13 @@ TEST(TerrainGeometricInvariantsTest, NormalAndTangentUnitLengthInvariants)
 
 TEST(TerrainIntegrationTest, TrialsBikeTerrainClearanceAndWheelSuspensions)
 {
-    terrain::Heightfield1D hf { };
+    terrain::Heightfield1D hf {};
     hf.setBaseHeight(0.0);
 
-    dynamics::TrialsBikeConfig bikeConfig { };
+    dynamics::TrialsBikeConfig bikeConfig {};
     dynamics::TrialsBikeDynamics bike { bikeConfig };
 
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = bikeConfig.mass + bikeConfig.riderMass;
     bodyConfig.inertia = 65.0;
     bodyConfig.position = math::Vec2 { 0.0, 0.65 }; // Axles at 0.65 - 0.35 = 0.30 (sag 0.05)
@@ -1173,7 +1174,7 @@ TEST(TerrainIntegrationTest, TrialsBikeTerrainClearanceAndWheelSuspensions)
         const double frontClearance = frontAxle.y - hf.getHeight(frontAxle.x);
         const double rearClearance = rearAxle.y - hf.getHeight(rearAxle.x);
 
-        dynamics::TrialsBikeInput input { };
+        dynamics::TrialsBikeInput input {};
         input.throttle = 1.0;
         input.groundDistanceFront = frontClearance;
         input.groundDistanceRear = rearClearance;
@@ -1192,23 +1193,23 @@ TEST(TerrainIntegrationTest, TrialsBikeTerrainClearanceAndWheelSuspensions)
 
 TEST(TerrainIntegrationTest, SideViewCarDrivingAlongGeneratedTerrain)
 {
-    terrain::PlatformerLevelConfig config { };
+    terrain::PlatformerLevelConfig config {};
     config.levelWidth = 100.0;
     config.hasGroundFloor = true;
     const terrain::PlatformerLevel level { terrain::TrackGenerator::generatePlatformerLevel(config) };
 
-    dynamics::SideViewCarConfig carConfig { };
+    dynamics::SideViewCarConfig carConfig {};
     dynamics::SideViewCarDynamics car { carConfig };
     level.populateSideViewCar(car, true);
     EXPECT_GT(car.getPlatformCount(), 0U);
 
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1000.0;
     bodyConfig.inertia = 1500.0;
     bodyConfig.position = math::Vec2 { level.spawnPoint.x, 0.35 };
     physics::RigidBody2D body { bodyConfig };
 
-    dynamics::SideViewCarInput input { };
+    dynamics::SideViewCarInput input {};
     input.throttle = 1.0;
     car.setInput(input);
 
@@ -1228,13 +1229,13 @@ TEST(TerrainIntegrationTest, SideViewCarDrivingAlongGeneratedTerrain)
 
 TEST(TerrainIntegrationTest, HovercraftSurfaceMapInteraction)
 {
-    terrain::SurfaceMap2D map { };
+    terrain::SurfaceMap2D map {};
     map.addBoxZone(math::Vec2 { 0.0, -10.0 }, math::Vec2 { 50.0, 10.0 }, terrain::MaterialType::Ice);
 
-    dynamics::HovercraftConfig hoverConfig { };
+    dynamics::HovercraftConfig hoverConfig {};
     dynamics::HovercraftDynamics hovercraft { hoverConfig };
 
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1200.0;
     bodyConfig.inertia = 2800.0;
     bodyConfig.position = math::Vec2 { -10.0, 0.0 };
@@ -1251,7 +1252,7 @@ TEST(TerrainIntegrationTest, HovercraftSurfaceMapInteraction)
     EXPECT_DOUBLE_EQ(hovercraft.getConfig().surfaceFriction, 0.10);
 
     // Advance hovercraft with throttle
-    dynamics::HovercraftInput input { };
+    dynamics::HovercraftInput input {};
     input.throttle = 1.0;
     input.liftFanActive = true;
     input.groundDistance = hoverConfig.hoverHeight;
@@ -1273,7 +1274,7 @@ TEST(TerrainIntegrationTest, HovercraftSurfaceMapInteraction)
 
 TEST(BankedTrackTest, DefaultConfigurationAndGetters)
 {
-    const terrain::BankedTrackProfile profile { };
+    const terrain::BankedTrackProfile profile {};
     const auto& config = profile.getConfig();
 
     EXPECT_TRUE(config.enabled);
@@ -1287,7 +1288,7 @@ TEST(BankedTrackTest, DefaultConfigurationAndGetters)
 
 TEST(BankedTrackTest, ZeroCurvatureYieldsZeroBankAngle)
 {
-    const terrain::BankedTrackProfile profile { };
+    const terrain::BankedTrackProfile profile {};
     EXPECT_DOUBLE_EQ(profile.computeBankAngle(0.0), 0.0);
     EXPECT_DOUBLE_EQ(profile.computeBankAngle(1e-12), 0.0);
     EXPECT_DOUBLE_EQ(profile.computeBankAngle(-1e-12), 0.0);
@@ -1295,7 +1296,7 @@ TEST(BankedTrackTest, ZeroCurvatureYieldsZeroBankAngle)
 
 TEST(BankedTrackTest, EquilibriumSuperelevationFormulaVerification)
 {
-    terrain::BankedTrackConfig config { };
+    terrain::BankedTrackConfig config {};
     config.enabled = true;
     config.designSpeed = 20.0; // m/s
     config.maxBankAngle = 0.80; // Allow unclamped up to ~45 deg
@@ -1317,7 +1318,7 @@ TEST(BankedTrackTest, EquilibriumSuperelevationFormulaVerification)
 
 TEST(BankedTrackTest, DirectionalCurvatureSign)
 {
-    const terrain::BankedTrackProfile profile { };
+    const terrain::BankedTrackProfile profile {};
 
     const double leftBank { profile.computeBankAngle(0.03) };
     const double rightBank { profile.computeBankAngle(-0.03) };
@@ -1329,7 +1330,7 @@ TEST(BankedTrackTest, DirectionalCurvatureSign)
 
 TEST(BankedTrackTest, CamberProfileVariants)
 {
-    terrain::BankedTrackConfig config { };
+    terrain::BankedTrackConfig config {};
     config.enabled = true;
     config.camberType = terrain::TrackCamberType::Superelevation;
     config.crownSlope = 0.02;
@@ -1408,7 +1409,7 @@ TEST(BankedTrackTest, NeutralAndMaxCorneringSpeedCalculations)
 
 TEST(CircuitTrackBankedTest, ProceduralBankingAlongCenterline)
 {
-    terrain::CircuitTrackConfig config { };
+    terrain::CircuitTrackConfig config {};
     config.radiusX = 80.0;
     config.radiusY = 50.0;
     config.waypointCount = 20;
@@ -1450,7 +1451,7 @@ TEST(CircuitTrackBankedTest, ProceduralBankingAlongCenterline)
 
 TEST(CircuitTrackBankedTest, SurfaceMapGridReflectsBankedCrossSlope)
 {
-    terrain::CircuitTrackConfig config { };
+    terrain::CircuitTrackConfig config {};
     config.radiusX = 80.0;
     config.radiusY = 50.0;
     config.waypointCount = 24;
@@ -1489,7 +1490,7 @@ TEST(CircuitTrackBankedTest, SurfaceMapGridReflectsBankedCrossSlope)
 
 TEST(CircuitTrackBankedTest, SurfaceNormalTiltsInwardTowardsApex)
 {
-    terrain::CircuitTrackConfig config { };
+    terrain::CircuitTrackConfig config {};
     config.radiusX = 75.0;
     config.radiusY = 75.0; // Circular loop: all curves bank inward
     config.perturbation = 0.0;
@@ -1521,7 +1522,7 @@ TEST(CircuitTrackBankedTest, SurfaceNormalTiltsInwardTowardsApex)
 
 TEST(CircuitTrackBankedTest, DownhillSlopeForceCounteractsCentripetalSlide)
 {
-    terrain::CircuitTrackConfig config { };
+    terrain::CircuitTrackConfig config {};
     config.radiusX = 70.0;
     config.radiusY = 70.0;
     config.perturbation = 0.0;
@@ -1534,7 +1535,7 @@ TEST(CircuitTrackBankedTest, DownhillSlopeForceCounteractsCentripetalSlide)
     const terrain::CircuitTrack2D track { terrain::TrackGenerator::generateCircuitTrack(config) };
 
     // Place a 1200kg rigid body on the banked curve
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1200.0;
     bodyConfig.position = track.centerline[0];
     physics::RigidBody2D body { bodyConfig };
@@ -1555,7 +1556,7 @@ TEST(CircuitTrackBankedTest, DownhillSlopeForceCounteractsCentripetalSlide)
 
 TEST(CircuitTrackBankedTest, ArcadeCarNegotiatesBankedTurnWithReducedSlide)
 {
-    terrain::CircuitTrackConfig config { };
+    terrain::CircuitTrackConfig config {};
     config.radiusX = 70.0;
     config.radiusY = 70.0;
     config.perturbation = 0.0;
@@ -1571,7 +1572,7 @@ TEST(CircuitTrackBankedTest, ArcadeCarNegotiatesBankedTurnWithReducedSlide)
     const terrain::CircuitTrack2D flatTrack { terrain::TrackGenerator::generateCircuitTrack(config) };
 
     // Setup car driving tangent to the curve at (70, 0), facing north (+Y), speed = 20 m/s
-    physics::RigidBodyConfig bodyConfig { };
+    physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1200.0;
     bodyConfig.inertia = 2500.0;
     bodyConfig.angularDamping = 0.5;
@@ -1583,8 +1584,8 @@ TEST(CircuitTrackBankedTest, ArcadeCarNegotiatesBankedTurnWithReducedSlide)
     physics::RigidBody2D bodyFlat { bodyConfig };
     bodyFlat.setLinearVelocity(math::Vec2 { 0.0, 20.0 });
 
-    dynamics::ArcadeCarDynamics carBanked { };
-    dynamics::ArcadeCarDynamics carFlat { };
+    dynamics::ArcadeCarDynamics carBanked {};
+    dynamics::ArcadeCarDynamics carFlat {};
 
     // Simulate for 0.5 seconds
     constexpr double dt { 1.0 / 60.0 };

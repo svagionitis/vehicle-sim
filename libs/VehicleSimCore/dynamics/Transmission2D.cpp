@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace vehicle_sim::dynamics {
 
 Transmission2D::Transmission2D() noexcept
-    : Transmission2D(TransmissionConfig {}) {
+    : Transmission2D(TransmissionConfig {})
+{
 }
 
 Transmission2D::Transmission2D(const TransmissionConfig& config) noexcept
@@ -14,13 +16,13 @@ Transmission2D::Transmission2D(const TransmissionConfig& config) noexcept
     , currentGear_ { 1 }
     , targetGear_ { 1 }
     , shiftState_ { ShiftState::InGear }
-    , shiftTimer_ { 0.0 } {
+    , shiftTimer_ { 0.0 }
+{
 }
 
-TransmissionOutput Transmission2D::step(double clutchTorque,
-                                        double propShaftSpeed,
-                                        double engineRpm,
-                                        double dt) noexcept {
+TransmissionOutput Transmission2D::step(
+    double clutchTorque, double propShaftSpeed, double engineRpm, double dt) noexcept
+{
     TransmissionOutput out {};
 
     if (config_.mode == TransmissionMode::Automatic && shiftState_ == ShiftState::InGear) {
@@ -47,47 +49,47 @@ TransmissionOutput Transmission2D::step(double clutchTorque,
         isCut = true;
 
         switch (shiftState_) {
-            case ShiftState::Disengaging:
-                torqueScale = std::clamp(1.0 - (shiftTimer_ / tDisengage), 0.0, 1.0);
-                if (shiftTimer_ >= tDisengage) {
-                    shiftTimer_ = 0.0;
-                    shiftState_ = ShiftState::InNeutral;
-                }
-                break;
+        case ShiftState::Disengaging:
+            torqueScale = std::clamp(1.0 - (shiftTimer_ / tDisengage), 0.0, 1.0);
+            if (shiftTimer_ >= tDisengage) {
+                shiftTimer_ = 0.0;
+                shiftState_ = ShiftState::InNeutral;
+            }
+            break;
 
-            case ShiftState::InNeutral:
-                torqueScale = 0.0;
-                if (shiftTimer_ >= tNeutral) {
-                    shiftTimer_ = 0.0;
-                    currentGear_ = targetGear_;
-                    shiftState_ = ShiftState::Synchronizing;
-                }
-                break;
+        case ShiftState::InNeutral:
+            torqueScale = 0.0;
+            if (shiftTimer_ >= tNeutral) {
+                shiftTimer_ = 0.0;
+                currentGear_ = targetGear_;
+                shiftState_ = ShiftState::Synchronizing;
+            }
+            break;
 
-            case ShiftState::Synchronizing:
-                torqueScale = 0.0;
-                isBlip = (targetGear_ > 0) && (targetGear_ < currentGear_);
-                if (shiftTimer_ >= tSync) {
-                    shiftTimer_ = 0.0;
-                    shiftState_ = ShiftState::Engaging;
-                }
-                break;
+        case ShiftState::Synchronizing:
+            torqueScale = 0.0;
+            isBlip = (targetGear_ > 0) && (targetGear_ < currentGear_);
+            if (shiftTimer_ >= tSync) {
+                shiftTimer_ = 0.0;
+                shiftState_ = ShiftState::Engaging;
+            }
+            break;
 
-            case ShiftState::Engaging:
-                torqueScale = std::clamp(shiftTimer_ / tEngage, 0.0, 1.0);
-                if (shiftTimer_ >= tEngage) {
-                    shiftTimer_ = 0.0;
-                    shiftState_ = ShiftState::InGear;
-                    torqueScale = 1.0;
-                    isCut = false;
-                }
-                break;
-
-            default:
+        case ShiftState::Engaging:
+            torqueScale = std::clamp(shiftTimer_ / tEngage, 0.0, 1.0);
+            if (shiftTimer_ >= tEngage) {
+                shiftTimer_ = 0.0;
                 shiftState_ = ShiftState::InGear;
                 torqueScale = 1.0;
                 isCut = false;
-                break;
+            }
+            break;
+
+        default:
+            shiftState_ = ShiftState::InGear;
+            torqueScale = 1.0;
+            isCut = false;
+            break;
         }
     }
 
@@ -106,14 +108,16 @@ TransmissionOutput Transmission2D::step(double clutchTorque,
     return out;
 }
 
-void Transmission2D::reset(std::int32_t initialGear) noexcept {
+void Transmission2D::reset(std::int32_t initialGear) noexcept
+{
     currentGear_ = initialGear;
     targetGear_ = initialGear;
     shiftState_ = ShiftState::InGear;
     shiftTimer_ = 0.0;
 }
 
-bool Transmission2D::shiftUp() noexcept {
+bool Transmission2D::shiftUp() noexcept
+{
     if (shiftState_ != ShiftState::InGear) {
         return false;
     }
@@ -128,7 +132,8 @@ bool Transmission2D::shiftUp() noexcept {
     return false;
 }
 
-bool Transmission2D::shiftDown() noexcept {
+bool Transmission2D::shiftDown() noexcept
+{
     if (shiftState_ != ShiftState::InGear) {
         return false;
     }
@@ -142,7 +147,8 @@ bool Transmission2D::shiftDown() noexcept {
     return false;
 }
 
-bool Transmission2D::selectGear(std::int32_t gear) noexcept {
+bool Transmission2D::selectGear(std::int32_t gear) noexcept
+{
     const auto maxGear { static_cast<std::int32_t>(config_.forwardGears) };
     if (gear < -1 || gear > maxGear) {
         return false;
@@ -157,19 +163,23 @@ bool Transmission2D::selectGear(std::int32_t gear) noexcept {
     return true;
 }
 
-void Transmission2D::setMode(TransmissionMode mode) noexcept {
+void Transmission2D::setMode(TransmissionMode mode) noexcept
+{
     config_.mode = mode;
 }
 
-std::int32_t Transmission2D::getGear() const noexcept {
+std::int32_t Transmission2D::getGear() const noexcept
+{
     return currentGear_;
 }
 
-bool Transmission2D::isShifting() const noexcept {
+bool Transmission2D::isShifting() const noexcept
+{
     return shiftState_ != ShiftState::InGear;
 }
 
-double Transmission2D::getRatio(std::int32_t gear) const noexcept {
+double Transmission2D::getRatio(std::int32_t gear) const noexcept
+{
     if (gear == 0) {
         return 0.0;
     }
@@ -186,7 +196,8 @@ double Transmission2D::getRatio(std::int32_t gear) const noexcept {
     return 0.0;
 }
 
-double Transmission2D::getCurrentRatio() const noexcept {
+double Transmission2D::getCurrentRatio() const noexcept
+{
     return getRatio(currentGear_);
 }
 

@@ -35,20 +35,23 @@ public:
 
     /// @brief Queries current turbocharger / induction sound component.
     /// @return Most recent forced induction component sample.
-    [[nodiscard]] double getLastInductionSample() const noexcept { return lastInduction_; }
+    [[nodiscard]] double getLastInductionSample() const noexcept
+    {
+        return lastInduction_;
+    }
 
 private:
-    VehicleAcousticProfile profile_ { };
-    CylinderHarmonicSynth cylinderSynth_ { };
-    ForcedInductionSynth inductionSynth_ { };
-    ExhaustPopSynth popSynth_ { };
+    VehicleAcousticProfile profile_ {};
+    CylinderHarmonicSynth cylinderSynth_ {};
+    ForcedInductionSynth inductionSynth_ {};
+    ExhaustPopSynth popSynth_ {};
     bool configured_ { false };
     double lastInduction_ { 0.0 };
 
     double phase_ { 0.0 };
     double subPhase_ { 0.0 };
     double lastCutoff_ { 0.0 };
-    BiquadFilter filter_ { };
+    BiquadFilter filter_ {};
 };
 
 /// @class TireSlipSynthesizer
@@ -72,8 +75,8 @@ public:
 private:
     std::uint32_t rngState_ { 0x12345678U };
     double lastCenterFreq_ { 0.0 };
-    BiquadFilter bandpass_ { };
-    BiquadFilter gravelFilter_ { };
+    BiquadFilter bandpass_ {};
+    BiquadFilter gravelFilter_ {};
 };
 
 /// @class RotorSynthesizer
@@ -88,7 +91,8 @@ public:
     /// @param[in] thrustLoad Aerodynamic thrust factor [0.0, 1.0].
     /// @param[in] sampleRate Sampling frequency in Hz.
     /// @return Synthesized rotor chop sample in [-1.0, 1.0].
-    [[nodiscard]] double process(double rotorRpm, int bladeCount, double thrustLoad, double sampleRate) noexcept;
+    [[nodiscard]] double process(
+        double rotorRpm, std::int32_t bladeCount, double thrustLoad, double sampleRate) noexcept;
 
     /// @brief Resets phase accumulator.
     void reset() noexcept;
@@ -118,7 +122,7 @@ private:
     double b1_ { 0.0 };
     double b2_ { 0.0 };
     std::uint32_t rngState_ { 0xABCDEF01U };
-    BiquadFilter rumbleFilter_ { };
+    BiquadFilter rumbleFilter_ {};
 };
 
 /// @class ImpactSynthesizer

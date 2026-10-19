@@ -1,9 +1,13 @@
 #pragma once
 
-#include <SDL2/SDL.h>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
+#include <SDL2/SDL.h>
+
+#include "apps/MotionLab/AudioSystem.h"
 #include "apps/MotionLab/CircuitTrackCoordinator.h"
 #include "apps/MotionLab/CircuitTrackRenderer.h"
 #include "apps/MotionLab/MooseTestCoordinator.h"
@@ -12,7 +16,6 @@
 #include "apps/MotionLab/MotionLabVehicleType.h"
 #include "apps/MotionLab/SkidRibbonBuffer.h"
 #include "apps/MotionLab/SkidpadCoordinator.h"
-#include "apps/MotionLab/AudioSystem.h"
 #include "apps/MotionLab/SkidpadRenderer.h"
 #include "apps/MotionLab/SlalomCourseCoordinator.h"
 #include "apps/MotionLab/SlalomCourseRenderer.h"
@@ -420,7 +423,7 @@ private:
     void applyVehicleProperties() noexcept;
     [[nodiscard]] vehicle_sim::math::Vec2 computeSupportPoint(const vehicle_sim::math::Vec2& normal) const noexcept;
 
-    MotionLabAppConfig mConfig { };
+    MotionLabAppConfig mConfig {};
     SDL_Window* mWindow { nullptr };
     SDL_Renderer* mRenderer { nullptr };
     bool mRunning { false };
@@ -434,42 +437,42 @@ private:
 
     MotionLabVehicleType mVehicleType { MotionLabVehicleType::ClassicCar };
 
-    vehicle_sim::physics::RigidBody2D mBody { };
-    vehicle_sim::dynamics::MotionLabCarDynamics mCar { };
-    vehicle_sim::dynamics::RaceCarDynamics mRaceCar { };
-    vehicle_sim::dynamics::RocketDynamics mRocket { };
-    vehicle_sim::dynamics::HelicopterDynamics mHelicopter { };
-    vehicle_sim::dynamics::HovercraftDynamics mHovercraft { };
-    vehicle_sim::dynamics::TrackedTankDynamics mTank { };
-    vehicle_sim::dynamics::AntiGravityRacerDynamics mAntiGravity { };
-    vehicle_sim::dynamics::DriftCarDynamics mDriftCar { };
-    vehicle_sim::dynamics::MonsterCarDynamics mMonsterCar { };
-    vehicle_sim::dynamics::ArticulatedTruckDynamics mArticulatedTruck { };
-    vehicle_sim::dynamics::ForkliftDynamics mForklift { };
-    vehicle_sim::dynamics::QuadcopterDroneDynamics mDrone { };
+    vehicle_sim::physics::RigidBody2D mBody {};
+    vehicle_sim::dynamics::MotionLabCarDynamics mCar {};
+    vehicle_sim::dynamics::RaceCarDynamics mRaceCar {};
+    vehicle_sim::dynamics::RocketDynamics mRocket {};
+    vehicle_sim::dynamics::HelicopterDynamics mHelicopter {};
+    vehicle_sim::dynamics::HovercraftDynamics mHovercraft {};
+    vehicle_sim::dynamics::TrackedTankDynamics mTank {};
+    vehicle_sim::dynamics::AntiGravityRacerDynamics mAntiGravity {};
+    vehicle_sim::dynamics::DriftCarDynamics mDriftCar {};
+    vehicle_sim::dynamics::MonsterCarDynamics mMonsterCar {};
+    vehicle_sim::dynamics::ArticulatedTruckDynamics mArticulatedTruck {};
+    vehicle_sim::dynamics::ForkliftDynamics mForklift {};
+    vehicle_sim::dynamics::QuadcopterDroneDynamics mDrone {};
 
-    MotionLabCamera mCamera { };
+    MotionLabCamera mCamera {};
     SkidRibbonBuffer mSkids { 10.0 };
     TrailParticleBuffer mTrail { 12.0 };
-    WireframeRenderer mWireframe { };
+    WireframeRenderer mWireframe {};
 
-    RearTireState mRearLeftState { };
-    RearTireState mRearRightState { };
+    RearTireState mRearLeftState {};
+    RearTireState mRearRightState {};
 
-    CircuitTrackCoordinator mCircuitCoordinator { };
+    CircuitTrackCoordinator mCircuitCoordinator {};
     std::uint32_t mCircuitSeed { 2024U };
-    SlalomCourseCoordinator mSlalomCoordinator { };
-    MooseTestCoordinator mMooseCoordinator { };
-    SkidpadCoordinator mSkidpadCoordinator { };
-    TelemetryCoordinator mTelemetryCoordinator { };
-    WindTurbulenceCoordinator mWindCoordinator { };
-    WindVectorFieldRenderer mWindRenderer { };
+    SlalomCourseCoordinator mSlalomCoordinator {};
+    MooseTestCoordinator mMooseCoordinator {};
+    SkidpadCoordinator mSkidpadCoordinator {};
+    TelemetryCoordinator mTelemetryCoordinator {};
+    WindTurbulenceCoordinator mWindCoordinator {};
+    WindVectorFieldRenderer mWindRenderer {};
     bool mWindHudVisible { true };
-    TireThermalCoordinator mTireThermalCoordinator { };
-    TireSmokeParticleBuffer mTireSmokeBuffer { };
-    TireThermalRenderer mTireThermalRenderer { };
+    TireThermalCoordinator mTireThermalCoordinator {};
+    TireSmokeParticleBuffer mTireSmokeBuffer {};
+    TireThermalRenderer mTireThermalRenderer {};
     bool mTireThermalHudVisible { true };
-    AudioSystem mAudioSystem { };
+    AudioSystem mAudioSystem {};
     bool mAudioHudVisible { true };
     bool mAdvancedHudVisible { true };
     bool mAllHudVisible { true };

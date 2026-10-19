@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <vector>
 
 #include "libs/VehicleSimCore/terrain/Heightfield1D.h"
@@ -94,9 +95,9 @@ public:
     [[nodiscard]] const CourseConfig& getConfig() const noexcept;
 
 private:
-    CourseConfig config_ { };
-    vehicle_sim::terrain::Heightfield1D heightfield_ { };
-    std::vector<CheckpointInfo> checkpoints_ { };
+    CourseConfig config_ {};
+    vehicle_sim::terrain::Heightfield1D heightfield_ {};
+    std::vector<CheckpointInfo> checkpoints_ {};
 
     double roverX_ { 0.0 };
     double remainingTime_ { 60.0 };

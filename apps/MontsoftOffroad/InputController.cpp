@@ -1,4 +1,5 @@
 #include "apps/MontsoftOffroad/InputController.h"
+#include <cstdint>
 
 namespace montsoft_offroad {
 
@@ -257,7 +258,7 @@ void InputController::setTruckInput(const vehicle_sim::dynamics::OffroadTruckInp
 
 void InputController::reset() noexcept
 {
-    truckInput_ = vehicle_sim::dynamics::OffroadTruckInput{};
+    truckInput_ = vehicle_sim::dynamics::OffroadTruckInput {};
     pendingAction_ = SystemAction::None;
     throttlePressed_ = false;
     brakePressed_ = false;

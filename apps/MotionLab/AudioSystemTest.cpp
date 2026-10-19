@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "apps/MotionLab/AudioSystem.h"
@@ -85,7 +86,7 @@ TEST(AudioDspMathTest, SoftLimitSaturationBounds)
 
 TEST(AudioDspMathTest, BiquadFilterLowPassAndBandPass)
 {
-    BiquadFilter filter { };
+    BiquadFilter filter {};
     filter.setLowPass(44100.0, 1000.0, 1.414);
 
     // DC input test (1.0 -> should settle close to 1.0)
@@ -112,7 +113,7 @@ TEST(AudioDspMathTest, BiquadFilterLowPassAndBandPass)
 
 TEST(AudioChannelsTest, EngineSynthesizerExecution)
 {
-    EngineSynthesizer engine { };
+    EngineSynthesizer engine {};
 
     // At idle 800 RPM
     double maxSample { 0.0 };
@@ -137,7 +138,7 @@ TEST(AudioChannelsTest, EngineSynthesizerExecution)
 
 TEST(AudioChannelsTest, TireSlipSynthesizerExecution)
 {
-    TireSlipSynthesizer tire { };
+    TireSlipSynthesizer tire {};
 
     // At zero slip, should produce 0
     for (int i { 0 }; i < 100; ++i) {
@@ -157,7 +158,7 @@ TEST(AudioChannelsTest, TireSlipSynthesizerExecution)
 
 TEST(AudioChannelsTest, RotorSynthesizerExecution)
 {
-    RotorSynthesizer rotor { };
+    RotorSynthesizer rotor {};
 
     // At 0 RPM, silent
     EXPECT_DOUBLE_EQ(rotor.process(0.0, 2, 0.5, 44100.0), 0.0);
@@ -175,7 +176,7 @@ TEST(AudioChannelsTest, RotorSynthesizerExecution)
 
 TEST(AudioChannelsTest, ThrusterSynthesizerExecution)
 {
-    ThrusterSynthesizer thruster { };
+    ThrusterSynthesizer thruster {};
 
     // Zero throttle, silent
     EXPECT_DOUBLE_EQ(thruster.process(0.0, 44100.0), 0.0);
@@ -193,7 +194,7 @@ TEST(AudioChannelsTest, ThrusterSynthesizerExecution)
 
 TEST(AudioChannelsTest, ImpactSynthesizerDecay)
 {
-    ImpactSynthesizer impact { };
+    ImpactSynthesizer impact {};
 
     // Silent before trigger
     EXPECT_DOUBLE_EQ(impact.process(44100.0), 0.0);
@@ -217,7 +218,7 @@ TEST(AudioChannelsTest, ImpactSynthesizerDecay)
 
 TEST(AudioSystemTest, HeadlessInitializationAndControls)
 {
-    AudioSystem audio { };
+    AudioSystem audio {};
     EXPECT_FALSE(audio.isInitialized());
 
     EXPECT_TRUE(audio.initialize(true)); // headless = true
@@ -243,7 +244,7 @@ TEST(AudioSystemTest, HeadlessInitializationAndControls)
 
 TEST(AudioSystemTest, HeadlessSynthesisAndSampleBounds)
 {
-    AudioSystem audio { };
+    AudioSystem audio {};
     EXPECT_TRUE(audio.initialize(true));
 
     // Telemetry: Classic Car idling
@@ -282,7 +283,7 @@ TEST(AudioSystemTest, HeadlessSynthesisAndSampleBounds)
 
 TEST(AudioSystemTest, FleetAcousticChannelRouting)
 {
-    AudioSystem audio { };
+    AudioSystem audio {};
     EXPECT_TRUE(audio.initialize(true));
     audio.setMuted(false);
     std::vector<std::int16_t> buffer(512, 0);

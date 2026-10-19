@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 namespace vehicle_sim::terrain {
@@ -238,8 +239,8 @@ CamberProfileSample CircuitTrack2D::sampleCamber(const math::Vec2& point) const 
 
 TrialsCourse TrackGenerator::generateTrialsCourse(const TrialsCourseConfig& config)
 {
-    TrialsCourse course { };
-    std::vector<HeightSample1D> samples { };
+    TrialsCourse course {};
+    std::vector<HeightSample1D> samples {};
     double currentX { 0.0 };
     double currentY { 0.0 };
 
@@ -331,7 +332,7 @@ TrialsCourse TrackGenerator::generateTrialsCourse(const TrialsCourseConfig& conf
 
 PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelConfig& config)
 {
-    PlatformerLevel level { };
+    PlatformerLevel level {};
     DeterministicRng rng { config.seed };
 
     const double halfWidth { std::max(20.0, config.levelWidth) * 0.5 };
@@ -345,7 +346,7 @@ PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelCon
 
     // Continuous Ground Floor (Tier 0)
     if (config.hasGroundFloor) {
-        dynamics::SideViewPlatform ground { };
+        dynamics::SideViewPlatform ground {};
         ground.y = config.groundY;
         ground.minX = minX;
         ground.maxX = maxX;
@@ -364,7 +365,7 @@ PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelCon
             const double platEnd { std::min(cursorX + platLen, maxX) };
 
             if (platEnd - cursorX >= config.platformMinLength * 0.6) {
-                dynamics::SideViewPlatform plat { };
+                dynamics::SideViewPlatform plat {};
                 plat.y = tierY;
                 plat.minX = cursorX;
                 plat.maxX = platEnd;
@@ -397,12 +398,12 @@ PlatformerLevel TrackGenerator::generatePlatformerLevel(const PlatformerLevelCon
 
 HillClimbCourse TrackGenerator::generateHillClimb(const HillClimbConfig& config)
 {
-    HillClimbCourse course { };
+    HillClimbCourse course {};
     DeterministicRng rng { config.seed };
 
     const double totalLen { std::max(50.0, config.totalLength) };
     const double baseSlope { std::max(0.05, config.baseSlope) };
-    std::vector<HeightSample1D> samples { };
+    std::vector<HeightSample1D> samples {};
 
     // Base uniform samples with elevated steep pitches
     const std::size_t numSamples { static_cast<std::size_t>(totalLen / 10.0) + 1U };
@@ -429,7 +430,7 @@ HillClimbCourse TrackGenerator::generateHillClimb(const HillClimbConfig& config)
     course.terrain.setDefaultMaterial(SurfaceMaterial::getPreset(MaterialType::Dirt));
 
     // Fractal noise overlay
-    FractalConfig fractalConfig { };
+    FractalConfig fractalConfig {};
     fractalConfig.octaves = 4;
     fractalConfig.persistence = 0.5;
     fractalConfig.lacunarity = 2.0;
@@ -471,7 +472,7 @@ HillClimbCourse TrackGenerator::generateHillClimb(const HillClimbConfig& config)
 
 CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& config)
 {
-    CircuitTrack2D track { };
+    CircuitTrack2D track {};
     track.trackWidth = std::max(4.0, config.trackWidth);
     track.shoulderWidth = std::max(1.0, config.shoulderWidth);
     track.isClosed = config.isClosed;
@@ -528,7 +529,7 @@ CircuitTrack2D TrackGenerator::generateCircuitTrack(const CircuitTrackConfig& co
     track.trackLength = accumLength;
 
     // Configure camber and banking evaluator
-    BankedTrackConfig bankConfig { };
+    BankedTrackConfig bankConfig {};
     bankConfig.enabled = config.enableBanking;
     bankConfig.camberType = config.camberType;
     bankConfig.designSpeed = config.designSpeed;

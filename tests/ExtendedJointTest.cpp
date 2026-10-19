@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 
 #include "libs/VehicleSimCore/math/Angle2D.h"

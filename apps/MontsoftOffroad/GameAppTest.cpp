@@ -1,5 +1,6 @@
-#include <gtest/gtest.h>
+#include <cstdint>
 #include <cstdio>
+#include <gtest/gtest.h>
 
 #include "apps/MontsoftOffroad/AudioSystem.h"
 #include "apps/MontsoftOffroad/BossController.h"
@@ -22,14 +23,14 @@ namespace montsoft_offroad {
 TEST(SDLWrappersTest, ContextLifecycleAndNullDeleters)
 {
     // Verify RAII deleters do not crash on nullptr
-    SDLWindowDeleter{}(nullptr);
-    SDLRendererDeleter{}(nullptr);
-    SDLTextureDeleter{}(nullptr);
-    SDLSurfaceDeleter{}(nullptr);
-    SDLControllerDeleter{}(nullptr);
+    SDLWindowDeleter {}(nullptr);
+    SDLRendererDeleter {}(nullptr);
+    SDLTextureDeleter {}(nullptr);
+    SDLSurfaceDeleter {}(nullptr);
+    SDLControllerDeleter {}(nullptr);
 
     // SDLContext initialization with no subsystems (safe in any headless CI)
-    SDLContext ctx{ 0 };
+    SDLContext ctx { 0 };
     EXPECT_TRUE(ctx.isInitialized());
 }
 
@@ -64,25 +65,25 @@ TEST(CgaRendererTest, ColorQuantizationAccuracy)
 
     // In Mode 1 (Black, Cyan, Magenta, White)
     renderer.setPaletteMode(PaletteMode::CgaPalette1);
-    const ColorRgba black{ 0, 0, 0, 255 };
-    const ColorRgba white{ 255, 255, 255, 255 };
-    const ColorRgba cyan{ 85, 255, 255, 255 };
-    const ColorRgba magenta{ 255,  85, 255, 255 };
+    const ColorRgba black { 0, 0, 0, 255 };
+    const ColorRgba white { 255, 255, 255, 255 };
+    const ColorRgba cyan { 85, 255, 255, 255 };
+    const ColorRgba magenta { 255, 85, 255, 255 };
 
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 0, 0, 0, 255 }), black);
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 255, 255, 255, 255 }), white);
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 0, 200, 255, 255 }), cyan);
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 255, 0, 200, 255 }), magenta);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 0, 0, 0, 255 }), black);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 255, 255, 255, 255 }), white);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 0, 200, 255, 255 }), cyan);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 255, 0, 200, 255 }), magenta);
 
     // In Mode 0 (Black, Green, Red, Yellow)
     renderer.setPaletteMode(PaletteMode::CgaPalette0);
-    const ColorRgba green{ 85, 255, 85, 255 };
-    const ColorRgba red{ 255, 85, 85, 255 };
-    const ColorRgba yellow{ 255, 255, 85, 255 };
+    const ColorRgba green { 85, 255, 85, 255 };
+    const ColorRgba red { 255, 85, 85, 255 };
+    const ColorRgba yellow { 255, 255, 85, 255 };
 
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 0, 255, 0, 255 }), green);
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 255, 0, 0, 255 }), red);
-    EXPECT_EQ(renderer.quantizeColor(ColorRgba{ 200, 200, 0, 255 }), yellow);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 0, 255, 0, 255 }), green);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 255, 0, 0, 255 }), red);
+    EXPECT_EQ(renderer.quantizeColor(ColorRgba { 200, 200, 0, 255 }), yellow);
 }
 
 TEST(CgaRendererTest, ClearAndPixelAccessBounds)
@@ -90,7 +91,7 @@ TEST(CgaRendererTest, ClearAndPixelAccessBounds)
     CgaPaletteRenderer renderer {};
     renderer.setPaletteMode(PaletteMode::CgaPalette1);
 
-    const ColorRgba cyan{ 85, 255, 255, 255 };
+    const ColorRgba cyan { 85, 255, 255, 255 };
     renderer.clear(cyan);
 
     EXPECT_EQ(renderer.getPixel(0, 0), cyan);
@@ -98,13 +99,13 @@ TEST(CgaRendererTest, ClearAndPixelAccessBounds)
     EXPECT_EQ(renderer.getPixel(319, 199), cyan);
 
     // Out of bounds get returns black
-    EXPECT_EQ(renderer.getPixel(-1, 0), (ColorRgba{ 0, 0, 0, 255 }));
-    EXPECT_EQ(renderer.getPixel(320, 0), (ColorRgba{ 0, 0, 0, 255 }));
-    EXPECT_EQ(renderer.getPixel(0, -1), (ColorRgba{ 0, 0, 0, 255 }));
-    EXPECT_EQ(renderer.getPixel(0, 200), (ColorRgba{ 0, 0, 0, 255 }));
+    EXPECT_EQ(renderer.getPixel(-1, 0), (ColorRgba { 0, 0, 0, 255 }));
+    EXPECT_EQ(renderer.getPixel(320, 0), (ColorRgba { 0, 0, 0, 255 }));
+    EXPECT_EQ(renderer.getPixel(0, -1), (ColorRgba { 0, 0, 0, 255 }));
+    EXPECT_EQ(renderer.getPixel(0, 200), (ColorRgba { 0, 0, 0, 255 }));
 
     // Set pixel within bounds
-    const ColorRgba white{ 255, 255, 255, 255 };
+    const ColorRgba white { 255, 255, 255, 255 };
     renderer.setPixel(50, 50, white);
     EXPECT_EQ(renderer.getPixel(50, 50), white);
 
@@ -117,17 +118,17 @@ TEST(CgaRendererTest, DrawingPrimitives)
 {
     CgaPaletteRenderer renderer {};
     renderer.setPaletteMode(PaletteMode::CgaPalette1);
-    renderer.clear(ColorRgba{ 0, 0, 0, 255 });
+    renderer.clear(ColorRgba { 0, 0, 0, 255 });
 
-    const ColorRgba white{ 255, 255, 255, 255 };
+    const ColorRgba white { 255, 255, 255, 255 };
 
     // Horizontal line
     renderer.drawLine(10, 20, 30, 20, white);
     for (int x { 10 }; x <= 30; ++x) {
         EXPECT_EQ(renderer.getPixel(x, 20), white);
     }
-    EXPECT_EQ(renderer.getPixel(9, 20), (ColorRgba{ 0, 0, 0, 255 }));
-    EXPECT_EQ(renderer.getPixel(31, 20), (ColorRgba{ 0, 0, 0, 255 }));
+    EXPECT_EQ(renderer.getPixel(9, 20), (ColorRgba { 0, 0, 0, 255 }));
+    EXPECT_EQ(renderer.getPixel(31, 20), (ColorRgba { 0, 0, 0, 255 }));
 
     // Filled rect
     renderer.fillRect(100, 50, 10, 8, white);
@@ -138,14 +139,11 @@ TEST(CgaRendererTest, DrawingPrimitives)
     }
 
     // Sprite blit with color key
-    const ColorRgba magenta{ 255, 85, 255, 255 };
-    const ColorRgba key{ 0, 0, 0, 255 };
-    std::array<ColorRgba, 4> sprite{
-        white, key,
-        key,   magenta
-    };
+    const ColorRgba magenta { 255, 85, 255, 255 };
+    const ColorRgba key { 0, 0, 0, 255 };
+    std::array<ColorRgba, 4> sprite { white, key, key, magenta };
 
-    renderer.clear(ColorRgba{ 0, 0, 0, 255 });
+    renderer.clear(ColorRgba { 0, 0, 0, 255 });
     renderer.blitSprite(15, 15, 2, 2, sprite.data(), key);
 
     EXPECT_EQ(renderer.getPixel(15, 15), white);
@@ -184,7 +182,7 @@ TEST(GameAppTest, HeadlessInitAndLifecycle)
     config.headless = true;
     config.initialPalette = PaletteMode::EnhancedEga;
 
-    GameApp app{ config };
+    GameApp app { config };
     EXPECT_TRUE(app.initialize());
     EXPECT_TRUE(app.isRunning());
     EXPECT_FALSE(app.isPaused());
@@ -204,7 +202,7 @@ TEST(GameAppTest, SimulationStepAdvancesPhysics)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     const double initialY { app.getTruckBody().getPosition().y };
@@ -223,24 +221,17 @@ TEST(GameAppTest, FireRocketAndMortarBallistics)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
     EXPECT_EQ(app.getBallistics().getProjectiles().size(), 0U);
 
     // Fire rocket
-    app.getBallistics().fireRocket(
-        app.getTruckBody().getPosition(),
-        0.0,
-        app.getTruckBody().getLinearVelocity()
-    );
+    app.getBallistics().fireRocket(app.getTruckBody().getPosition(), 0.0, app.getTruckBody().getLinearVelocity());
     EXPECT_EQ(app.getBallistics().getProjectiles().size(), 1U);
     EXPECT_EQ(app.getBallistics().getProjectiles()[0].type, vehicle_sim::dynamics::ProjectileType::ForwardRocket);
 
     // Fire mortar
-    app.getBallistics().fireMortar(
-        app.getTruckBody().getPosition(),
-        app.getTruckBody().getLinearVelocity()
-    );
+    app.getBallistics().fireMortar(app.getTruckBody().getPosition(), app.getTruckBody().getLinearVelocity());
     EXPECT_EQ(app.getBallistics().getProjectiles().size(), 2U);
     EXPECT_EQ(app.getBallistics().getProjectiles()[1].type, vehicle_sim::dynamics::ProjectileType::AntiAirMortar);
 
@@ -251,9 +242,9 @@ TEST(GameAppTest, FireRocketAndMortarBallistics)
 TEST(Camera2DTest, WorldToScreenInvertibility)
 {
     Camera2D camera {};
-    const vehicle_sim::math::Vec2 testWorldPt{ 12.5, 3.2 };
-    const vehicle_sim::math::Vec2 screenPt{ camera.worldToScreen(testWorldPt) };
-    const vehicle_sim::math::Vec2 recoveredWorldPt{ camera.screenToWorld(screenPt) };
+    const vehicle_sim::math::Vec2 testWorldPt { 12.5, 3.2 };
+    const vehicle_sim::math::Vec2 screenPt { camera.worldToScreen(testWorldPt) };
+    const vehicle_sim::math::Vec2 recoveredWorldPt { camera.screenToWorld(screenPt) };
 
     EXPECT_NEAR(recoveredWorldPt.x, testWorldPt.x, 1e-4);
     EXPECT_NEAR(recoveredWorldPt.y, testWorldPt.y, 1e-4);
@@ -262,7 +253,7 @@ TEST(Camera2DTest, WorldToScreenInvertibility)
 TEST(Camera2DTest, LookaheadLeadSpeedScaling)
 {
     Camera2D camera {};
-    const vehicle_sim::math::Vec2 basePos{ 0.0, 0.0 };
+    const vehicle_sim::math::Vec2 basePos { 0.0, 0.0 };
     camera.reset(basePos);
 
     // Update with high forward speed (20 m/s)
@@ -280,7 +271,7 @@ TEST(Camera2DTest, TraumaDecayAndShake)
     camera.addTrauma(0.8);
     EXPECT_NEAR(camera.getTrauma(), 0.8, 1e-4);
 
-    camera.update(vehicle_sim::math::Vec2{ 0.0, 0.0 }, 0.0, 0.1);
+    camera.update(vehicle_sim::math::Vec2 { 0.0, 0.0 }, 0.0, 0.1);
     EXPECT_LT(camera.getTrauma(), 0.8);
 
     // Shake offset should be bounded by maxShakeDisplacement
@@ -289,7 +280,7 @@ TEST(Camera2DTest, TraumaDecayAndShake)
 
     // Step until trauma completely decays
     for (int i { 0 }; i < 100; ++i) {
-        camera.update(vehicle_sim::math::Vec2{ 0.0, 0.0 }, 0.0, 0.05);
+        camera.update(vehicle_sim::math::Vec2 { 0.0, 0.0 }, 0.0, 0.05);
     }
     EXPECT_EQ(camera.getTrauma(), 0.0);
     EXPECT_EQ(camera.getShakeOffset().x, 0.0);
@@ -299,7 +290,7 @@ TEST(Camera2DTest, TraumaDecayAndShake)
 TEST(Camera2DTest, VisibleBoundsEvaluation)
 {
     Camera2D camera {};
-    camera.reset(vehicle_sim::math::Vec2{ 10.0, 5.0 });
+    camera.reset(vehicle_sim::math::Vec2 { 10.0, 5.0 });
 
     const double minX { camera.getVisibleMinX() };
     const double maxX { camera.getVisibleMaxX() };
@@ -380,13 +371,14 @@ TEST(ParallaxRendererTest, DeterministicExecutionAcrossPalettes)
 
     for (int stage { 1 }; stage <= 8; ++stage) {
         course.loadStage(stage);
-        for (auto mode : { PaletteMode::CgaPalette1, PaletteMode::CgaPalette0, PaletteMode::CompositeNtsc, PaletteMode::EnhancedEga }) {
+        for (auto mode : { PaletteMode::CgaPalette1, PaletteMode::CgaPalette0, PaletteMode::CompositeNtsc,
+                 PaletteMode::EnhancedEga }) {
             cga.setPaletteMode(mode);
             parallax.update(0.1);
             parallax.render(cga, camera, course.getHeightfield(), stage);
 
             // Framebuffer must have non-zero pixels
-            EXPECT_NE(cga.getPixel(160, 180), (ColorRgba{ 0, 0, 0, 0 }));
+            EXPECT_NE(cga.getPixel(160, 180), (ColorRgba { 0, 0, 0, 0 }));
         }
     }
 }
@@ -413,7 +405,7 @@ TEST(GameAppTest, FullTraversalAndCheckpointScoring)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     // Advance 60 simulation steps with full throttle
@@ -629,7 +621,7 @@ TEST(ParticleSystemTest, PoolAllocationAndBoundedCapacity)
 
     // Emit 1500 particles (exceeding fixed pool size of 1024)
     for (int i { 0 }; i < 300; ++i) {
-        particles.emitRoosterTail(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 15.0, 0.0 }, 0.1, 0);
+        particles.emitRoosterTail(vehicle_sim::math::Vec2 { 0.0, 0.0 }, vehicle_sim::math::Vec2 { 15.0, 0.0 }, 0.1, 0);
     }
 
     // Active count must be capped at kMaxParticles (1024)
@@ -640,28 +632,28 @@ TEST(ParticleSystemTest, PoolAllocationAndBoundedCapacity)
 TEST(ParticleSystemTest, RoosterTailEmissionKinetics)
 {
     ParticleSystem particles {};
-    particles.emitRoosterTail(vehicle_sim::math::Vec2{ 10.0, 1.0 }, vehicle_sim::math::Vec2{ 12.0, 0.0 }, 0.05, 0);
+    particles.emitRoosterTail(vehicle_sim::math::Vec2 { 10.0, 1.0 }, vehicle_sim::math::Vec2 { 12.0, 0.0 }, 0.05, 0);
     EXPECT_GT(particles.getActiveCount(), 0U);
 }
 
 TEST(ParticleSystemTest, LandingDustRadialDispersion)
 {
     ParticleSystem particles {};
-    particles.emitLandingDust(vehicle_sim::math::Vec2{ 50.0, 2.0 }, 4.5, 1);
+    particles.emitLandingDust(vehicle_sim::math::Vec2 { 50.0, 2.0 }, 4.5, 1);
     EXPECT_GT(particles.getActiveCount(), 0U);
 }
 
 TEST(ParticleSystemTest, ThrusterSparkEmissionKinetics)
 {
     ParticleSystem particles {};
-    particles.emitThrusterSparks(vehicle_sim::math::Vec2{ 20.0, 5.0 }, vehicle_sim::math::Vec2{ 5.0, 3.0 });
+    particles.emitThrusterSparks(vehicle_sim::math::Vec2 { 20.0, 5.0 }, vehicle_sim::math::Vec2 { 5.0, 3.0 });
     EXPECT_GT(particles.getActiveCount(), 0U);
 }
 
 TEST(ParticleSystemTest, IntegrationStepAndLifespanExpiration)
 {
     ParticleSystem particles {};
-    particles.emitThrusterSparks(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    particles.emitThrusterSparks(vehicle_sim::math::Vec2 { 0.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
     EXPECT_GT(particles.getActiveCount(), 0U);
 
     // Step simulation 2 seconds (exceeds 0.3s max lifetime of sparks)
@@ -678,9 +670,9 @@ TEST(ParticleSystemTest, RenderCleanliness)
     Camera2D camera {};
     CgaPaletteRenderer cga {};
 
-    particles.emitRoosterTail(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 10.0, 0.0 }, 0.1, 0);
-    particles.emitLandingDust(vehicle_sim::math::Vec2{ 0.0, 0.0 }, 3.0, 0);
-    particles.emitThrusterSparks(vehicle_sim::math::Vec2{ 0.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    particles.emitRoosterTail(vehicle_sim::math::Vec2 { 0.0, 0.0 }, vehicle_sim::math::Vec2 { 10.0, 0.0 }, 0.1, 0);
+    particles.emitLandingDust(vehicle_sim::math::Vec2 { 0.0, 0.0 }, 3.0, 0);
+    particles.emitThrusterSparks(vehicle_sim::math::Vec2 { 0.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     particles.render(cga, camera);
     // Buffer should contain rendered particles
@@ -705,7 +697,7 @@ TEST(TruckRendererTest, OffScreenCullingSafety)
     vehicle_sim::dynamics::OffroadTruckDynamics dynamics {};
 
     // Position truck 1000m away (well off-screen)
-    body.setPosition(vehicle_sim::math::Vec2{ 1000.0, 500.0 });
+    body.setPosition(vehicle_sim::math::Vec2 { 1000.0, 500.0 });
 
     // Should execute safely without buffer overflow or crash
     renderer.render(cga, camera, body, dynamics);
@@ -716,7 +708,7 @@ TEST(GameAppPhase4IntegrationTest, DrivingSpawnsRoosterTails)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     vehicle_sim::dynamics::OffroadTruckInput input {};
@@ -736,7 +728,7 @@ TEST(GameAppPhase4IntegrationTest, JumpGeneratesThrusterSparks)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     // Jump should emit thruster sparks immediately
@@ -753,7 +745,7 @@ TEST(GameAppPhase4IntegrationTest, FullPhase4RenderFrameExecution)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     vehicle_sim::dynamics::OffroadTruckInput input {};
@@ -775,7 +767,7 @@ TEST(CombatManagerTest, WeaponCadenceAndCooldownTimers)
     vehicle_sim::physics::RigidBody2D body {};
     ParticleSystem particles {};
     Camera2D camera {};
-    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies { &body };
 
     EXPECT_TRUE(cm.canFireRocket());
     EXPECT_TRUE(cm.canFireMortar());
@@ -816,7 +808,7 @@ TEST(CombatManagerTest, RocketRecoilImpulseAndHeading)
     CombatManager cm {};
     vehicle_sim::physics::RigidBody2D body {};
     body.setOrientation(0.0);
-    body.setLinearVelocity(vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     EXPECT_TRUE(cm.fireRocket(body));
     // Rocket recoil should push truck in negative X direction
@@ -834,7 +826,7 @@ TEST(CombatManagerTest, MortarVerticalThumpAndHighAngle)
     CombatManager cm {};
     vehicle_sim::physics::RigidBody2D body {};
     body.setOrientation(0.0);
-    body.setLinearVelocity(vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    body.setLinearVelocity(vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     EXPECT_TRUE(cm.fireMortar(body));
     // Mortar kick pushes truck chassis downward into suspension
@@ -852,7 +844,7 @@ TEST(CombatManagerTest, ExhaustTrailEmission)
     ParticleSystem particles {};
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D body {};
-    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies { &body };
 
     cm.fireRocket(body);
     cm.fireMortar(body);
@@ -867,18 +859,18 @@ TEST(CombatManagerTest, TargetSweepHitCollisionAndDamage)
     ParticleSystem particles {};
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D body {};
-    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies { &body };
 
     // Register a target AABB directly in front of launcher
     CombatTargetAabb target {};
     target.targetId = 42U;
     target.type = CombatTargetType::GroundScout;
-    target.minBounds = vehicle_sim::math::Vec2{ 0.5, -2.0 };
-    target.maxBounds = vehicle_sim::math::Vec2{ 5.0, 2.0 };
+    target.minBounds = vehicle_sim::math::Vec2 { 0.5, -2.0 };
+    target.maxBounds = vehicle_sim::math::Vec2 { 5.0, 2.0 };
     target.health = 100.0;
     target.isAlive = true;
 
-    std::vector<CombatTargetAabb> targets{ target };
+    std::vector<CombatTargetAabb> targets { target };
 
     EXPECT_TRUE(cm.fireRocket(body));
 
@@ -896,10 +888,10 @@ TEST(CombatManagerTest, BlastEventImpulseAndCameraTrauma)
     ParticleSystem particles {};
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D body {};
-    body.setPosition(vehicle_sim::math::Vec2{ 1.0, 0.0 });
-    camera.reset(vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    body.setPosition(vehicle_sim::math::Vec2 { 1.0, 0.0 });
+    camera.reset(vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
-    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies { &body };
 
     EXPECT_TRUE(cm.fireRocket(body));
     // Trigger immediate manual detonation
@@ -925,7 +917,7 @@ TEST(CombatManagerTest, RenderShockwavesAndProjectilesClean)
     // Trigger detonation to spawn active shockwave
     cm.getBallistics().detonate(0U);
     ParticleSystem dummyParticles {};
-    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies{ &body };
+    const std::vector<vehicle_sim::physics::RigidBody2D*> bodies { &body };
     cm.update(1.0 / 60.0, nullptr, dummyParticles, camera, bodies);
 
     // Rasterization must execute cleanly without clipping exceptions
@@ -951,33 +943,21 @@ TEST(CombatManagerTest, ResetIntegrity)
 TEST(ParticleSystemCombatTest, RocketExhaustEmission)
 {
     ParticleSystem particles {};
-    particles.emitRocketExhaust(
-        vehicle_sim::math::Vec2{ 0.0, 0.0 },
-        vehicle_sim::math::Vec2{ 45.0, 0.0 },
-        0.0
-    );
+    particles.emitRocketExhaust(vehicle_sim::math::Vec2 { 0.0, 0.0 }, vehicle_sim::math::Vec2 { 45.0, 0.0 }, 0.0);
     EXPECT_GT(particles.getActiveCount(), 0U);
 }
 
 TEST(ParticleSystemCombatTest, MortarTrailEmission)
 {
     ParticleSystem particles {};
-    particles.emitMortarTrail(
-        vehicle_sim::math::Vec2{ 0.0, 0.0 },
-        vehicle_sim::math::Vec2{ 10.0, 20.0 }
-    );
+    particles.emitMortarTrail(vehicle_sim::math::Vec2 { 0.0, 0.0 }, vehicle_sim::math::Vec2 { 10.0, 20.0 });
     EXPECT_GT(particles.getActiveCount(), 0U);
 }
 
 TEST(ParticleSystemCombatTest, ExplosionShrapnelRadialBurst)
 {
     ParticleSystem particles {};
-    particles.emitExplosionShrapnel(
-        vehicle_sim::math::Vec2{ 0.0, 0.0 },
-        3.0,
-        1.0,
-        0U
-    );
+    particles.emitExplosionShrapnel(vehicle_sim::math::Vec2 { 0.0, 0.0 }, 3.0, 1.0, 0U);
     // Should spawn substantial burst of fragments
     EXPECT_GE(particles.getActiveCount(), 16U);
 }
@@ -987,7 +967,7 @@ TEST(GameAppPhase5IntegrationTest, DrivingAndWeaponCadenceIntegration)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     vehicle_sim::dynamics::OffroadTruckInput input {};
@@ -1011,7 +991,7 @@ TEST(GameAppPhase5IntegrationTest, FullPhase5RenderFrameExecution)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     vehicle_sim::dynamics::OffroadTruckInput input {};
@@ -1032,19 +1012,24 @@ TEST(EnemyManagerTest, SpawnAndCapacityLimits)
 {
     EnemyManagerConfig cfg {};
     cfg.maxEnemies = 4U;
-    EnemyManager mgr{ cfg };
+    EnemyManager mgr { cfg };
 
     EXPECT_EQ(mgr.getActiveCount(), 0U);
 
-    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 10.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
-    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
-    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::BuriedLandmine, vehicle_sim::math::Vec2{ 30.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
-    EXPECT_TRUE(mgr.spawnEnemy(EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2{ 40.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(
+        EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2 { 10.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(
+        EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2 { 20.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(
+        EnemyType::BuriedLandmine, vehicle_sim::math::Vec2 { 30.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 }));
+    EXPECT_TRUE(mgr.spawnEnemy(
+        EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2 { 40.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 }));
 
     EXPECT_EQ(mgr.getActiveCount(), 4U);
 
     // 5th spawn must fail due to maxEnemies capacity
-    EXPECT_FALSE(mgr.spawnEnemy(EnemyType::StrafingJet, vehicle_sim::math::Vec2{ 50.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 }));
+    EXPECT_FALSE(mgr.spawnEnemy(
+        EnemyType::StrafingJet, vehicle_sim::math::Vec2 { 50.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 }));
     EXPECT_EQ(mgr.getActiveCount(), 4U);
 }
 
@@ -1052,14 +1037,15 @@ TEST(EnemyManagerTest, GroundConformation)
 {
     EnemyManager mgr {};
     vehicle_sim::terrain::Heightfield1D terrain {};
-    terrain.addSample(vehicle_sim::terrain::HeightSample1D{ 0.0, 0.0 });
-    terrain.addSample(vehicle_sim::terrain::HeightSample1D{ 100.0, 25.0 }); // Slope = 0.25
+    terrain.addSample(vehicle_sim::terrain::HeightSample1D { 0.0, 0.0 });
+    terrain.addSample(vehicle_sim::terrain::HeightSample1D { 100.0, 25.0 }); // Slope = 0.25
 
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D truck {};
     ParticleSystem particles {};
 
-    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 5.0 }, vehicle_sim::math::Vec2{ 5.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2 { 20.0, 5.0 }, vehicle_sim::math::Vec2 { 5.0, 0.0 });
 
     // Step 20 frames
     for (int i { 0 }; i < 20; ++i) {
@@ -1079,12 +1065,13 @@ TEST(EnemyManagerTest, RedBuggyPdSpeedMatching)
     EnemyManager mgr {};
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 30.0, 0.0 });
-    truck.setLinearVelocity(vehicle_sim::math::Vec2{ 20.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 30.0, 0.0 });
+    truck.setLinearVelocity(vehicle_sim::math::Vec2 { 20.0, 0.0 });
     ParticleSystem particles {};
 
     // Spawn buggy behind truck at x = 10, stationary
-    mgr.spawnEnemy(EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2{ 10.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2 { 10.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     for (int i { 0 }; i < 30; ++i) {
         mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
@@ -1103,7 +1090,8 @@ TEST(EnemyManagerTest, DroneSinusoidalTrajectory)
     vehicle_sim::physics::RigidBody2D truck {};
     ParticleSystem particles {};
 
-    mgr.spawnEnemy(EnemyType::BouncingDrone, vehicle_sim::math::Vec2{ 25.0, 6.0 }, vehicle_sim::math::Vec2{ -10.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::BouncingDrone, vehicle_sim::math::Vec2 { 25.0, 6.0 }, vehicle_sim::math::Vec2 { -10.0, 0.0 });
 
     double prevY { 6.0 };
     bool movedY { false };
@@ -1125,10 +1113,11 @@ TEST(EnemyManagerTest, ArtilleryBallisticShell)
     EnemyManager mgr {};
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 10.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 10.0, 0.0 });
     ParticleSystem particles {};
 
-    mgr.spawnEnemy(EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2{ 25.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2 { 25.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     // Step 180 frames (3.0 seconds, exceeding 2.6s attack cooldown)
     for (int i { 0 }; i < 180; ++i) {
@@ -1153,7 +1142,8 @@ TEST(EnemyManagerTest, TargetSyncAndHitDamage)
     vehicle_sim::physics::RigidBody2D truck {};
     ParticleSystem particles {};
 
-    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2 { 20.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     std::vector<CombatTargetAabb> targets {};
     mgr.syncCombatTargets(targets);
@@ -1174,7 +1164,8 @@ TEST(EnemyManagerTest, DestructionAndBountyScore)
     EnemyManager mgr {};
     ParticleSystem particles {};
 
-    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2 { 20.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
     EXPECT_EQ(mgr.getActiveCount(), 1U);
     EXPECT_EQ(mgr.getAccumulatedScore(), 0U);
 
@@ -1197,11 +1188,12 @@ TEST(EnemyManagerTest, LandmineProximityDetonation)
     EnemyManager mgr {};
     Camera2D camera {};
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 10.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 10.0, 0.0 });
     ParticleSystem particles {};
 
     // Spawn landmine at x = 10.5 (within 1.3m contact distance)
-    mgr.spawnEnemy(EnemyType::BuriedLandmine, vehicle_sim::math::Vec2{ 10.5, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::BuriedLandmine, vehicle_sim::math::Vec2 { 10.5, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
     EXPECT_EQ(mgr.getActiveCount(), 1U);
 
     mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
@@ -1216,16 +1208,17 @@ TEST(EnemyManagerTest, FrustumCullingAndRecycle)
 {
     EnemyManagerConfig cfg {};
     cfg.despawnDistance = 20.0;
-    EnemyManager mgr{ cfg };
+    EnemyManager mgr { cfg };
 
     Camera2D camera {};
-    camera.reset(vehicle_sim::math::Vec2{ 50.0, 0.0 }); // Camera at x = 50
+    camera.reset(vehicle_sim::math::Vec2 { 50.0, 0.0 }); // Camera at x = 50
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 50.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 50.0, 0.0 });
     ParticleSystem particles {};
 
     // Enemy placed at x = 20 (30m behind camera, exceeding 20m despawn distance)
-    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2 { 20.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
     EXPECT_EQ(mgr.getActiveCount(), 1U);
 
     mgr.update(1.0 / 60.0, nullptr, camera, truck, particles);
@@ -1254,13 +1247,20 @@ TEST(EnemyManagerTest, RenderCleanliness)
     CgaPaletteRenderer cga {};
 
     // Spawn all 7 types simultaneously to verify no out-of-bounds rendering
-    mgr.spawnEnemy(EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2{ 10.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
-    mgr.spawnEnemy(EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2{ 15.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
-    mgr.spawnEnemy(EnemyType::BuriedLandmine, vehicle_sim::math::Vec2{ 20.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
-    mgr.spawnEnemy(EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2{ 25.0, 0.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
-    mgr.spawnEnemy(EnemyType::StrafingJet, vehicle_sim::math::Vec2{ 30.0, 10.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
-    mgr.spawnEnemy(EnemyType::HoveringSaucer, vehicle_sim::math::Vec2{ 35.0, 8.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
-    mgr.spawnEnemy(EnemyType::BouncingDrone, vehicle_sim::math::Vec2{ 40.0, 6.0 }, vehicle_sim::math::Vec2{ 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ScoutDirtBike, vehicle_sim::math::Vec2 { 10.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::RedChaseBuggy, vehicle_sim::math::Vec2 { 15.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::BuriedLandmine, vehicle_sim::math::Vec2 { 20.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::ArtilleryCrawler, vehicle_sim::math::Vec2 { 25.0, 0.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::StrafingJet, vehicle_sim::math::Vec2 { 30.0, 10.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::HoveringSaucer, vehicle_sim::math::Vec2 { 35.0, 8.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
+    mgr.spawnEnemy(
+        EnemyType::BouncingDrone, vehicle_sim::math::Vec2 { 40.0, 6.0 }, vehicle_sim::math::Vec2 { 0.0, 0.0 });
 
     // Render frame
     mgr.render(cga, camera);
@@ -1271,7 +1271,7 @@ TEST(GameAppPhase6IntegrationTest, FullCombatLoopWithEnemies)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     vehicle_sim::dynamics::OffroadTruckInput input {};
@@ -1309,24 +1309,24 @@ TEST(BossControllerTest, ArenaTriggerAndChassisClamping)
     ParticleSystem particles {};
 
     // 1. Truck before trigger (x = 400.0) -> inactive
-    truck.setPosition(vehicle_sim::math::Vec2{ 400.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 400.0, 0.0 });
     boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
     EXPECT_FALSE(boss.isBossActive());
 
     // 2. Cross trigger boundary (x = 436.0) -> triggers MechHeadEntrance
-    truck.setPosition(vehicle_sim::math::Vec2{ 436.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 436.0, 0.0 });
     boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
     EXPECT_TRUE(boss.isBossActive());
     EXPECT_EQ(boss.getActivePhase(), BossPhase::MechHeadEntrance);
 
     // 3. Retreat left of arena min bound (x = 415.0) -> receives restoring force
-    truck.setPosition(vehicle_sim::math::Vec2{ 415.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 415.0, 0.0 });
     boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
     EXPECT_GT(truck.getAccumulatedForce().x, 0.0);
 
     // 4. Advance right of arena max bound (x = 480.0) -> receives opposing force
     truck.clearForces();
-    truck.setPosition(vehicle_sim::math::Vec2{ 480.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 480.0, 0.0 });
     boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
     EXPECT_LT(truck.getAccumulatedForce().x, 0.0);
 }
@@ -1338,7 +1338,7 @@ TEST(BossControllerTest, MechHeadEntranceToCombat)
     EXPECT_EQ(boss.getActivePhase(), BossPhase::MechHeadEntrance);
 
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 440.0, 0.0 });
     Camera2D camera {};
     ParticleSystem particles {};
 
@@ -1364,7 +1364,7 @@ TEST(BossControllerTest, WeakPointTargetSync)
     bool sawEyesExposed { false };
 
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 440.0, 0.0 });
     Camera2D camera {};
     ParticleSystem particles {};
 
@@ -1431,7 +1431,7 @@ TEST(BossControllerTest, TransitionToCruiser)
     boss.applyCombatDamage(targets, particles);
 
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 440.0, 0.0 });
     Camera2D camera {};
 
     // Step 1 frame to trigger defeat state
@@ -1517,7 +1517,8 @@ TEST(BossControllerTest, DreadnoughtDefeatAndVictory)
     // Destroy all sub-components
     std::vector<CombatTargetAabb> targets {};
     CombatTargetAabb port { BossController::kTargetCruiserPort, CombatTargetType::BossComponent, {}, {}, 0.0, false };
-    CombatTargetAabb star { BossController::kTargetCruiserStarboard, CombatTargetType::BossComponent, {}, {}, 0.0, false };
+    CombatTargetAabb star { BossController::kTargetCruiserStarboard, CombatTargetType::BossComponent, {}, {}, 0.0,
+        false };
     CombatTargetAabb core { BossController::kTargetCruiserCore, CombatTargetType::BossComponent, {}, {}, 0.0, false };
     targets.push_back(port);
     targets.push_back(star);
@@ -1525,7 +1526,7 @@ TEST(BossControllerTest, DreadnoughtDefeatAndVictory)
     boss.applyCombatDamage(targets, particles);
 
     vehicle_sim::physics::RigidBody2D truck {};
-    truck.setPosition(vehicle_sim::math::Vec2{ 440.0, 0.0 });
+    truck.setPosition(vehicle_sim::math::Vec2 { 440.0, 0.0 });
     Camera2D camera {};
 
     boss.update(1.0 / 60.0, nullptr, camera, truck, particles);
@@ -1569,7 +1570,7 @@ TEST(GameAppPhase7IntegrationTest, FullBossBattleIntegration)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     // Load Stage 8 (Montsoft Secret Fortress)
@@ -1577,7 +1578,7 @@ TEST(GameAppPhase7IntegrationTest, FullBossBattleIntegration)
     EXPECT_EQ(app.getCourse().getCurrentStageIndex(), 8);
 
     // Move truck to boss arena threshold (x = 436.0m)
-    app.getTruckBody().setPosition(vehicle_sim::math::Vec2{ 436.0, 0.0 });
+    app.getTruckBody().setPosition(vehicle_sim::math::Vec2 { 436.0, 0.0 });
 
     vehicle_sim::dynamics::OffroadTruckInput input {};
     input.throttle = 0.5;
@@ -1656,14 +1657,14 @@ TEST(AudioSystemTest, LifecycleAndHeadlessSafety)
 TEST(CgaRendererTest, BitmapFontTypography)
 {
     CgaPaletteRenderer renderer {};
-    renderer.clear(ColorRgba{ 0, 0, 0, 255 });
+    renderer.clear(ColorRgba { 0, 0, 0, 255 });
 
     EXPECT_EQ(renderer.getTextWidth(""), 0);
     EXPECT_EQ(renderer.getTextWidth("A"), 6);
     EXPECT_EQ(renderer.getTextWidth("TEST"), 24);
 
     // Render characters and text string
-    renderer.drawText(10, 10, "MONTSOFT OFFROAD 1988", ColorRgba{ 255, 255, 255, 255 });
+    renderer.drawText(10, 10, "MONTSOFT OFFROAD 1988", ColorRgba { 255, 255, 255, 255 });
 
     // Verify backbuffer pixels were modified
     bool pixelRendered { false };
@@ -1678,7 +1679,7 @@ TEST(CgaRendererTest, BitmapFontTypography)
     EXPECT_TRUE(pixelRendered);
 
     // Multiline text handling
-    renderer.drawText(20, 40, "LINE 1\nLINE 2", ColorRgba{ 85, 255, 255, 255 });
+    renderer.drawText(20, 40, "LINE 1\nLINE 2", ColorRgba { 85, 255, 255, 255 });
     EXPECT_GT(renderer.getTextWidth("LINE 1\nLONGER LINE 2"), 0);
 }
 
@@ -1816,7 +1817,7 @@ TEST(GameAppPhase8IntegrationTest, FullCampaignAudioAndRenderPasses)
     GameAppConfig config {};
     config.headless = true;
 
-    GameApp app{ config };
+    GameApp app { config };
     ASSERT_TRUE(app.initialize());
 
     // Verify headless defaults
@@ -1895,4 +1896,3 @@ TEST(Camera2DTest, CameraClampsVehicleWithinVerticalScreenBounds)
 }
 
 } // namespace montsoft_offroad
-

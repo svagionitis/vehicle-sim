@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 
 namespace motion_lab {
@@ -250,7 +251,7 @@ void TelemetryHud::renderFrictionCircle(
     SDL_RenderDrawRect(renderer, &cursorRect);
 
     // Readout line
-    char buf[64] { };
+    char buf[64] {};
     std::snprintf(buf, sizeof(buf), "G:%+4.1F/%+4.1F", extended.longitudinalG, extended.lateralG);
     drawText(renderer, buf, centerX - boxMargin + 6, centerY + radius + 2, 1, SDL_Color { 220, 240, 255, 255 });
 
@@ -311,7 +312,7 @@ void TelemetryHud::renderWeightTransfer(SDL_Renderer* renderer, const DynamicWhe
         // Label above, load below
         drawText(renderer, label, barX + 3, barY - 9, 1, SDL_Color { 220, 240, 255, 255 });
 
-        char loadBuf[16] { };
+        char loadBuf[16] {};
         if (currentLoad < safeNominal * 0.10) {
             drawText(renderer, "LIFT", barX - 1, barY + kBarH + 2, 1, SDL_Color { 255, 60, 60, 255 });
         } else {
@@ -344,7 +345,7 @@ void TelemetryHud::renderStripChart(SDL_Renderer* renderer, const float* values,
     // Title and limits
     drawText(renderer, title, x + 8, y + 4, 1, traceColor);
 
-    char limitBuf[16] { };
+    char limitBuf[16] {};
     std::snprintf(limitBuf, sizeof(limitBuf), "%+3.0F", static_cast<double>(maxY));
     drawText(renderer, limitBuf, x + width - 36, y + 4, 1, SDL_Color { 120, 140, 160, 180 });
 
@@ -403,7 +404,7 @@ void TelemetryHud::renderAudioVu(SDL_Renderer* renderer, const AudioChannelLevel
     SDL_SetRenderDrawColor(renderer, 40, 60, 75, 180);
     SDL_RenderDrawRect(renderer, &bgRect);
 
-    char titleBuf[64] { };
+    char titleBuf[64] {};
     if (muted) {
         std::snprintf(titleBuf, sizeof(titleBuf), "AUDIO: [MUTED]");
         drawText(renderer, titleBuf, x + 8, y + 4, 1, SDL_Color { 255, 60, 60, 255 });
@@ -473,7 +474,7 @@ void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snaps
     const SDL_Color dimmedColor { 120, 140, 150, 180 };
 
     // 1. Top-Left Live State Metrics
-    char buffer[128] { };
+    char buffer[128] {};
     std::snprintf(buffer, sizeof(buffer), "SPEED   %.2F M/S (%.1F MPH)", snapshot.speedMps, snapshot.speedMph);
     drawText(renderer, buffer, 24, 20, 2, whiteColor);
 
@@ -610,7 +611,7 @@ void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snaps
 
     // 5. Session Disk Recording Badge
     if (extended.isRecording) {
-        char recBuf[64] { };
+        char recBuf[64] {};
         std::snprintf(recBuf, sizeof(recBuf), "[REC: %.1FS (%llu)]", extended.recordingDuration,
             static_cast<unsigned long long>(extended.recordedFrames));
 
@@ -641,7 +642,7 @@ void TelemetryHud::render(SDL_Renderer* renderer, const TelemetrySnapshot& snaps
 void TelemetryHud::render(
     SDL_Renderer* renderer, const TelemetrySnapshot& snapshot, int screenWidth, int screenHeight) noexcept
 {
-    const ExtendedTelemetrySnapshot defaultExtended { };
+    const ExtendedTelemetrySnapshot defaultExtended {};
     render(renderer, snapshot, defaultExtended, screenWidth, screenHeight);
 }
 

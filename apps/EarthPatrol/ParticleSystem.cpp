@@ -2,12 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace earth_patrol {
 
 namespace {
     // Deterministic pseudo-random number generator for particle velocities
-    uint32_t gRndState { 0x12345678u };
+    std::uint32_t gRndState { 0x12345678u };
 
     double nextRandom() noexcept
     {
@@ -143,10 +144,7 @@ void ParticleSystem::emitLandingDust(const vehicle_sim::math::Vec2& pos, int bio
         p.type = ParticleType::Dust;
         p.position = pos;
         const double dir { (i % 2 == 0) ? -1.0 : 1.0 };
-        p.velocity = vehicle_sim::math::Vec2 {
-            dir * nextRandomRange(1.5, 4.5),
-            nextRandomRange(0.8, 3.2)
-        };
+        p.velocity = vehicle_sim::math::Vec2 { dir * nextRandomRange(1.5, 4.5), nextRandomRange(0.8, 3.2) };
         p.maxLifetime = nextRandomRange(0.4, 0.8);
         p.lifetime = p.maxLifetime;
         p.size = nextRandomRange(0.15, 0.30);
@@ -177,10 +175,7 @@ void ParticleSystem::emitCrashExplosion(const vehicle_sim::math::Vec2& pos) noex
         p.active = true;
         p.type = ParticleType::Debris;
         p.position = pos;
-        p.velocity = vehicle_sim::math::Vec2 {
-            nextRandomRange(-6.0, 6.0),
-            nextRandomRange(2.0, 8.5)
-        };
+        p.velocity = vehicle_sim::math::Vec2 { nextRandomRange(-6.0, 6.0), nextRandomRange(2.0, 8.5) };
         p.maxLifetime = nextRandomRange(0.8, 1.4);
         p.lifetime = p.maxLifetime;
         p.size = nextRandomRange(0.20, 0.35);
@@ -214,8 +209,8 @@ void ParticleSystem::render(SDL_Renderer* renderer, const Camera2D& camera) cons
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(renderer, p.color.r, p.color.g, p.color.b, alpha);
 
-        SDL_Rect rect { static_cast<int>(screenPos.x) - halfSize,
-            static_cast<int>(screenPos.y) - halfSize, pxSize, pxSize };
+        SDL_Rect rect { static_cast<int>(screenPos.x) - halfSize, static_cast<int>(screenPos.y) - halfSize, pxSize,
+            pxSize };
         SDL_RenderFillRect(renderer, &rect);
     }
 }

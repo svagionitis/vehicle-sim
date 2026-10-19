@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <mutex>
 #include <vector>
@@ -28,17 +29,17 @@ enum class SoundEffect : std::uint8_t {
 /// @struct SoundChannelState
 /// @brief Telemetry and oscillator parameters for a synthetic tone or noise generator.
 struct SoundChannelState {
-    bool active { false };            ///< Active tone generation flag.
-    double frequency { 440.0 };       ///< Current instantaneous frequency in Hz.
+    bool active { false }; ///< Active tone generation flag.
+    double frequency { 440.0 }; ///< Current instantaneous frequency in Hz.
     double targetFrequency { 440.0 }; ///< Target frequency for continuous sweeps.
-    double freqSlideRate { 0.0 };     ///< Frequency change in Hz per second.
-    double phase { 0.0 };             ///< Continuous phase accumulator in [0.0, 1.0).
-    double dutyCycle { 0.5 };         ///< Pulse width duty cycle in [0.0, 1.0].
-    double amplitude { 1.0 };         ///< Instantaneous output amplitude in [0.0, 1.0].
-    double decayRate { 0.0 };         ///< Linear amplitude decay in units per second.
-    double duration { 0.0 };          ///< Total allotted duration in seconds.
-    double elapsed { 0.0 };           ///< Elapsed tone duration in seconds.
-    bool isNoise { false };           ///< True if generator utilizes LFSR noise.
+    double freqSlideRate { 0.0 }; ///< Frequency change in Hz per second.
+    double phase { 0.0 }; ///< Continuous phase accumulator in [0.0, 1.0).
+    double dutyCycle { 0.5 }; ///< Pulse width duty cycle in [0.0, 1.0].
+    double amplitude { 1.0 }; ///< Instantaneous output amplitude in [0.0, 1.0].
+    double decayRate { 0.0 }; ///< Linear amplitude decay in units per second.
+    double duration { 0.0 }; ///< Total allotted duration in seconds.
+    double elapsed { 0.0 }; ///< Elapsed tone duration in seconds.
+    bool isNoise { false }; ///< True if generator utilizes LFSR noise.
 };
 
 /// @class AudioSystem

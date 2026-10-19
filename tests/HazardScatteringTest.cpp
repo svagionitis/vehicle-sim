@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "libs/VehicleSimCore/math/Vec2.h"
@@ -20,7 +21,7 @@ namespace {
 
 CircuitTrack2D createTestCircuit(std::uint32_t seed = 2024U, bool enableHazards = false)
 {
-    CircuitTrackConfig cfg { };
+    CircuitTrackConfig cfg {};
     cfg.radiusX = 80.0;
     cfg.radiusY = 60.0;
     cfg.waypointCount = 20U;
@@ -42,7 +43,7 @@ CircuitTrack2D createTestCircuit(std::uint32_t seed = 2024U, bool enableHazards 
 
 TEST(PoissonSamplerTest, EnforcesMinimumDistance)
 {
-    PoissonSamplerConfig cfg { };
+    PoissonSamplerConfig cfg {};
     cfg.minDistance = 5.0;
     cfg.bounds = AABB2D { Vec2 { -50.0, -50.0 }, Vec2 { 50.0, 50.0 } };
     cfg.seed = 42U;
@@ -57,15 +58,14 @@ TEST(PoissonSamplerTest, EnforcesMinimumDistance)
     for (std::size_t i { 0U }; i < samples.size(); ++i) {
         for (std::size_t j { i + 1U }; j < samples.size(); ++j) {
             const double distSq { (samples[i] - samples[j]).lengthSquared() };
-            EXPECT_GE(distSq, minDistSq)
-                << "Samples " << i << " and " << j << " violate minDistance!";
+            EXPECT_GE(distSq, minDistSq) << "Samples " << i << " and " << j << " violate minDistance!";
         }
     }
 }
 
 TEST(PoissonSamplerTest, DeterministicIdenticalSeeds)
 {
-    PoissonSamplerConfig cfg { };
+    PoissonSamplerConfig cfg {};
     cfg.minDistance = 4.0;
     cfg.bounds = AABB2D { Vec2 { -40.0, -40.0 }, Vec2 { 40.0, 40.0 } };
     cfg.seed = 9999U;
@@ -85,7 +85,7 @@ TEST(PoissonSamplerTest, DeterministicIdenticalSeeds)
 
 TEST(PoissonSamplerTest, DivergesOnDifferentSeeds)
 {
-    PoissonSamplerConfig cfgA { };
+    PoissonSamplerConfig cfgA {};
     cfgA.minDistance = 6.0;
     cfgA.bounds = AABB2D { Vec2 { -40.0, -40.0 }, Vec2 { 40.0, 40.0 } };
     cfgA.seed = 1111U;
@@ -102,8 +102,7 @@ TEST(PoissonSamplerTest, DivergesOnDifferentSeeds)
     bool anyDifference { samplesA.size() != samplesB.size() };
     if (!anyDifference) {
         for (std::size_t i { 0U }; i < samplesA.size(); ++i) {
-            if (std::abs(samplesA[i].x - samplesB[i].x) > 1e-5 ||
-                std::abs(samplesA[i].y - samplesB[i].y) > 1e-5) {
+            if (std::abs(samplesA[i].x - samplesB[i].x) > 1e-5 || std::abs(samplesA[i].y - samplesB[i].y) > 1e-5) {
                 anyDifference = true;
                 break;
             }
@@ -114,7 +113,7 @@ TEST(PoissonSamplerTest, DivergesOnDifferentSeeds)
 
 TEST(PoissonSamplerTest, StrictBoundaryContainment)
 {
-    PoissonSamplerConfig cfg { };
+    PoissonSamplerConfig cfg {};
     cfg.minDistance = 5.0;
     cfg.bounds = AABB2D { Vec2 { -30.0, -20.0 }, Vec2 { 30.0, 20.0 } };
     cfg.seed = 777U;
@@ -124,45 +123,38 @@ TEST(PoissonSamplerTest, StrictBoundaryContainment)
 
     ASSERT_FALSE(samples.empty());
     for (const Vec2& pt : samples) {
-        EXPECT_TRUE(cfg.bounds.contains(pt))
-            << "Point (" << pt.x << ", " << pt.y << ") lies outside domain bounds!";
+        EXPECT_TRUE(cfg.bounds.contains(pt)) << "Point (" << pt.x << ", " << pt.y << ") lies outside domain bounds!";
     }
 }
 
 TEST(PoissonSamplerTest, HonorsAcceptancePredicate)
 {
-    PoissonSamplerConfig cfg { };
+    PoissonSamplerConfig cfg {};
     cfg.minDistance = 4.0;
     cfg.bounds = AABB2D { Vec2 { -50.0, -50.0 }, Vec2 { 50.0, 50.0 } };
     cfg.seed = 1234U;
 
     // Exclude points inside circle of radius 20 at center
     const double excludedRadiusSq { 20.0 * 20.0 };
-    auto predicate = [&](const Vec2& pt) -> bool {
-        return pt.lengthSquared() >= excludedRadiusSq;
-    };
+    auto predicate = [&](const Vec2& pt) -> bool { return pt.lengthSquared() >= excludedRadiusSq; };
 
     PoissonDiskSampler sampler { cfg };
     const std::vector<Vec2> samples { sampler.generate(predicate) };
 
     ASSERT_FALSE(samples.empty());
     for (const Vec2& pt : samples) {
-        EXPECT_GE(pt.lengthSquared(), excludedRadiusSq - 1e-6)
-            << "Point fell inside excluded circle region!";
+        EXPECT_GE(pt.lengthSquared(), excludedRadiusSq - 1e-6) << "Point fell inside excluded circle region!";
     }
 }
 
 TEST(PoissonSamplerTest, SeedPointsPreserved)
 {
-    PoissonSamplerConfig cfg { };
+    PoissonSamplerConfig cfg {};
     cfg.minDistance = 5.0;
     cfg.bounds = AABB2D { Vec2 { -40.0, -40.0 }, Vec2 { 40.0, 40.0 } };
     cfg.seed = 42U;
 
-    const std::vector<Vec2> seedPoints {
-        Vec2 { 0.0, 0.0 },
-        Vec2 { 10.0, 10.0 }
-    };
+    const std::vector<Vec2> seedPoints { Vec2 { 0.0, 0.0 }, Vec2 { 10.0, 10.0 } };
 
     PoissonDiskSampler sampler { cfg };
     const std::vector<Vec2> samples { sampler.generateWithSeedPoints(seedPoints) };
@@ -180,52 +172,45 @@ TEST(PoissonSamplerTest, SeedPointsPreserved)
 
 TEST(HazardScatteringTest, EmptyTrackReturnsEmpty)
 {
-    CircuitTrack2D emptyTrack { };
-    HazardScatteringConfig cfg { };
+    CircuitTrack2D emptyTrack {};
+    HazardScatteringConfig cfg {};
 
-    const std::vector<ScatteredHazard> hazards {
-        HazardScattering::scatterOnTrack(emptyTrack, cfg)
-    };
+    const std::vector<ScatteredHazard> hazards { HazardScattering::scatterOnTrack(emptyTrack, cfg) };
     EXPECT_TRUE(hazards.empty());
 }
 
 TEST(HazardScatteringTest, ZoneFilteringRibbonOnly)
 {
     const CircuitTrack2D track { createTestCircuit(2024U, false) };
-    HazardScatteringConfig cfg { };
+    HazardScatteringConfig cfg {};
     cfg.minDistance = 6.0;
     cfg.zonePolicy = HazardZonePolicy::TrackRibbonOnly;
     cfg.startClearanceDistance = 10.0;
     cfg.finishClearanceDistance = 10.0;
     cfg.seed = 5555U;
 
-    const std::vector<ScatteredHazard> hazards {
-        HazardScattering::scatterOnTrack(track, cfg)
-    };
+    const std::vector<ScatteredHazard> hazards { HazardScattering::scatterOnTrack(track, cfg) };
 
     ASSERT_GT(hazards.size(), 5U);
     const double halfRoad { 0.5 * track.trackWidth + 0.1 };
 
     for (const ScatteredHazard& h : hazards) {
         const double dist { track.getDistanceToCenter(h.position) };
-        EXPECT_LE(dist, halfRoad)
-            << "Hazard placed outside roadway ribbon under TrackRibbonOnly policy!";
+        EXPECT_LE(dist, halfRoad) << "Hazard placed outside roadway ribbon under TrackRibbonOnly policy!";
     }
 }
 
 TEST(HazardScatteringTest, ZoneFilteringShoulderOnly)
 {
     const CircuitTrack2D track { createTestCircuit(2024U, false) };
-    HazardScatteringConfig cfg { };
+    HazardScatteringConfig cfg {};
     cfg.minDistance = 6.0;
     cfg.zonePolicy = HazardZonePolicy::ShoulderOnly;
     cfg.startClearanceDistance = 10.0;
     cfg.finishClearanceDistance = 10.0;
     cfg.seed = 8888U;
 
-    const std::vector<ScatteredHazard> hazards {
-        HazardScattering::scatterOnTrack(track, cfg)
-    };
+    const std::vector<ScatteredHazard> hazards { HazardScattering::scatterOnTrack(track, cfg) };
 
     ASSERT_GT(hazards.size(), 5U);
     const double halfRoad { 0.5 * track.trackWidth - 0.1 };
@@ -233,30 +218,25 @@ TEST(HazardScatteringTest, ZoneFilteringShoulderOnly)
 
     for (const ScatteredHazard& h : hazards) {
         const double dist { track.getDistanceToCenter(h.position) };
-        EXPECT_GT(dist, halfRoad)
-            << "Hazard placed on roadway under ShoulderOnly policy!";
-        EXPECT_LE(dist, halfShoulder)
-            << "Hazard placed beyond shoulder under ShoulderOnly policy!";
+        EXPECT_GT(dist, halfRoad) << "Hazard placed on roadway under ShoulderOnly policy!";
+        EXPECT_LE(dist, halfShoulder) << "Hazard placed beyond shoulder under ShoulderOnly policy!";
     }
 }
 
 TEST(HazardScatteringTest, StartLineSafetyBuffer)
 {
     const CircuitTrack2D track { createTestCircuit(2024U, false) };
-    HazardScatteringConfig cfg { };
+    HazardScatteringConfig cfg {};
     cfg.startClearanceDistance = 40.0;
     cfg.finishClearanceDistance = 25.0;
     cfg.seed = 4321U;
 
-    const std::vector<ScatteredHazard> hazards {
-        HazardScattering::scatterOnTrack(track, cfg)
-    };
+    const std::vector<ScatteredHazard> hazards { HazardScattering::scatterOnTrack(track, cfg) };
 
     ASSERT_GT(hazards.size(), 5U);
     for (const ScatteredHazard& h : hazards) {
         const double s { h.trackProgress * track.trackLength };
-        EXPECT_GE(s, cfg.startClearanceDistance - 1e-4)
-            << "Hazard violated starting line clearance buffer!";
+        EXPECT_GE(s, cfg.startClearanceDistance - 1e-4) << "Hazard violated starting line clearance buffer!";
         EXPECT_LE(s, (track.trackLength - cfg.finishClearanceDistance) + 1e-4)
             << "Hazard violated finish line clearance buffer!";
     }
@@ -265,15 +245,15 @@ TEST(HazardScatteringTest, StartLineSafetyBuffer)
 TEST(HazardScatteringTest, MaterialStampingMutatesGrid)
 {
     const CircuitTrack2D track { createTestCircuit(2024U, false) };
-    SurfaceMap2D surfaceMap { };
+    SurfaceMap2D surfaceMap {};
     surfaceMap.setDefaultMaterial(SurfaceMaterial::getPreset(MaterialType::Tarmac));
 
-    ScatteredHazard oilHazard { };
+    ScatteredHazard oilHazard {};
     oilHazard.position = Vec2 { 20.0, 30.0 };
     oilHazard.boundingRadius = 2.0;
     oilHazard.type = HazardType::OilSlick;
 
-    ScatteredHazard puddleHazard { };
+    ScatteredHazard puddleHazard {};
     puddleHazard.position = Vec2 { -40.0, 10.0 };
     puddleHazard.boundingRadius = 1.8;
     puddleHazard.type = HazardType::StandingPuddle;
@@ -291,7 +271,7 @@ TEST(HazardScatteringTest, MaterialStampingMutatesGrid)
 TEST(HazardScatteringTest, BoostPadForwardTangent)
 {
     const CircuitTrack2D track { createTestCircuit(2024U, false) };
-    HazardScatteringConfig cfg { };
+    HazardScatteringConfig cfg {};
     cfg.coneProbability = 0.0;
     cfg.oilSlickProbability = 0.0;
     cfg.puddleProbability = 0.0;
@@ -299,9 +279,7 @@ TEST(HazardScatteringTest, BoostPadForwardTangent)
     cfg.boostPadProbability = 1.0;
     cfg.seed = 7777U;
 
-    const std::vector<ScatteredHazard> hazards {
-        HazardScattering::scatterOnTrack(track, cfg)
-    };
+    const std::vector<ScatteredHazard> hazards { HazardScattering::scatterOnTrack(track, cfg) };
 
     ASSERT_FALSE(hazards.empty());
     for (const ScatteredHazard& h : hazards) {
@@ -313,19 +291,19 @@ TEST(HazardScatteringTest, BoostPadForwardTangent)
 TEST(HazardScatteringTest, PhysicsCollidersSpawned)
 {
     physics::PhysicsWorld2D world { Vec2 { 0.0, 0.0 } };
-    HazardPhysicalProps props { };
+    HazardPhysicalProps props {};
 
-    ScatteredHazard rockHazard { };
+    ScatteredHazard rockHazard {};
     rockHazard.position = Vec2 { 10.0, 20.0 };
     rockHazard.boundingRadius = 0.6;
     rockHazard.type = HazardType::Rock;
 
-    ScatteredHazard coneHazard { };
+    ScatteredHazard coneHazard {};
     coneHazard.position = Vec2 { -15.0, 5.0 };
     coneHazard.boundingRadius = 0.25;
     coneHazard.type = HazardType::TrafficCone;
 
-    ScatteredHazard oilHazard { }; // Non-physical body
+    ScatteredHazard oilHazard {}; // Non-physical body
     oilHazard.position = Vec2 { 0.0, 0.0 };
     oilHazard.type = HazardType::OilSlick;
 

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/math/Spline2D.h"
@@ -49,7 +50,7 @@ struct TrainRailInput {
     double throttle { 0.0 }; ///< Commanded traction throttle in range [0.0, 1.0].
     double serviceBrake { 0.0 }; ///< Commanded pneumatic service brake in range [0.0, 1.0].
     double dynamicBrake { 0.0 }; ///< Commanded rheostatic/regenerative brake in range [0.0, 1.0].
-    int reverser { 1 }; ///< Direction reverser: 1 for forward, 0 for neutral, -1 for reverse.
+    std::int32_t reverser { 1 }; ///< Direction reverser: 1 for forward, 0 for neutral, -1 for reverse.
     bool sanderActive { false }; ///< Sander system toggle injecting traction sand onto rails.
 };
 

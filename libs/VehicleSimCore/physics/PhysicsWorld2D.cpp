@@ -1,6 +1,7 @@
 #include "PhysicsWorld2D.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "Collider2D.h"
 #include "ContactManifold2D.h"
@@ -194,17 +195,16 @@ void PhysicsWorld2D::step(double dt) noexcept
             if (Narrowphase2D::detectColliders(*colA, *colB, manifold)) {
                 if (!colA->isSensor() && !colB->isSensor() && manifold.bodyA != nullptr) {
                     for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
-                        static_cast<void>(ContactSolver2D::resolve(
-                            *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
+                        static_cast<void>(
+                            ContactSolver2D::resolve(*manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
                     }
                 }
             } else if (mSpeculativeEnabled) {
-                if (SpeculativeContact2D::generateContacts(
-                        *colA, *colB, dt, mSpeculativeSettings, manifold)) {
+                if (SpeculativeContact2D::generateContacts(*colA, *colB, dt, mSpeculativeSettings, manifold)) {
                     if (manifold.bodyA != nullptr) {
                         for (std::size_t c { 0 }; c < manifold.contactCount; ++c) {
-                            static_cast<void>(ContactSolver2D::resolve(
-                                *manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
+                            static_cast<void>(
+                                ContactSolver2D::resolve(*manifold.bodyA, manifold.bodyB, manifold.contacts[c]));
                         }
                     }
                 }
@@ -289,8 +289,8 @@ void PhysicsWorld2D::step(double dt) noexcept
             if (earliestTOI.state == TOIState::Touching || earliestTOI.state == TOIState::Overlapped) {
                 const double tAdvance { std::max(0.0, earliestTOI.time * timeRemaining) };
                 body->setPosition(body->getPosition() + (body->getLinearVelocity() * tAdvance));
-                body->setOrientation(math::Angle2D::normalizeRad(
-                    body->getOrientation() + (body->getAngularVelocity() * tAdvance)));
+                body->setOrientation(
+                    math::Angle2D::normalizeRad(body->getOrientation() + (body->getAngularVelocity() * tAdvance)));
 
                 Contact2D impactContact {};
                 impactContact.point = earliestTOI.point;
@@ -304,8 +304,8 @@ void PhysicsWorld2D::step(double dt) noexcept
                 timeRemaining -= tAdvance;
             } else {
                 body->setPosition(body->getPosition() + (body->getLinearVelocity() * timeRemaining));
-                body->setOrientation(math::Angle2D::normalizeRad(
-                    body->getOrientation() + (body->getAngularVelocity() * timeRemaining)));
+                body->setOrientation(
+                    math::Angle2D::normalizeRad(body->getOrientation() + (body->getAngularVelocity() * timeRemaining)));
                 timeRemaining = 0.0;
             }
         }
@@ -396,8 +396,7 @@ const terrain::Heightfield1D* PhysicsWorld2D::getTerrain() const noexcept
     return mTerrain;
 }
 
-bool PhysicsWorld2D::raycast(
-    const math::Ray2D& ray, math::RayHit2D& outHit, Collider2D*& outCollider) const noexcept
+bool PhysicsWorld2D::raycast(const math::Ray2D& ray, math::RayHit2D& outHit, Collider2D*& outCollider) const noexcept
 {
     outCollider = nullptr;
     if (mColliders.empty()) {

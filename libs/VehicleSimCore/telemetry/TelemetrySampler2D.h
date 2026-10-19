@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "libs/VehicleSimCore/math/Vec2.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
 #include "libs/VehicleSimCore/telemetry/TelemetryFrame2D.h"

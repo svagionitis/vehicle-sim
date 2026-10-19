@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
@@ -28,11 +29,11 @@ void TelemetryCoordinator::reset() noexcept
     m_buffer.clear();
     m_sampler.reset();
 
-    m_oscilloscope = OscilloscopeWindow { };
-    m_ggTrail = { };
+    m_oscilloscope = OscilloscopeWindow {};
+    m_ggTrail = {};
     m_ggHead = 0U;
     m_ggCount = 0U;
-    m_currentLoads = DynamicWheelLoads { };
+    m_currentLoads = DynamicWheelLoads {};
 
     m_peakLongG = 0.0;
     m_peakLatG = 0.0;
@@ -147,7 +148,7 @@ std::string TelemetryCoordinator::makeFilename() noexcept
 {
     const auto now { std::chrono::system_clock::now() };
     const std::time_t timeT { std::chrono::system_clock::to_time_t(now) };
-    std::tm timeBuf { };
+    std::tm timeBuf {};
 
 #if defined(_MSC_VER) || defined(__STDC_LIB_EXT1__)
     localtime_s(&timeBuf, &timeT);
@@ -155,7 +156,7 @@ std::string TelemetryCoordinator::makeFilename() noexcept
     localtime_r(&timeT, &timeBuf);
 #endif
 
-    std::ostringstream ss { };
+    std::ostringstream ss {};
     ss << "telemetry_run_" << std::setfill('0') << std::setw(4) << (timeBuf.tm_year + 1900) << std::setw(2)
        << (timeBuf.tm_mon + 1) << std::setw(2) << timeBuf.tm_mday << "_" << std::setw(2) << timeBuf.tm_hour
        << std::setw(2) << timeBuf.tm_min << std::setw(2) << timeBuf.tm_sec << ".csv";

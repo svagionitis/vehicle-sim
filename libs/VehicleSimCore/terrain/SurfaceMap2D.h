@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "libs/VehicleSimCore/dynamics/ArcadeCarDynamics.h"
@@ -255,8 +256,7 @@ public:
     /// @param[in] center World coordinates of circle center in meters.
     /// @param[in] radius Circular footprint radius in meters.
     /// @param[in] material Material properties applied within circle.
-    void stampMaterialDisc(
-        const math::Vec2& center, double radius, const SurfaceMaterial& material);
+    void stampMaterialDisc(const math::Vec2& center, double radius, const SurfaceMaterial& material);
 
     /// @brief Removes all registered material zone overrides.
     void clearMaterialZones() noexcept;
@@ -457,8 +457,7 @@ public:
     /// @param[in] stamp Wheel footprint geometry, load, and kinematics.
     /// @param[in] config Stratified soil properties.
     /// @return StratifiedSinkageResult with partitioned forces and depths.
-    StratifiedSinkageResult applyStratifiedRut(
-        const RutStamp2D& stamp, const StratifiedSoilConfig& config) noexcept;
+    StratifiedSinkageResult applyStratifiedRut(const RutStamp2D& stamp, const StratifiedSoilConfig& config) noexcept;
 
     /// @brief Evaluates hydroplaning conditions for a tire at world coordinates.
     /// @param[in] state Contact patch kinematics.
@@ -469,7 +468,7 @@ public:
 
 private:
     [[nodiscard]] std::pair<double, math::Vec2> sampleGrid(double x, double y) const noexcept;
-    [[nodiscard]] double getGridSample(int ix, int iy) const noexcept;
+    [[nodiscard]] double getGridSample(std::int32_t ix, std::int32_t iy) const noexcept;
 
     double mBaseHeight { 0.0 };
     double mVerticalScale { 1.0 };

@@ -2,24 +2,23 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace motion_lab {
 
 namespace {
 
-constexpr double kGravity { 9.80665 };
+    constexpr double kGravity { 9.80665 };
 
-[[nodiscard]] double crossProduct(const vehicle_sim::math::Vec2& a,
-                                  const vehicle_sim::math::Vec2& b) noexcept
-{
-    return a.x * b.y - a.y * b.x;
-}
+    [[nodiscard]] double crossProduct(const vehicle_sim::math::Vec2& a, const vehicle_sim::math::Vec2& b) noexcept
+    {
+        return a.x * b.y - a.y * b.x;
+    }
 
 } // namespace
 
 CircuitTrackCoordinator::CircuitTrackCoordinator() noexcept
-    : mActiveMaterial { vehicle_sim::terrain::SurfaceMaterial::getPreset(
-          vehicle_sim::terrain::MaterialType::Tarmac) }
+    : mActiveMaterial { vehicle_sim::terrain::SurfaceMaterial::getPreset(vehicle_sim::terrain::MaterialType::Tarmac) }
 {
     regenerate(mSeed);
 }
@@ -31,7 +30,7 @@ void CircuitTrackCoordinator::regenerate(std::uint32_t seed) noexcept
     const double shoulderW { std::max(4.0, 1.5 * mVehicleWidth) };
     const double scaleFactor { std::max(1.0, mVehicleLength / 6.0) };
 
-    vehicle_sim::terrain::CircuitTrackConfig config { };
+    vehicle_sim::terrain::CircuitTrackConfig config {};
     config.radiusX = 100.0 * scaleFactor;
     config.radiusY = 70.0 * scaleFactor;
     config.waypointCount = 24U;
@@ -47,7 +46,7 @@ void CircuitTrackCoordinator::regenerate(std::uint32_t seed) noexcept
     config.hazardConfig.seed = seed + 500U;
 
     mTrack = vehicle_sim::terrain::TrackGenerator::generateCircuitTrack(config);
-    mMetrics = CircuitLapMetrics { };
+    mMetrics = CircuitLapMetrics {};
     mHasStartedLap = false;
     mCurrentProgress = 0.0;
 }
@@ -98,8 +97,7 @@ void CircuitTrackCoordinator::resetToGrid(vehicle_sim::physics::RigidBody2D& bod
     mMetrics.currentSector = 1U;
     mHasStartedLap = false;
     mCurrentProgress = 0.0;
-    mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(
-        vehicle_sim::terrain::MaterialType::Tarmac);
+    mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(vehicle_sim::terrain::MaterialType::Tarmac);
 }
 
 bool CircuitTrackCoordinator::isEnabled() const noexcept
@@ -144,14 +142,11 @@ void CircuitTrackCoordinator::evaluateSurface(vehicle_sim::physics::RigidBody2D&
     const double halfShoulder { halfTrack + mTrack.shoulderWidth };
 
     if (dist <= halfTrack) {
-        mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(
-            vehicle_sim::terrain::MaterialType::Tarmac);
+        mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(vehicle_sim::terrain::MaterialType::Tarmac);
     } else if (dist <= halfShoulder) {
-        mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(
-            vehicle_sim::terrain::MaterialType::Gravel);
+        mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(vehicle_sim::terrain::MaterialType::Gravel);
     } else {
-        mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(
-            vehicle_sim::terrain::MaterialType::Grass);
+        mActiveMaterial = vehicle_sim::terrain::SurfaceMaterial::getPreset(vehicle_sim::terrain::MaterialType::Grass);
     }
 }
 
@@ -185,9 +180,7 @@ void CircuitTrackCoordinator::evaluateBanking(vehicle_sim::physics::RigidBody2D&
     }
 
     const std::size_t nextIdx { (bestIdx + 1U) % numPoints };
-    const vehicle_sim::math::Vec2 forward {
-        (mTrack.centerline[nextIdx] - mTrack.centerline[bestIdx]).normalized()
-    };
+    const vehicle_sim::math::Vec2 forward { (mTrack.centerline[nextIdx] - mTrack.centerline[bestIdx]).normalized() };
     // Transversal normal pointing left (outward if counter-clockwise)
     const vehicle_sim::math::Vec2 normal { -forward.y, forward.x };
 
@@ -196,8 +189,8 @@ void CircuitTrackCoordinator::evaluateBanking(vehicle_sim::physics::RigidBody2D&
     body.applyForce(normal * bankForceMag);
 }
 
-void CircuitTrackCoordinator::checkTimingGates(const vehicle_sim::math::Vec2& prevPos,
-                                              const vehicle_sim::math::Vec2& currPos) noexcept
+void CircuitTrackCoordinator::checkTimingGates(
+    const vehicle_sim::math::Vec2& prevPos, const vehicle_sim::math::Vec2& currPos) noexcept
 {
     const std::size_t numPoints { mTrack.centerline.size() };
     if (numPoints < 6U || mTrack.leftBoundary.size() != numPoints || mTrack.rightBoundary.size() != numPoints) {
@@ -223,7 +216,8 @@ void CircuitTrackCoordinator::checkTimingGates(const vehicle_sim::math::Vec2& pr
     // Check Start / Finish gate
     if (checkGate(startGateIdx)) {
         if (mHasStartedLap) {
-            mMetrics.sector3Time = std::max(0.0, mMetrics.currentLapTime - (mMetrics.sector1Time + mMetrics.sector2Time));
+            mMetrics.sector3Time
+                = std::max(0.0, mMetrics.currentLapTime - (mMetrics.sector1Time + mMetrics.sector2Time));
             mMetrics.lastLapTime = mMetrics.currentLapTime;
             if (!mMetrics.hasValidBest || mMetrics.lastLapTime < mMetrics.bestLapTime) {
                 mMetrics.bestLapTime = mMetrics.lastLapTime;
@@ -246,10 +240,8 @@ void CircuitTrackCoordinator::checkTimingGates(const vehicle_sim::math::Vec2& pr
     }
 }
 
-bool CircuitTrackCoordinator::checkSegmentCross(const vehicle_sim::math::Vec2& a1,
-                                                const vehicle_sim::math::Vec2& a2,
-                                                const vehicle_sim::math::Vec2& b1,
-                                                const vehicle_sim::math::Vec2& b2) noexcept
+bool CircuitTrackCoordinator::checkSegmentCross(const vehicle_sim::math::Vec2& a1, const vehicle_sim::math::Vec2& a2,
+    const vehicle_sim::math::Vec2& b1, const vehicle_sim::math::Vec2& b2) noexcept
 {
     const vehicle_sim::math::Vec2 da { a2 - a1 };
     const vehicle_sim::math::Vec2 db { b2 - b1 };

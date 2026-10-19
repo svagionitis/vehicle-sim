@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "libs/VehicleSimCore/math/Vec2.h"
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
@@ -11,12 +12,12 @@ namespace montsoft_offroad {
 using vehicle_sim::math::Vec2;
 
 GameApp::GameApp()
-    : GameApp(GameAppConfig{})
+    : GameApp(GameAppConfig {})
 {
 }
 
 GameApp::GameApp(const GameAppConfig& config)
-    : config_{ config }
+    : config_ { config }
 {
 }
 
@@ -26,8 +27,8 @@ bool GameApp::initialize()
     const double startY { courseManager_.getHeightfield().getHeight(0.0) + 1.2 };
     truckBody_.setMass(truckDynamics_.getConfig().mass);
     truckBody_.setInertia(truckDynamics_.getConfig().momentOfInertia);
-    truckBody_.setPosition(Vec2{ 0.0, startY });
-    truckBody_.setLinearVelocity(Vec2{ 0.0, 0.0 });
+    truckBody_.setPosition(Vec2 { 0.0, startY });
+    truckBody_.setLinearVelocity(Vec2 { 0.0, 0.0 });
     truckBody_.setOrientation(0.0);
     truckBody_.setAngularVelocity(0.0);
     cgaRenderer_.setPaletteMode(config_.initialPalette);
@@ -56,14 +57,8 @@ bool GameApp::initialize()
 
     static_cast<void>(audioSystem_.initialize(false));
 
-    SDL_Window* rawWin { SDL_CreateWindow(
-        config_.windowTitle.c_str(),
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        config_.windowWidth,
-        config_.windowHeight,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
-    ) };
+    SDL_Window* rawWin { SDL_CreateWindow(config_.windowTitle.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        config_.windowWidth, config_.windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE) };
 
     if (rawWin == nullptr) {
         return false;
@@ -71,10 +66,7 @@ bool GameApp::initialize()
     window_.reset(rawWin);
 
     SDL_Renderer* rawRnd { SDL_CreateRenderer(
-        window_.get(),
-        -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
-    ) };
+        window_.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC) };
 
     if (rawRnd == nullptr) {
         rawRnd = SDL_CreateRenderer(window_.get(), -1, SDL_RENDERER_ACCELERATED);
@@ -190,8 +182,8 @@ void GameApp::updateSimulation(double dt) noexcept
     audioSystem_.update(dt);
     campaignManager_.update(dt, courseManager_, audioSystem_, truckBody_, truckDynamics_);
 
-    if (campaignManager_.getState() != GameState::Playing &&
-        campaignManager_.getState() != GameState::CheckpointPassed) {
+    if (campaignManager_.getState() != GameState::Playing
+        && campaignManager_.getState() != GameState::CheckpointPassed) {
         return;
     }
 
@@ -237,10 +229,12 @@ void GameApp::updateSimulation(double dt) noexcept
 
     // 1. Sand Rooster Tails
     if (rearAxle.isGrounded) {
-        particleSystem_.emitRoosterTail(rearAxle.worldPos, truckBody_.getLinearVelocity(), rearAxle.soilSinkage, stageIdx);
+        particleSystem_.emitRoosterTail(
+            rearAxle.worldPos, truckBody_.getLinearVelocity(), rearAxle.soilSinkage, stageIdx);
     }
     if (frontAxle.isGrounded) {
-        particleSystem_.emitRoosterTail(frontAxle.worldPos, truckBody_.getLinearVelocity(), frontAxle.soilSinkage, stageIdx);
+        particleSystem_.emitRoosterTail(
+            frontAxle.worldPos, truckBody_.getLinearVelocity(), frontAxle.soilSinkage, stageIdx);
     }
 
     // 2. Landing Dust Plumes
@@ -258,7 +252,8 @@ void GameApp::updateSimulation(double dt) noexcept
 
     // 3. Jump Thruster Sparks
     if (truckInput.jump) {
-        particleSystem_.emitThrusterSparks(truckBody_.getPosition() - Vec2{ 0.0, 0.15 }, truckBody_.getLinearVelocity());
+        particleSystem_.emitThrusterSparks(
+            truckBody_.getPosition() - Vec2 { 0.0, 0.15 }, truckBody_.getLinearVelocity());
     }
 
     particleSystem_.update(dt);
@@ -278,26 +273,13 @@ void GameApp::updateSimulation(double dt) noexcept
     enemyManager_.syncCombatTargets(combatTargets_);
     const bool isStage8 { courseManager_.getCurrentStageIndex() == 8 };
     if (isStage8 || bossController_.isBossActive()) {
-        bossController_.update(
-            dt,
-            &courseManager_.getHeightfield(),
-            camera_,
-            truckBody_,
-            particleSystem_
-        );
+        bossController_.update(dt, &courseManager_.getHeightfield(), camera_, truckBody_, particleSystem_);
         bossController_.syncCombatTargets(combatTargets_);
     }
 
-    const std::vector<vehicle_sim::physics::RigidBody2D*> sceneBodies{ &truckBody_ };
+    const std::vector<vehicle_sim::physics::RigidBody2D*> sceneBodies { &truckBody_ };
     combatManager_.update(
-        dt,
-        &courseManager_.getHeightfield(),
-        particleSystem_,
-        camera_,
-        sceneBodies,
-        &combatTargets_,
-        stageIdx
-    );
+        dt, &courseManager_.getHeightfield(), particleSystem_, camera_, sceneBodies, &combatTargets_, stageIdx);
 
     // Detonation sound trigger
     const std::size_t curShockwaves { combatManager_.getShockwaveCount() };
@@ -334,9 +316,7 @@ void GameApp::updateSimulation(double dt) noexcept
 void GameApp::renderFrame() noexcept
 {
     const auto state { campaignManager_.getState() };
-    if (state != GameState::Playing &&
-        state != GameState::StageClear &&
-        state != GameState::CheckpointPassed) {
+    if (state != GameState::Playing && state != GameState::StageClear && state != GameState::CheckpointPassed) {
         campaignManager_.render(cgaRenderer_, courseManager_, truckBody_);
         if (!config_.headless && window_ && renderer_) {
             int w { config_.windowWidth };
@@ -348,28 +328,23 @@ void GameApp::renderFrame() noexcept
     }
 
     // 1. Render 4-tier parallax scenery and foreground heightfield track
-    parallax_.render(
-        cgaRenderer_,
-        camera_,
-        courseManager_.getHeightfield(),
-        courseManager_.getCurrentStageIndex()
-    );
+    parallax_.render(cgaRenderer_, camera_, courseManager_.getHeightfield(), courseManager_.getCurrentStageIndex());
 
     // 2. Render checkpoint gantries & milestone flags
     for (const auto& cp : courseManager_.getCheckpoints()) {
         const double groundY { courseManager_.getHeightfield().getHeight(cp.worldX) };
-        const Vec2 baseScreen { camera_.worldToScreen(Vec2{ cp.worldX, groundY }) };
+        const Vec2 baseScreen { camera_.worldToScreen(Vec2 { cp.worldX, groundY }) };
         const int bx { static_cast<int>(std::round(baseScreen.x)) };
         const int by { static_cast<int>(std::round(baseScreen.y)) };
 
         if (bx >= -20 && bx < CgaPaletteRenderer::kNativeWidth + 20) {
             // Checkpoint striped gantry pole (height 30px)
-            cgaRenderer_.fillRect(bx - 1, by - 30, 3, 30, ColorRgba{ 255, 255, 255, 255 });
-            cgaRenderer_.fillRect(bx - 1, by - 24, 3, 6, ColorRgba{ 255, 85, 85, 255 });
-            cgaRenderer_.fillRect(bx - 1, by - 12, 3, 6, ColorRgba{ 255, 85, 85, 255 });
+            cgaRenderer_.fillRect(bx - 1, by - 30, 3, 30, ColorRgba { 255, 255, 255, 255 });
+            cgaRenderer_.fillRect(bx - 1, by - 24, 3, 6, ColorRgba { 255, 85, 85, 255 });
+            cgaRenderer_.fillRect(bx - 1, by - 12, 3, 6, ColorRgba { 255, 85, 85, 255 });
 
             // Milestone letter flag
-            const ColorRgba flagColor { cp.reached ? ColorRgba{ 85, 255, 85, 255 } : ColorRgba{ 255, 255, 85, 255 } };
+            const ColorRgba flagColor { cp.reached ? ColorRgba { 85, 255, 85, 255 } : ColorRgba { 255, 255, 85, 255 } };
             cgaRenderer_.fillRect(bx + 2, by - 30, 8, 8, flagColor);
         }
     }

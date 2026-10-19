@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "apps/MontsoftOffroad/AudioSystem.h"
 #include "apps/MontsoftOffroad/BossController.h"
@@ -26,12 +28,12 @@ namespace montsoft_offroad {
 /// @struct GameAppConfig
 /// @brief Configuration settings for the Montsoft Offroad application.
 struct GameAppConfig {
-    int windowWidth { 1280 };                ///< Initial window width in pixels.
-    int windowHeight { 800 };                ///< Initial window height in pixels.
+    int windowWidth { 1280 }; ///< Initial window width in pixels.
+    int windowHeight { 800 }; ///< Initial window height in pixels.
     std::string windowTitle { "Montsoft Offroad (1988)" }; ///< Window titlebar string.
-    double targetFps { 60.0 };               ///< Display refresh target framerate.
-    double fixedDt { 1.0 / 60.0 };           ///< Invariant physics simulation timestep in seconds.
-    bool headless { false };                 ///< True to execute without opening an SDL window.
+    double targetFps { 60.0 }; ///< Display refresh target framerate.
+    double fixedDt { 1.0 / 60.0 }; ///< Invariant physics simulation timestep in seconds.
+    bool headless { false }; ///< True to execute without opening an SDL window.
     PaletteMode initialPalette { PaletteMode::CgaPalette1 }; ///< Starting retro color mode.
 };
 

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
+
 #include "libs/VehicleSimCore/math/Vec2.h"
 #include "libs/VehicleSimCore/physics/PhysicsWorld2D.h"
 #include "libs/VehicleSimCore/physics/RevoluteJoint2D.h"

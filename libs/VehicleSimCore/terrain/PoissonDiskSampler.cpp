@@ -9,42 +9,42 @@ namespace vehicle_sim::terrain {
 
 namespace {
 
-constexpr double kPi { 3.14159265358979323846 };
-constexpr double kTwoPi { 2.0 * kPi };
-constexpr double kInvSqrt2 { 0.70710678118654752440 };
+    constexpr double kPi { 3.14159265358979323846 };
+    constexpr double kTwoPi { 2.0 * kPi };
+    constexpr double kInvSqrt2 { 0.70710678118654752440 };
 
-/// @class DeterministicRng64
-/// @brief Cross-platform 64-bit deterministic linear congruential pseudo-random generator.
-class DeterministicRng64 {
-public:
-    explicit DeterministicRng64(std::uint32_t seed) noexcept
-        : mState { (static_cast<std::uint64_t>(seed) != 0ULL) ? static_cast<std::uint64_t>(seed) : 1ULL }
-    {
-    }
-
-    [[nodiscard]] std::uint64_t next() noexcept
-    {
-        mState = mState * 6364136223846793005ULL + 1442695040888963407ULL;
-        return mState;
-    }
-
-    [[nodiscard]] double nextDouble(double minVal, double maxVal) noexcept
-    {
-        const double unit { static_cast<double>(next() >> 11U) / 9007199254740992.0 };
-        return minVal + unit * (maxVal - minVal);
-    }
-
-    [[nodiscard]] std::size_t nextSizeT(std::size_t maxExclusive) noexcept
-    {
-        if (maxExclusive <= 1U) {
-            return 0U;
+    /// @class DeterministicRng64
+    /// @brief Cross-platform 64-bit deterministic linear congruential pseudo-random generator.
+    class DeterministicRng64 {
+    public:
+        explicit DeterministicRng64(std::uint32_t seed) noexcept
+            : mState { (static_cast<std::uint64_t>(seed) != 0ULL) ? static_cast<std::uint64_t>(seed) : 1ULL }
+        {
         }
-        return static_cast<std::size_t>(next() % maxExclusive);
-    }
 
-private:
-    std::uint64_t mState { 1ULL };
-};
+        [[nodiscard]] std::uint64_t next() noexcept
+        {
+            mState = mState * 6364136223846793005ULL + 1442695040888963407ULL;
+            return mState;
+        }
+
+        [[nodiscard]] double nextDouble(double minVal, double maxVal) noexcept
+        {
+            const double unit { static_cast<double>(next() >> 11U) / 9007199254740992.0 };
+            return minVal + unit * (maxVal - minVal);
+        }
+
+        [[nodiscard]] std::size_t nextSizeT(std::size_t maxExclusive) noexcept
+        {
+            if (maxExclusive <= 1U) {
+                return 0U;
+            }
+            return static_cast<std::size_t>(next() % maxExclusive);
+        }
+
+    private:
+        std::uint64_t mState { 1ULL };
+    };
 
 } // namespace
 
@@ -53,18 +53,16 @@ PoissonDiskSampler::PoissonDiskSampler(const PoissonSamplerConfig& config) noexc
 {
 }
 
-std::vector<math::Vec2> PoissonDiskSampler::generate(
-    const PointAcceptancePredicate& predicate) const
+std::vector<math::Vec2> PoissonDiskSampler::generate(const PointAcceptancePredicate& predicate) const
 {
-    const std::vector<math::Vec2> emptySeeds { };
+    const std::vector<math::Vec2> emptySeeds {};
     return generateWithSeedPoints(emptySeeds, predicate);
 }
 
 std::vector<math::Vec2> PoissonDiskSampler::generateWithSeedPoints(
-    const std::vector<math::Vec2>& initialPoints,
-    const PointAcceptancePredicate& predicate) const
+    const std::vector<math::Vec2>& initialPoints, const PointAcceptancePredicate& predicate) const
 {
-    std::vector<math::Vec2> samples { };
+    std::vector<math::Vec2> samples {};
 
     if (mConfig.minDistance <= 1e-4) {
         return samples;
@@ -82,15 +80,15 @@ std::vector<math::Vec2> PoissonDiskSampler::generateWithSeedPoints(
         return samples;
     }
 
-    std::vector<int32_t> grid(totalCells, -1);
-    std::vector<std::size_t> activeList { };
+    std::vector<std::int32_t> grid(totalCells, -1);
+    std::vector<std::size_t> activeList {};
     DeterministicRng64 rng { mConfig.seed };
 
-    auto getCellCoords = [&](const math::Vec2& pt) noexcept -> std::pair<int32_t, int32_t> {
+    auto getCellCoords = [&](const math::Vec2& pt) noexcept -> std::pair<std::int32_t, std::int32_t> {
         const double relX { pt.x - mConfig.bounds.min.x };
         const double relY { pt.y - mConfig.bounds.min.y };
-        const int32_t cx { static_cast<int32_t>(relX / cellSize) };
-        const int32_t cy { static_cast<int32_t>(relY / cellSize) };
+        const std::int32_t cx { static_cast<std::int32_t>(relX / cellSize) };
+        const std::int32_t cy { static_cast<std::int32_t>(relY / cellSize) };
         return { cx, cy };
     };
 
@@ -102,20 +100,20 @@ std::vector<math::Vec2> PoissonDiskSampler::generateWithSeedPoints(
             return false;
         }
         const auto [cx, cy] = getCellCoords(pt);
-        if (cx < 0 || static_cast<std::size_t>(cx) >= gridWidth ||
-            cy < 0 || static_cast<std::size_t>(cy) >= gridHeight) {
+        if (cx < 0 || static_cast<std::size_t>(cx) >= gridWidth || cy < 0
+            || static_cast<std::size_t>(cy) >= gridHeight) {
             return false;
         }
         const double minDistSq { mConfig.minDistance * mConfig.minDistance };
-        const int32_t minX { std::max(0, cx - 2) };
-        const int32_t maxX { std::min(static_cast<int32_t>(gridWidth) - 1, cx + 2) };
-        const int32_t minY { std::max(0, cy - 2) };
-        const int32_t maxY { std::min(static_cast<int32_t>(gridHeight) - 1, cy + 2) };
+        const std::int32_t minX { std::max(0, cx - 2) };
+        const std::int32_t maxX { std::min(static_cast<std::int32_t>(gridWidth) - 1, cx + 2) };
+        const std::int32_t minY { std::max(0, cy - 2) };
+        const std::int32_t maxY { std::min(static_cast<std::int32_t>(gridHeight) - 1, cy + 2) };
 
-        for (int32_t y { minY }; y <= maxY; ++y) {
-            for (int32_t x { minX }; x <= maxX; ++x) {
+        for (std::int32_t y { minY }; y <= maxY; ++y) {
+            for (std::int32_t x { minX }; x <= maxX; ++x) {
                 const std::size_t cellIndex { static_cast<std::size_t>(y) * gridWidth + static_cast<std::size_t>(x) };
-                const int32_t sampleIdx { grid[cellIndex] };
+                const std::int32_t sampleIdx { grid[cellIndex] };
                 if (sampleIdx >= 0) {
                     const math::Vec2 diff { samples[static_cast<std::size_t>(sampleIdx)] - pt };
                     if (diff.lengthSquared() < minDistSq) {
@@ -133,7 +131,7 @@ std::vector<math::Vec2> PoissonDiskSampler::generateWithSeedPoints(
             const auto [cx, cy] = getCellCoords(pt);
             const std::size_t cellIndex { static_cast<std::size_t>(cy) * gridWidth + static_cast<std::size_t>(cx) };
             samples.push_back(pt);
-            grid[cellIndex] = static_cast<int32_t>(samples.size() - 1U);
+            grid[cellIndex] = static_cast<std::int32_t>(samples.size() - 1U);
             activeList.push_back(samples.size() - 1U);
         }
     }
@@ -164,7 +162,7 @@ std::vector<math::Vec2> PoissonDiskSampler::generateWithSeedPoints(
             const auto [cx, cy] = getCellCoords(firstPoint);
             const std::size_t cellIndex { static_cast<std::size_t>(cy) * gridWidth + static_cast<std::size_t>(cx) };
             samples.push_back(firstPoint);
-            grid[cellIndex] = static_cast<int32_t>(samples.size() - 1U);
+            grid[cellIndex] = static_cast<std::int32_t>(samples.size() - 1U);
             activeList.push_back(samples.size() - 1U);
         } else {
             return samples;
@@ -183,16 +181,14 @@ std::vector<math::Vec2> PoissonDiskSampler::generateWithSeedPoints(
             const double angle { kTwoPi * u1 };
             // Uniform areal sampling in [r_min, 2*r_min]
             const double radius { mConfig.minDistance * std::sqrt(3.0 * u2 + 1.0) };
-            const math::Vec2 candidate {
-                sourcePoint.x + radius * std::cos(angle),
-                sourcePoint.y + radius * std::sin(angle)
-            };
+            const math::Vec2 candidate { sourcePoint.x + radius * std::cos(angle),
+                sourcePoint.y + radius * std::sin(angle) };
 
             if (isValidCandidate(candidate)) {
                 const auto [cx, cy] = getCellCoords(candidate);
                 const std::size_t cellIndex { static_cast<std::size_t>(cy) * gridWidth + static_cast<std::size_t>(cx) };
                 samples.push_back(candidate);
-                grid[cellIndex] = static_cast<int32_t>(samples.size() - 1U);
+                grid[cellIndex] = static_cast<std::int32_t>(samples.size() - 1U);
                 activeList.push_back(samples.size() - 1U);
                 candidateFound = true;
                 break;

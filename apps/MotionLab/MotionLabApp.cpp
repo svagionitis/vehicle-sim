@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <thread>
 
 #include "libs/VehicleSimCore/physics/Integrator2D.h"
@@ -25,14 +26,14 @@ namespace {
 } // namespace
 
 MotionLabApp::MotionLabApp()
-    : MotionLabApp(MotionLabAppConfig { })
+    : MotionLabApp(MotionLabAppConfig {})
 {
 }
 
 MotionLabApp::MotionLabApp(const MotionLabAppConfig& config)
     : mConfig { config }
 {
-    vehicle_sim::physics::RigidBodyConfig bodyConfig { };
+    vehicle_sim::physics::RigidBodyConfig bodyConfig {};
     bodyConfig.mass = 1000.0;
     bodyConfig.inertia = 1666.667;
     bodyConfig.position = vehicle_sim::math::Vec2 { 0.0, 0.0 };
@@ -40,7 +41,7 @@ MotionLabApp::MotionLabApp(const MotionLabAppConfig& config)
 
     mBody = vehicle_sim::physics::RigidBody2D { bodyConfig };
 
-    CameraConfig camConfig { };
+    CameraConfig camConfig {};
     camConfig.viewportWidth = config.windowWidth;
     camConfig.viewportHeight = config.windowHeight;
     camConfig.baseZoom = 28.0;
@@ -254,8 +255,8 @@ void MotionLabApp::resetSimulation() noexcept
     mTrail.clear();
     mAnimTimer = 0.0;
 
-    mRearLeftState = RearTireState { };
-    mRearRightState = RearTireState { };
+    mRearLeftState = RearTireState {};
+    mRearRightState = RearTireState {};
 
     mKeyW = false;
     mKeyS = false;
@@ -653,7 +654,7 @@ vehicle_sim::math::Vec2 MotionLabApp::computeSupportPoint(const vehicle_sim::mat
 
 void MotionLabApp::processEvents() noexcept
 {
-    SDL_Event event { };
+    SDL_Event event {};
     while (SDL_PollEvent(&event) != 0) {
         if (event.type == SDL_QUIT) {
             mRunning = false;
@@ -1420,7 +1421,8 @@ void MotionLabApp::stepPhysics(double dt) noexcept
 
     const double slipVel { (std::abs(frontSlip) + std::abs(rearSlip)) * speed };
     const double brakeInput { mKeySpace ? 1.0 : ((mKeyS && speed > 0.5) ? 0.8 : 0.0) };
-    mAudioSystem.updateTelemetry(mVehicleType, engineRpm, throttleInput, slipVel, surfaceMu, rotorSpeed, thrusterPower, speed, brakeInput);
+    mAudioSystem.updateTelemetry(
+        mVehicleType, engineRpm, throttleInput, slipVel, surfaceMu, rotorSpeed, thrusterPower, speed, brakeInput);
 }
 
 void MotionLabApp::renderFrame() noexcept
@@ -1429,7 +1431,7 @@ void MotionLabApp::renderFrame() noexcept
         return;
     }
 
-    VehicleRenderContext context { };
+    VehicleRenderContext context {};
     context.type = mVehicleType;
     context.terrain = getTerrain();
     context.car = &mCar;
@@ -1471,7 +1473,7 @@ void MotionLabApp::renderFrame() noexcept
     const double speedMps { v.length() };
     const double speedMph { speedMps / 0.44704 };
 
-    TelemetrySnapshot snapshot { };
+    TelemetrySnapshot snapshot {};
     snapshot.speedMps = speedMps;
     snapshot.speedMph = speedMph;
     snapshot.angularVelocity = mBody.getAngularVelocity();
@@ -1558,7 +1560,7 @@ void MotionLabApp::renderFrame() noexcept
         snapshot.vehicleDetails = mForklift.isTippedOver()
             ? "TIP-OVER DETECTED!"
             : (std::string("ROLLOVER: ") + std::to_string(static_cast<int>(mForklift.getRolloverIndex() * 100.0))
-                  + "% | REAR STEER");
+                + "% | REAR STEER");
         break;
     case MotionLabVehicleType::QuadcopterDrone:
         snapshot.vehicleDetails = std::string("THRUST: ") + std::to_string(static_cast<int>(mDrone.getTotalThrust()))
@@ -1571,7 +1573,7 @@ void MotionLabApp::renderFrame() noexcept
     snapshot.audioLevels = mAudioSystem.getLevels();
     snapshot.audioHudVisible = mAudioHudVisible;
 
-    ExtendedTelemetrySnapshot extendedSnapshot { };
+    ExtendedTelemetrySnapshot extendedSnapshot {};
     mTelemetryCoordinator.populateSnapshot(extendedSnapshot);
     extendedSnapshot.advancedHudVisible = mAdvancedHudVisible && mAllHudVisible;
 
@@ -1597,25 +1599,16 @@ void MotionLabApp::renderFrame() noexcept
 
         if (mWindHudVisible) {
             const SDL_Point cardPos = WindVectorFieldRenderer::computeHudCardPos(
-                mConfig.windowWidth,
-                mConfig.windowHeight,
-                mCircuitCoordinator.isEnabled(),
-                mAdvancedHudVisible);
+                mConfig.windowWidth, mConfig.windowHeight, mCircuitCoordinator.isEnabled(), mAdvancedHudVisible);
 
-            WindVectorFieldRenderer::renderHudCard(
-                mRenderer, mWindCoordinator.getSnapshot(), cardPos.x, cardPos.y);
+            WindVectorFieldRenderer::renderHudCard(mRenderer, mWindCoordinator.getSnapshot(), cardPos.x, cardPos.y);
         }
 
         if (mTireThermalHudVisible) {
-            const bool pgActive = mSlalomCoordinator.isEnabled() || mMooseCoordinator.isEnabled()
-                || mSkidpadCoordinator.isEnabled();
-            const SDL_Point cardPos = TireThermalRenderer::computeHudCardPos(
-                mConfig.windowWidth,
-                mConfig.windowHeight,
-                mCircuitCoordinator.isEnabled(),
-                mAdvancedHudVisible,
-                mWindHudVisible,
-                pgActive);
+            const bool pgActive
+                = mSlalomCoordinator.isEnabled() || mMooseCoordinator.isEnabled() || mSkidpadCoordinator.isEnabled();
+            const SDL_Point cardPos = TireThermalRenderer::computeHudCardPos(mConfig.windowWidth, mConfig.windowHeight,
+                mCircuitCoordinator.isEnabled(), mAdvancedHudVisible, mWindHudVisible, pgActive);
 
             mTireThermalRenderer.renderHudCard(mRenderer, mTireThermalCoordinator, cardPos.x, cardPos.y);
         }
@@ -1629,13 +1622,13 @@ void MotionLabApp::run()
     constexpr int kMaxSubSteps { 12 };
     const double fixedDt { mConfig.fixedDt };
 
-    uint64_t lastCounter { SDL_GetPerformanceCounter() };
+    std::uint64_t lastCounter { SDL_GetPerformanceCounter() };
     const double counterFreq { static_cast<double>(SDL_GetPerformanceFrequency()) };
 
     while (mRunning) {
         processEvents();
 
-        const uint64_t currentCounter { SDL_GetPerformanceCounter() };
+        const std::uint64_t currentCounter { SDL_GetPerformanceCounter() };
         double elapsed { static_cast<double>(currentCounter - lastCounter) / counterFreq };
         lastCounter = currentCounter;
 
@@ -1938,8 +1931,8 @@ void MotionLabApp::updateTireThermals(double dt) noexcept
             const double omega { (forwardSpeed + w.slipRatio * safeVx) / wheelRadius };
             const double vsx { w.slipRatio * safeVx };
             const double vsy { -std::tan(w.slipAngle) * safeVx };
-            mTireThermalCoordinator.updateWheel(i, w.tractiveForce, w.corneringForce, w.normalLoad,
-                                                vsx, vsy, omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
+            mTireThermalCoordinator.updateWheel(i, w.tractiveForce, w.corneringForce, w.normalLoad, vsx, vsy, omega,
+                wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
         }
     } else if (mVehicleType == MotionLabVehicleType::RaceCar) {
         const auto& wheels = mRaceCar.getWheelStates();
@@ -1951,8 +1944,8 @@ void MotionLabApp::updateTireThermals(double dt) noexcept
             const double omega { (forwardSpeed + w.slipRatio * safeVx) / wheelRadius };
             const double vsx { w.slipRatio * safeVx };
             const double vsy { -std::tan(w.slipAngle) * safeVx };
-            mTireThermalCoordinator.updateWheel(i, w.tractiveForce, w.corneringForce, w.normalLoad,
-                                                vsx, vsy, omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
+            mTireThermalCoordinator.updateWheel(i, w.tractiveForce, w.corneringForce, w.normalLoad, vsx, vsy, omega,
+                wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
         }
     } else {
         const double totalMass { mBody.getMass() };
@@ -1962,9 +1955,7 @@ void MotionLabApp::updateTireThermals(double dt) noexcept
         const double safeForwardSpeed { std::max(1.0, std::abs(forwardSpeed)) };
         const double slipAngle { -std::atan2(lateralSpeed, safeForwardSpeed) };
 
-        const vehicle_sim::math::Vec2 offsets[4] = {
-            { 1.3, 0.8 }, { 1.3, -0.8 }, { -1.3, 0.8 }, { -1.3, -0.8 }
-        };
+        const vehicle_sim::math::Vec2 offsets[4] = { { 1.3, 0.8 }, { 1.3, -0.8 }, { -1.3, 0.8 }, { -1.3, -0.8 } };
 
         const double tractiveDemand { (mKeyW ? 2500.0 : 0.0) - (mKeyS ? 4000.0 : 0.0) };
         for (std::size_t i { 0U }; i < 4U; ++i) {
@@ -1974,8 +1965,8 @@ void MotionLabApp::updateTireThermals(double dt) noexcept
             const double vsx { (i >= 2U && mKeyW) ? 1.5 : 0.0 };
             const double vsy { lateralSpeed };
             const double corneringForce { normalLoadPerWheel * std::sin(slipAngle) };
-            mTireThermalCoordinator.updateWheel(i, tractiveDemand * 0.25, corneringForce, normalLoadPerWheel,
-                                                vsx, vsy, omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
+            mTireThermalCoordinator.updateWheel(i, tractiveDemand * 0.25, corneringForce, normalLoadPerWheel, vsx, vsy,
+                omega, wheelRadius, airSpeed, worldPos, dt, mTireSmokeBuffer);
         }
     }
 

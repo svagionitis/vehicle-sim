@@ -1,4 +1,5 @@
 #include "Collider2D.h"
+#include <cstdint>
 
 namespace vehicle_sim::physics {
 
@@ -201,9 +202,13 @@ std::optional<math::RayHit2D> Collider2D::raycast(const math::Ray2D& ray) const 
                             if constexpr (std::is_same_v<CT, math::Circle2D>) {
                                 return math::Circle2D { childTf.transformPoint(cs.center), cs.radius }.raycast(ray);
                             } else if constexpr (std::is_same_v<CT, math::OBB2D>) {
-                                return math::OBB2D { childTf.transformPoint(cs.center), cs.halfExtents, childTf.getAngle() + cs.rotation }.raycast(ray);
+                                return math::OBB2D { childTf.transformPoint(cs.center), cs.halfExtents,
+                                    childTf.getAngle() + cs.rotation }
+                                    .raycast(ray);
                             } else if constexpr (std::is_same_v<CT, math::Capsule2D>) {
-                                return math::Capsule2D { childTf.transformPoint(cs.p1), childTf.transformPoint(cs.p2), cs.radius }.raycast(ray);
+                                return math::Capsule2D { childTf.transformPoint(cs.p1), childTf.transformPoint(cs.p2),
+                                    cs.radius }
+                                    .raycast(ray);
                             } else if constexpr (std::is_same_v<CT, math::Polygon2D>) {
                                 const std::size_t pCount { cs.vertexCount() };
                                 std::array<math::Vec2, math::Polygon2D::kMaxVertices> pVerts {};

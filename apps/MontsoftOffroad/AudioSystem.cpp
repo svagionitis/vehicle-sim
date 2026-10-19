@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 
 namespace montsoft_offroad {
@@ -59,14 +60,14 @@ void AudioSystem::shutdown() noexcept
 
 void AudioSystem::update(double dt) noexcept
 {
-    std::lock_guard<std::mutex> lock{ audioMutex_ };
+    std::lock_guard<std::mutex> lock { audioMutex_ };
 
     // Update Channel 0 (Engine)
     auto& ch0 { channels_[0] };
     if (ch0.active) {
-        const double targetFreq { engineAirborne_
-            ? 290.0
-            : (65.0 + std::clamp(std::abs(engineSpeed_) / 35.0, 0.0, 1.0) * (290.0 - 65.0)) };
+        const double targetFreq {
+            engineAirborne_ ? 290.0 : (65.0 + std::clamp(std::abs(engineSpeed_) / 35.0, 0.0, 1.0) * (290.0 - 65.0))
+        };
         // Smoothly interpolate engine frequency
         ch0.frequency += (targetFreq - ch0.frequency) * std::min(1.0, dt * 15.0);
     }
@@ -106,7 +107,7 @@ void AudioSystem::update(double dt) noexcept
 
 void AudioSystem::playSfx(SoundEffect sfx) noexcept
 {
-    std::lock_guard<std::mutex> lock{ audioMutex_ };
+    std::lock_guard<std::mutex> lock { audioMutex_ };
 
     switch (sfx) {
     case SoundEffect::JumpThruster: {
@@ -252,7 +253,7 @@ void AudioSystem::playSfx(SoundEffect sfx) noexcept
 
 void AudioSystem::setEngineSpeed(double speed, double throttle, bool isAirborne) noexcept
 {
-    std::lock_guard<std::mutex> lock{ audioMutex_ };
+    std::lock_guard<std::mutex> lock { audioMutex_ };
     engineSpeed_ = speed;
     engineThrottle_ = throttle;
     engineAirborne_ = isAirborne;
@@ -268,7 +269,7 @@ void AudioSystem::setEngineSpeed(double speed, double throttle, bool isAirborne)
 
 void AudioSystem::stopEngine() noexcept
 {
-    std::lock_guard<std::mutex> lock{ audioMutex_ };
+    std::lock_guard<std::mutex> lock { audioMutex_ };
     channels_[0].active = false;
 }
 
@@ -316,7 +317,7 @@ void AudioSystem::processAudioBuffer(std::int16_t* buffer, int sampleCount) noex
     const double masterVol { masterVolume_.load() };
     const double dtSample { 1.0 / static_cast<double>(kSampleRate) };
 
-    std::lock_guard<std::mutex> lock{ audioMutex_ };
+    std::lock_guard<std::mutex> lock { audioMutex_ };
 
     for (int i { 0 }; i < sampleCount; ++i) {
         double mixSample { 0.0 };

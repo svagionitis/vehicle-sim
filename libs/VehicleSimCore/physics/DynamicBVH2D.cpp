@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <stack>
 
 #include "Collider2D.h"
@@ -10,18 +11,16 @@ namespace vehicle_sim::physics {
 
 namespace {
 
-[[nodiscard]] double halfPerimeter(const math::AABB2D& box) noexcept
-{
-    return (box.max.x - box.min.x) + (box.max.y - box.min.y);
-}
+    [[nodiscard]] double halfPerimeter(const math::AABB2D& box) noexcept
+    {
+        return (box.max.x - box.min.x) + (box.max.y - box.min.y);
+    }
 
-[[nodiscard]] math::AABB2D combineAABB(const math::AABB2D& a, const math::AABB2D& b) noexcept
-{
-    return math::AABB2D {
-        math::Vec2 { std::min(a.min.x, b.min.x), std::min(a.min.y, b.min.y) },
-        math::Vec2 { std::max(a.max.x, b.max.x), std::max(a.max.y, b.max.y) }
-    };
-}
+    [[nodiscard]] math::AABB2D combineAABB(const math::AABB2D& a, const math::AABB2D& b) noexcept
+    {
+        return math::AABB2D { math::Vec2 { std::min(a.min.x, b.min.x), std::min(a.min.y, b.min.y) },
+            math::Vec2 { std::max(a.max.x, b.max.x), std::max(a.max.y, b.max.y) } };
+    }
 
 } // namespace
 
@@ -259,10 +258,10 @@ void DynamicBVH2D::insertLeaf(std::int32_t leafIndex)
         const std::int32_t c1 { mNodes[static_cast<std::size_t>(index)].child1 };
         const std::int32_t c2 { mNodes[static_cast<std::size_t>(index)].child2 };
 
-        mNodes[static_cast<std::size_t>(index)].height =
-            1 + std::max(mNodes[static_cast<std::size_t>(c1)].height, mNodes[static_cast<std::size_t>(c2)].height);
-        mNodes[static_cast<std::size_t>(index)].aabb =
-            combineAABB(mNodes[static_cast<std::size_t>(c1)].aabb, mNodes[static_cast<std::size_t>(c2)].aabb);
+        mNodes[static_cast<std::size_t>(index)].height
+            = 1 + std::max(mNodes[static_cast<std::size_t>(c1)].height, mNodes[static_cast<std::size_t>(c2)].height);
+        mNodes[static_cast<std::size_t>(index)].aabb
+            = combineAABB(mNodes[static_cast<std::size_t>(c1)].aabb, mNodes[static_cast<std::size_t>(c2)].aabb);
 
         index = mNodes[static_cast<std::size_t>(index)].parentIndex;
     }
@@ -278,8 +277,8 @@ void DynamicBVH2D::removeLeaf(std::int32_t leafIndex)
     const std::int32_t parent { mNodes[static_cast<std::size_t>(leafIndex)].parentIndex };
     const std::int32_t grandParent { mNodes[static_cast<std::size_t>(parent)].parentIndex };
     const std::int32_t sibling { (mNodes[static_cast<std::size_t>(parent)].child1 == leafIndex)
-        ? mNodes[static_cast<std::size_t>(parent)].child2
-        : mNodes[static_cast<std::size_t>(parent)].child1 };
+            ? mNodes[static_cast<std::size_t>(parent)].child2
+            : mNodes[static_cast<std::size_t>(parent)].child1 };
 
     if (grandParent != kNullBVHNode) {
         if (mNodes[static_cast<std::size_t>(grandParent)].child1 == parent) {
@@ -297,10 +296,10 @@ void DynamicBVH2D::removeLeaf(std::int32_t leafIndex)
             const std::int32_t c1 { mNodes[static_cast<std::size_t>(index)].child1 };
             const std::int32_t c2 { mNodes[static_cast<std::size_t>(index)].child2 };
 
-            mNodes[static_cast<std::size_t>(index)].aabb =
-                combineAABB(mNodes[static_cast<std::size_t>(c1)].aabb, mNodes[static_cast<std::size_t>(c2)].aabb);
-            mNodes[static_cast<std::size_t>(index)].height =
-                1 + std::max(mNodes[static_cast<std::size_t>(c1)].height, mNodes[static_cast<std::size_t>(c2)].height);
+            mNodes[static_cast<std::size_t>(index)].aabb
+                = combineAABB(mNodes[static_cast<std::size_t>(c1)].aabb, mNodes[static_cast<std::size_t>(c2)].aabb);
+            mNodes[static_cast<std::size_t>(index)].height = 1
+                + std::max(mNodes[static_cast<std::size_t>(c1)].height, mNodes[static_cast<std::size_t>(c2)].height);
 
             index = mNodes[static_cast<std::size_t>(index)].parentIndex;
         }
@@ -598,16 +597,14 @@ bool DynamicBVH2D::validate() const
                 return false;
             }
 
-            const std::int32_t expectedHeight {
-                1 + std::max(mNodes[static_cast<std::size_t>(c1)].height, mNodes[static_cast<std::size_t>(c2)].height)
-            };
+            const std::int32_t expectedHeight { 1
+                + std::max(mNodes[static_cast<std::size_t>(c1)].height, mNodes[static_cast<std::size_t>(c2)].height) };
             if (node.height != expectedHeight) {
                 return false;
             }
 
-            const std::int32_t balanceFactor {
-                std::abs(mNodes[static_cast<std::size_t>(c2)].height - mNodes[static_cast<std::size_t>(c1)].height)
-            };
+            const std::int32_t balanceFactor { std::abs(
+                mNodes[static_cast<std::size_t>(c2)].height - mNodes[static_cast<std::size_t>(c1)].height) };
             if (balanceFactor > 2) {
                 return false;
             }

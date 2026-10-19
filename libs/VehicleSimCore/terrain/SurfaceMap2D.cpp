@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace vehicle_sim::terrain {
 
@@ -233,17 +234,17 @@ SurfaceMaterial SurfaceMap2D::getMaterial(const math::Vec2& point) const noexcep
     return mDefaultMaterial;
 }
 
-double SurfaceMap2D::getGridSample(int ix, int iy) const noexcept
+double SurfaceMap2D::getGridSample(std::int32_t ix, std::int32_t iy) const noexcept
 {
     if (!hasGrid()) {
         return 0.0;
     }
 
-    const int width { static_cast<int>(mGridWidth) };
-    const int height { static_cast<int>(mGridHeight) };
+    const std::int32_t width { static_cast<std::int32_t>(mGridWidth) };
+    const std::int32_t height { static_cast<std::int32_t>(mGridHeight) };
 
-    int clampedX { ix };
-    int clampedY { iy };
+    std::int32_t clampedX { ix };
+    std::int32_t clampedY { iy };
 
     switch (mBoundaryMode) {
     case ElevationBoundary2D::Clamp:

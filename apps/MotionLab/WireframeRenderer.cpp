@@ -2,13 +2,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace motion_lab {
 
-void WireframeRenderer::drawLine(SDL_Renderer* renderer,
-                                 int x1, int y1,
-                                 int x2, int y2,
-                                 SDL_Color color) noexcept
+void WireframeRenderer::drawLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, SDL_Color color) noexcept
 {
     if (renderer == nullptr) {
         return;
@@ -17,10 +15,8 @@ void WireframeRenderer::drawLine(SDL_Renderer* renderer,
     SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
 }
 
-void WireframeRenderer::drawArrow(SDL_Renderer* renderer,
-                                  const vehicle_sim::math::Vec2& screenStart,
-                                  const vehicle_sim::math::Vec2& screenEnd,
-                                  SDL_Color color) noexcept
+void WireframeRenderer::drawArrow(SDL_Renderer* renderer, const vehicle_sim::math::Vec2& screenStart,
+    const vehicle_sim::math::Vec2& screenEnd, SDL_Color color) noexcept
 {
     if (renderer == nullptr) {
         return;
@@ -47,92 +43,80 @@ void WireframeRenderer::drawArrow(SDL_Renderer* renderer,
 }
 
 namespace {
-struct TerrainTheme {
-    SDL_Color background { 8, 9, 10, 255 };
-    SDL_Color grid { 41, 60, 70, 255 };
-    SDL_Color skid { 242, 138, 114, 255 };
-};
+    struct TerrainTheme {
+        SDL_Color background { 8, 9, 10, 255 };
+        SDL_Color grid { 41, 60, 70, 255 };
+        SDL_Color skid { 242, 138, 114, 255 };
+    };
 
-[[nodiscard]] TerrainTheme getTerrainTheme(vehicle_sim::terrain::MaterialType type) noexcept
-{
-    using vehicle_sim::terrain::MaterialType;
-    switch (type) {
-    case MaterialType::Ice:
-        return { { 6, 12, 18, 255 }, { 60, 110, 140, 255 }, { 165, 216, 255, 255 } };
-    case MaterialType::Sand:
-        return { { 18, 14, 9, 255 }, { 115, 88, 52, 255 }, { 232, 176, 104, 255 } };
-    case MaterialType::Mud:
-        return { { 14, 10, 7, 255 }, { 95, 68, 45, 255 }, { 140, 92, 52, 255 } };
-    case MaterialType::Grass:
-        return { { 7, 16, 9, 255 }, { 45, 95, 55, 255 }, { 124, 179, 66, 255 } };
-    case MaterialType::Gravel:
-        return { { 12, 13, 14, 255 }, { 80, 85, 90, 255 }, { 176, 190, 197, 255 } };
-    case MaterialType::Snow:
-        return { { 11, 15, 20, 255 }, { 95, 115, 135, 255 }, { 215, 232, 245, 255 } };
-    case MaterialType::Tarmac:
-    default:
-        return { { 8, 9, 10, 255 }, { 41, 60, 70, 255 }, { 242, 138, 114, 255 } };
+    [[nodiscard]] TerrainTheme getTerrainTheme(vehicle_sim::terrain::MaterialType type) noexcept
+    {
+        using vehicle_sim::terrain::MaterialType;
+        switch (type) {
+        case MaterialType::Ice:
+            return { { 6, 12, 18, 255 }, { 60, 110, 140, 255 }, { 165, 216, 255, 255 } };
+        case MaterialType::Sand:
+            return { { 18, 14, 9, 255 }, { 115, 88, 52, 255 }, { 232, 176, 104, 255 } };
+        case MaterialType::Mud:
+            return { { 14, 10, 7, 255 }, { 95, 68, 45, 255 }, { 140, 92, 52, 255 } };
+        case MaterialType::Grass:
+            return { { 7, 16, 9, 255 }, { 45, 95, 55, 255 }, { 124, 179, 66, 255 } };
+        case MaterialType::Gravel:
+            return { { 12, 13, 14, 255 }, { 80, 85, 90, 255 }, { 176, 190, 197, 255 } };
+        case MaterialType::Snow:
+            return { { 11, 15, 20, 255 }, { 95, 115, 135, 255 }, { 215, 232, 245, 255 } };
+        case MaterialType::Tarmac:
+        default:
+            return { { 8, 9, 10, 255 }, { 41, 60, 70, 255 }, { 242, 138, 114, 255 } };
+        }
     }
-}
 
-void drawLineLocal(SDL_Renderer* renderer,
-                   const MotionLabCamera& camera,
-                   const vehicle_sim::physics::RigidBody2D& body,
-                   const vehicle_sim::math::Vec2& localA,
-                   const vehicle_sim::math::Vec2& localB,
-                   SDL_Color color) noexcept
-{
-    const auto worldA = body.toWorldPoint(localA);
-    const auto worldB = body.toWorldPoint(localB);
-    const auto screenA = camera.worldToScreen(worldA);
-    const auto screenB = camera.worldToScreen(worldB);
-    WireframeRenderer::drawLine(renderer,
-                                static_cast<int>(std::round(screenA.x)),
-                                static_cast<int>(std::round(screenA.y)),
-                                static_cast<int>(std::round(screenB.x)),
-                                static_cast<int>(std::round(screenB.y)),
-                                color);
-}
+    void drawLineLocal(SDL_Renderer* renderer, const MotionLabCamera& camera,
+        const vehicle_sim::physics::RigidBody2D& body, const vehicle_sim::math::Vec2& localA,
+        const vehicle_sim::math::Vec2& localB, SDL_Color color) noexcept
+    {
+        const auto worldA = body.toWorldPoint(localA);
+        const auto worldB = body.toWorldPoint(localB);
+        const auto screenA = camera.worldToScreen(worldA);
+        const auto screenB = camera.worldToScreen(worldB);
+        WireframeRenderer::drawLine(renderer, static_cast<int>(std::round(screenA.x)),
+            static_cast<int>(std::round(screenA.y)), static_cast<int>(std::round(screenB.x)),
+            static_cast<int>(std::round(screenB.y)), color);
+    }
 
-void drawPolyLocal(SDL_Renderer* renderer,
-                   const MotionLabCamera& camera,
-                   const vehicle_sim::physics::RigidBody2D& body,
-                   const vehicle_sim::math::Vec2* points,
-                   std::size_t count,
-                   bool closed,
-                   SDL_Color color) noexcept
-{
-    if (count < 2) {
-        return;
+    void drawPolyLocal(SDL_Renderer* renderer, const MotionLabCamera& camera,
+        const vehicle_sim::physics::RigidBody2D& body, const vehicle_sim::math::Vec2* points, std::size_t count,
+        bool closed, SDL_Color color) noexcept
+    {
+        if (count < 2) {
+            return;
+        }
+        for (std::size_t i { 0 }; i < count - 1; ++i) {
+            drawLineLocal(renderer, camera, body, points[i], points[i + 1], color);
+        }
+        if (closed) {
+            drawLineLocal(renderer, camera, body, points[count - 1], points[0], color);
+        }
     }
-    for (std::size_t i { 0 }; i < count - 1; ++i) {
-        drawLineLocal(renderer, camera, body, points[i], points[i + 1], color);
-    }
-    if (closed) {
-        drawLineLocal(renderer, camera, body, points[count - 1], points[0], color);
-    }
-}
 
-void drawComAndVelocity(SDL_Renderer* renderer,
-                        const MotionLabCamera& camera,
-                        const vehicle_sim::physics::RigidBody2D& body,
-                        SDL_Color dotColor) noexcept
-{
-    const auto centerScreen = camera.worldToScreen(body.getPosition());
-    const int cx { static_cast<int>(std::round(centerScreen.x)) };
-    const int cy { static_cast<int>(std::round(centerScreen.y)) };
-    SDL_SetRenderDrawColor(renderer, dotColor.r, dotColor.g, dotColor.b, dotColor.a);
-    SDL_Rect centerRect { cx - 2, cy - 2, 5, 5 };
-    SDL_RenderFillRect(renderer, &centerRect);
+    void drawComAndVelocity(SDL_Renderer* renderer, const MotionLabCamera& camera,
+        const vehicle_sim::physics::RigidBody2D& body, SDL_Color dotColor) noexcept
+    {
+        const auto centerScreen = camera.worldToScreen(body.getPosition());
+        const int cx { static_cast<int>(std::round(centerScreen.x)) };
+        const int cy { static_cast<int>(std::round(centerScreen.y)) };
+        SDL_SetRenderDrawColor(renderer, dotColor.r, dotColor.g, dotColor.b, dotColor.a);
+        SDL_Rect centerRect { cx - 2, cy - 2, 5, 5 };
+        SDL_RenderFillRect(renderer, &centerRect);
 
-    const auto velocity = body.getLinearVelocity();
-    if (velocity.length() > 0.1) {
-        const auto arrowEndWorld = body.getPosition() + velocity * 0.35;
-        const auto arrowEndScreen = camera.worldToScreen(arrowEndWorld);
-        const SDL_Color arrowColor { 101, 141, 160, 255 };
-        WireframeRenderer::drawArrow(renderer, centerScreen, arrowEndScreen, arrowColor);
+        const auto velocity = body.getLinearVelocity();
+        if (velocity.length() > 0.1) {
+            const auto arrowEndWorld = body.getPosition() + velocity * 0.35;
+            const auto arrowEndScreen = camera.worldToScreen(arrowEndWorld);
+            const SDL_Color arrowColor { 101, 141, 160, 255 };
+            WireframeRenderer::drawArrow(renderer, centerScreen, arrowEndScreen, arrowColor);
+        }
     }
-}
 
 } // namespace
 
@@ -154,25 +138,21 @@ void WireframeRenderer::drawGrid(SDL_Renderer* renderer, const MotionLabCamera& 
     for (double x { startX }; x <= right; x += 5.0) {
         const auto p1 = camera.worldToScreen({ x, bottom });
         const auto p2 = camera.worldToScreen({ x, top });
-        SDL_RenderDrawLine(renderer,
-                           static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
-                           static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)));
+        SDL_RenderDrawLine(renderer, static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
+            static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)));
     }
 
     const double startY { std::floor(bottom / 5.0) * 5.0 };
     for (double y { startY }; y <= top; y += 5.0) {
         const auto p1 = camera.worldToScreen({ left, y });
         const auto p2 = camera.worldToScreen({ right, y });
-        SDL_RenderDrawLine(renderer,
-                           static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
-                           static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)));
+        SDL_RenderDrawLine(renderer, static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
+            static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)));
     }
 }
 
-void WireframeRenderer::drawSkids(SDL_Renderer* renderer,
-                                 const MotionLabCamera& camera,
-                                 const SkidRibbonBuffer& skids,
-                                 SDL_Color skidBaseColor) noexcept
+void WireframeRenderer::drawSkids(SDL_Renderer* renderer, const MotionLabCamera& camera, const SkidRibbonBuffer& skids,
+    SDL_Color skidBaseColor) noexcept
 {
     const double lifetime { skids.getLifetime() };
     if (lifetime <= 0.0) {
@@ -188,16 +168,13 @@ void WireframeRenderer::drawSkids(SDL_Renderer* renderer,
         const auto s2 = camera.worldToScreen(seg.to);
 
         const SDL_Color skidColor { skidBaseColor.r, skidBaseColor.g, skidBaseColor.b, alpha };
-        drawLine(renderer,
-                 static_cast<int>(std::round(s1.x)), static_cast<int>(std::round(s1.y)),
-                 static_cast<int>(std::round(s2.x)), static_cast<int>(std::round(s2.y)),
-                 skidColor);
+        drawLine(renderer, static_cast<int>(std::round(s1.x)), static_cast<int>(std::round(s1.y)),
+            static_cast<int>(std::round(s2.x)), static_cast<int>(std::round(s2.y)), skidColor);
     }
 }
 
-void WireframeRenderer::drawTrail(SDL_Renderer* renderer,
-                                 const MotionLabCamera& camera,
-                                 const TrailParticleBuffer& trail) noexcept
+void WireframeRenderer::drawTrail(
+    SDL_Renderer* renderer, const MotionLabCamera& camera, const TrailParticleBuffer& trail) noexcept
 {
     const double lifetime { trail.getLifetime() };
     if (lifetime <= 0.0) {
@@ -237,22 +214,17 @@ void WireframeRenderer::drawBarrier(SDL_Renderer* renderer, const MotionLabCamer
     const SDL_Color barrierColor { 212, 171, 113, 255 };
     SDL_SetRenderDrawColor(renderer, barrierColor.r, barrierColor.g, barrierColor.b, barrierColor.a);
 
-    SDL_Rect rect {
-        static_cast<int>(std::round(topLeft.x)),
-        static_cast<int>(std::round(topLeft.y)),
+    SDL_Rect rect { static_cast<int>(std::round(topLeft.x)), static_cast<int>(std::round(topLeft.y)),
         static_cast<int>(std::round(bottomRight.x - topLeft.x)),
-        static_cast<int>(std::round(bottomRight.y - topLeft.y))
-    };
+        static_cast<int>(std::round(bottomRight.y - topLeft.y)) };
     SDL_RenderDrawRect(renderer, &rect);
 }
 
-void WireframeRenderer::drawClassicCar(SDL_Renderer* renderer,
-                                      const MotionLabCamera& camera,
-                                      const vehicle_sim::dynamics::MotionLabCarDynamics& car,
-                                      const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawClassicCar(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::MotionLabCarDynamics& car, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const auto worldCorners = car.computeWorldPoints(body);
-    std::array<vehicle_sim::math::Vec2, 4> screenCorners { };
+    std::array<vehicle_sim::math::Vec2, 4> screenCorners {};
     for (std::size_t i { 0 }; i < 4; ++i) {
         screenCorners[i] = camera.worldToScreen(worldCorners[i]);
     }
@@ -261,28 +233,21 @@ void WireframeRenderer::drawClassicCar(SDL_Renderer* renderer,
     for (std::size_t i { 0 }; i < 4; ++i) {
         const auto& p1 = screenCorners[i];
         const auto& p2 = screenCorners[(i + 1) % 4];
-        drawLine(renderer,
-                 static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
-                 static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)),
-                 mintColor);
+        drawLine(renderer, static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
+            static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)), mintColor);
     }
 
     const auto crossA = camera.worldToScreen(body.toWorldPoint({ 0.7, -0.7 }));
     const auto crossB = camera.worldToScreen(body.toWorldPoint({ 0.7, 0.7 }));
-    drawLine(renderer,
-             static_cast<int>(std::round(crossA.x)), static_cast<int>(std::round(crossA.y)),
-             static_cast<int>(std::round(crossB.x)), static_cast<int>(std::round(crossB.y)),
-             mintColor);
+    drawLine(renderer, static_cast<int>(std::round(crossA.x)), static_cast<int>(std::round(crossA.y)),
+        static_cast<int>(std::round(crossB.x)), static_cast<int>(std::round(crossB.y)), mintColor);
 
     const SDL_Color handbrakeColor { 255, 223, 147, 255 };
     const bool isHandbrakeEngaged { car.getInput().handbrake || car.getRearGripLoss() > 0.05 };
 
     for (const auto& tire : car.getTires()) {
         const double steerAngle { tire.steerAngle };
-        const vehicle_sim::math::Vec2 half {
-            0.35 * std::cos(steerAngle),
-            0.35 * std::sin(steerAngle)
-        };
+        const vehicle_sim::math::Vec2 half { 0.35 * std::cos(steerAngle), 0.35 * std::sin(steerAngle) };
 
         const auto worldA = body.toWorldPoint(tire.position - half);
         const auto worldB = body.toWorldPoint(tire.position + half);
@@ -291,29 +256,23 @@ void WireframeRenderer::drawClassicCar(SDL_Renderer* renderer,
         const auto screenB = camera.worldToScreen(worldB);
 
         const SDL_Color tireColor = (!tire.steered && isHandbrakeEngaged) ? handbrakeColor : mintColor;
-        drawLine(renderer,
-                 static_cast<int>(std::round(screenA.x)), static_cast<int>(std::round(screenA.y)),
-                 static_cast<int>(std::round(screenB.x)), static_cast<int>(std::round(screenB.y)),
-                 tireColor);
+        drawLine(renderer, static_cast<int>(std::round(screenA.x)), static_cast<int>(std::round(screenA.y)),
+            static_cast<int>(std::round(screenB.x)), static_cast<int>(std::round(screenB.y)), tireColor);
     }
 
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawRaceCar(SDL_Renderer* renderer,
-                                   const MotionLabCamera& camera,
-                                   const vehicle_sim::dynamics::RaceCarDynamics& raceCar,
-                                   const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawRaceCar(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::RaceCarDynamics& raceCar, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color drsColor { 255, 223, 147, 255 };
 
     // 1. Tapered aerodynamic chassis & cockpit
-    const vehicle_sim::math::Vec2 noseBody[] {
-        { 2.2, 0.0 }, { 1.1, -0.32 }, { 0.3, -0.42 }, { -0.5, -0.42 },
-        { -1.4, -0.32 }, { -1.8, -0.22 }, { -1.8, 0.22 }, { -1.4, 0.32 },
-        { -0.5, 0.42 }, { 0.3, 0.42 }, { 1.1, 0.32 }
-    };
+    const vehicle_sim::math::Vec2 noseBody[] { { 2.2, 0.0 }, { 1.1, -0.32 }, { 0.3, -0.42 }, { -0.5, -0.42 },
+        { -1.4, -0.32 }, { -1.8, -0.22 }, { -1.8, 0.22 }, { -1.4, 0.32 }, { -0.5, 0.42 }, { 0.3, 0.42 },
+        { 1.1, 0.32 } };
     drawPolyLocal(renderer, camera, body, noseBody, sizeof(noseBody) / sizeof(noseBody[0]), true, mintColor);
 
     // Sidepods
@@ -342,10 +301,7 @@ void WireframeRenderer::drawRaceCar(SDL_Renderer* renderer,
     const auto& wheels = raceCar.getWheelStates();
     for (std::size_t i { 0 }; i < 4; ++i) {
         const double steerAngle { wheels[i].steerAngle };
-        const vehicle_sim::math::Vec2 half {
-            0.38 * std::cos(steerAngle),
-            0.38 * std::sin(steerAngle)
-        };
+        const vehicle_sim::math::Vec2 half { 0.38 * std::cos(steerAngle), 0.38 * std::sin(steerAngle) };
         const auto localPos = wheels[i].localOffset;
         const bool skidding { std::abs(wheels[i].slipAngle) > 0.15 || std::abs(wheels[i].slipRatio) > 0.15 };
         const SDL_Color wheelColor { skidding ? drsColor : mintColor };
@@ -355,21 +311,17 @@ void WireframeRenderer::drawRaceCar(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawRocket(SDL_Renderer* renderer,
-                                  const MotionLabCamera& camera,
-                                  const vehicle_sim::dynamics::RocketDynamics& rocket,
-                                  const vehicle_sim::physics::RigidBody2D& body,
-                                  double animTimer) noexcept
+void WireframeRenderer::drawRocket(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::RocketDynamics& rocket, const vehicle_sim::physics::RigidBody2D& body,
+    double animTimer) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color flameColor { 255, 140, 50, 255 };
     const SDL_Color flameCore { 255, 235, 120, 255 };
 
     // 1. Fuselage cylinder & pointed ogive fairing
-    const vehicle_sim::math::Vec2 rocketHull[] {
-        { -2.2, -0.75 }, { 1.5, -0.75 }, { 2.8, 0.0 },
-        { 1.5, 0.75 }, { -2.2, 0.75 }
-    };
+    const vehicle_sim::math::Vec2 rocketHull[] { { -2.2, -0.75 }, { 1.5, -0.75 }, { 2.8, 0.0 }, { 1.5, 0.75 },
+        { -2.2, 0.75 } };
     drawPolyLocal(renderer, camera, body, rocketHull, 5, true, mintColor);
 
     // Interstage divider line
@@ -387,14 +339,10 @@ void WireframeRenderer::drawRocket(SDL_Renderer* renderer,
     const double sinG { std::sin(gimbal) };
     const vehicle_sim::math::Vec2 bellMount { -2.2, 0.0 };
 
-    const vehicle_sim::math::Vec2 bellLeft {
-        bellMount.x - 0.65 * cosG - (-0.35) * sinG,
-        bellMount.y - 0.65 * sinG + (-0.35) * cosG
-    };
-    const vehicle_sim::math::Vec2 bellRight {
-        bellMount.x - 0.65 * cosG - 0.35 * sinG,
-        bellMount.y - 0.65 * sinG + 0.35 * cosG
-    };
+    const vehicle_sim::math::Vec2 bellLeft { bellMount.x - 0.65 * cosG - (-0.35) * sinG,
+        bellMount.y - 0.65 * sinG + (-0.35) * cosG };
+    const vehicle_sim::math::Vec2 bellRight { bellMount.x - 0.65 * cosG - 0.35 * sinG,
+        bellMount.y - 0.65 * sinG + 0.35 * cosG };
 
     drawLineLocal(renderer, camera, body, bellMount, bellLeft, mintColor);
     drawLineLocal(renderer, camera, body, bellMount, bellRight, mintColor);
@@ -404,10 +352,8 @@ void WireframeRenderer::drawRocket(SDL_Renderer* renderer,
     if (rocket.getThrustForce() > 10.0) {
         const double flicker { 0.4 * std::sin(animTimer * 50.0) + 0.2 * std::cos(animTimer * 30.0) };
         const double flameLen { 1.5 + flicker };
-        const vehicle_sim::math::Vec2 flameTip {
-            bellMount.x - (0.65 + flameLen) * cosG,
-            bellMount.y - (0.65 + flameLen) * sinG
-        };
+        const vehicle_sim::math::Vec2 flameTip { bellMount.x - (0.65 + flameLen) * cosG,
+            bellMount.y - (0.65 + flameLen) * sinG };
         drawLineLocal(renderer, camera, body, bellLeft, flameTip, flameColor);
         drawLineLocal(renderer, camera, body, bellRight, flameTip, flameColor);
         drawLineLocal(renderer, camera, body, bellMount, flameTip, flameCore);
@@ -416,19 +362,15 @@ void WireframeRenderer::drawRocket(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawHelicopter(SDL_Renderer* renderer,
-                                      const MotionLabCamera& camera,
-                                      const vehicle_sim::dynamics::HelicopterDynamics& helicopter,
-                                      const vehicle_sim::physics::RigidBody2D& body,
-                                      double animTimer) noexcept
+void WireframeRenderer::drawHelicopter(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::HelicopterDynamics& helicopter, const vehicle_sim::physics::RigidBody2D& body,
+    double animTimer) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
 
     // 1. Fuselage pod & cabin
-    const vehicle_sim::math::Vec2 cabin[] {
-        { 1.8, 0.0 }, { 1.1, 0.65 }, { -0.8, 0.55 },
-        { -0.8, -0.55 }, { 1.1, -0.65 }
-    };
+    const vehicle_sim::math::Vec2 cabin[] { { 1.8, 0.0 }, { 1.1, 0.65 }, { -0.8, 0.55 }, { -0.8, -0.55 },
+        { 1.1, -0.65 } };
     drawPolyLocal(renderer, camera, body, cabin, 5, true, mintColor);
 
     // Windshield glass line
@@ -442,8 +384,10 @@ void WireframeRenderer::drawHelicopter(SDL_Renderer* renderer,
     // Tail rotor
     const double tailAngle { animTimer * 60.0 };
     const vehicle_sim::math::Vec2 tailHub { -3.3, 0.65 };
-    const vehicle_sim::math::Vec2 tailTip1 { tailHub.x + 0.3 * std::cos(tailAngle), tailHub.y + 0.3 * std::sin(tailAngle) };
-    const vehicle_sim::math::Vec2 tailTip2 { tailHub.x - 0.3 * std::cos(tailAngle), tailHub.y - 0.3 * std::sin(tailAngle) };
+    const vehicle_sim::math::Vec2 tailTip1 { tailHub.x + 0.3 * std::cos(tailAngle),
+        tailHub.y + 0.3 * std::sin(tailAngle) };
+    const vehicle_sim::math::Vec2 tailTip2 { tailHub.x - 0.3 * std::cos(tailAngle),
+        tailHub.y - 0.3 * std::sin(tailAngle) };
     drawLineLocal(renderer, camera, body, tailTip1, tailTip2, mintColor);
 
     // Landing skids
@@ -469,26 +413,20 @@ void WireframeRenderer::drawHelicopter(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawHovercraft(SDL_Renderer* renderer,
-                                      const MotionLabCamera& camera,
-                                      const vehicle_sim::dynamics::HovercraftDynamics& hovercraft,
-                                      const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawHovercraft(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::HovercraftDynamics& hovercraft, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color rudderColor { 255, 223, 147, 255 };
 
     // 1. Perimeter cushion skirt
-    const vehicle_sim::math::Vec2 skirt[] {
-        { 2.0, 0.5 }, { 1.5, 1.05 }, { -1.5, 1.05 }, { -2.0, 0.6 },
-        { -2.0, -0.6 }, { -1.5, -1.05 }, { 1.5, -1.05 }, { 2.0, -0.5 }
-    };
+    const vehicle_sim::math::Vec2 skirt[] { { 2.0, 0.5 }, { 1.5, 1.05 }, { -1.5, 1.05 }, { -2.0, 0.6 }, { -2.0, -0.6 },
+        { -1.5, -1.05 }, { 1.5, -1.05 }, { 2.0, -0.5 } };
     drawPolyLocal(renderer, camera, body, skirt, 8, true, mintColor);
 
     // Inner deck boundary
-    const vehicle_sim::math::Vec2 innerDeck[] {
-        { 1.6, 0.35 }, { 1.2, 0.8 }, { -1.2, 0.8 }, { -1.6, 0.45 },
-        { -1.6, -0.45 }, { -1.2, -0.8 }, { 1.2, -0.8 }, { 1.6, -0.35 }
-    };
+    const vehicle_sim::math::Vec2 innerDeck[] { { 1.6, 0.35 }, { 1.2, 0.8 }, { -1.2, 0.8 }, { -1.6, 0.45 },
+        { -1.6, -0.45 }, { -1.2, -0.8 }, { 1.2, -0.8 }, { 1.6, -0.35 } };
     drawPolyLocal(renderer, camera, body, innerDeck, 8, true, mintColor);
 
     // Wheelhouse cabin
@@ -504,15 +442,23 @@ void WireframeRenderer::drawHovercraft(SDL_Renderer* renderer,
     const vehicle_sim::math::Vec2 ductR { -1.5, -0.55 };
 
     // Fan duct rectangles
-    drawLineLocal(renderer, camera, body, { ductL.x - 0.3, ductL.y - 0.3 }, { ductL.x + 0.3, ductL.y - 0.3 }, mintColor);
-    drawLineLocal(renderer, camera, body, { ductL.x + 0.3, ductL.y - 0.3 }, { ductL.x + 0.3, ductL.y + 0.3 }, mintColor);
-    drawLineLocal(renderer, camera, body, { ductL.x + 0.3, ductL.y + 0.3 }, { ductL.x - 0.3, ductL.y + 0.3 }, mintColor);
-    drawLineLocal(renderer, camera, body, { ductL.x - 0.3, ductL.y + 0.3 }, { ductL.x - 0.3, ductL.y - 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductL.x - 0.3, ductL.y - 0.3 }, { ductL.x + 0.3, ductL.y - 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductL.x + 0.3, ductL.y - 0.3 }, { ductL.x + 0.3, ductL.y + 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductL.x + 0.3, ductL.y + 0.3 }, { ductL.x - 0.3, ductL.y + 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductL.x - 0.3, ductL.y + 0.3 }, { ductL.x - 0.3, ductL.y - 0.3 }, mintColor);
 
-    drawLineLocal(renderer, camera, body, { ductR.x - 0.3, ductR.y - 0.3 }, { ductR.x + 0.3, ductR.y - 0.3 }, mintColor);
-    drawLineLocal(renderer, camera, body, { ductR.x + 0.3, ductR.y - 0.3 }, { ductR.x + 0.3, ductR.y + 0.3 }, mintColor);
-    drawLineLocal(renderer, camera, body, { ductR.x + 0.3, ductR.y + 0.3 }, { ductR.x - 0.3, ductR.y + 0.3 }, mintColor);
-    drawLineLocal(renderer, camera, body, { ductR.x - 0.3, ductR.y + 0.3 }, { ductR.x - 0.3, ductR.y - 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductR.x - 0.3, ductR.y - 0.3 }, { ductR.x + 0.3, ductR.y - 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductR.x + 0.3, ductR.y - 0.3 }, { ductR.x + 0.3, ductR.y + 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductR.x + 0.3, ductR.y + 0.3 }, { ductR.x - 0.3, ductR.y + 0.3 }, mintColor);
+    drawLineLocal(
+        renderer, camera, body, { ductR.x - 0.3, ductR.y + 0.3 }, { ductR.x - 0.3, ductR.y - 0.3 }, mintColor);
 
     // Steerable rudder vanes
     const vehicle_sim::math::Vec2 rudderHalf { 0.25 * cosR, 0.25 * sinR };
@@ -522,42 +468,32 @@ void WireframeRenderer::drawHovercraft(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawTrackedTank(SDL_Renderer* renderer,
-                                       const MotionLabCamera& camera,
-                                       const vehicle_sim::dynamics::TrackedTankDynamics& tank,
-                                       const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawTrackedTank(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::TrackedTankDynamics& tank, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color recoilColor { 255, 223, 147, 255 };
 
     // 1. Armored chassis hull
-    const vehicle_sim::math::Vec2 hull[] {
-        { 1.6, -0.85 }, { 2.1, 0.0 }, { 1.6, 0.85 },
-        { -1.8, 0.85 }, { -1.8, -0.85 }
-    };
+    const vehicle_sim::math::Vec2 hull[] { { 1.6, -0.85 }, { 2.1, 0.0 }, { 1.6, 0.85 }, { -1.8, 0.85 },
+        { -1.8, -0.85 } };
     drawPolyLocal(renderer, camera, body, hull, 5, true, mintColor);
 
     // 2. Left and right continuous track belts with cleats
-    const vehicle_sim::math::Vec2 trackL[] {
-        { -2.1, 0.90 }, { 2.1, 0.90 }, { 2.1, 1.25 }, { -2.1, 1.25 }
-    };
+    const vehicle_sim::math::Vec2 trackL[] { { -2.1, 0.90 }, { 2.1, 0.90 }, { 2.1, 1.25 }, { -2.1, 1.25 } };
     drawPolyLocal(renderer, camera, body, trackL, 4, true, mintColor);
     for (double x { -1.8 }; x <= 1.8; x += 0.45) {
         drawLineLocal(renderer, camera, body, { x, 0.90 }, { x, 1.25 }, mintColor);
     }
 
-    const vehicle_sim::math::Vec2 trackR[] {
-        { -2.1, -1.25 }, { 2.1, -1.25 }, { 2.1, -0.90 }, { -2.1, -0.90 }
-    };
+    const vehicle_sim::math::Vec2 trackR[] { { -2.1, -1.25 }, { 2.1, -1.25 }, { 2.1, -0.90 }, { -2.1, -0.90 } };
     drawPolyLocal(renderer, camera, body, trackR, 4, true, mintColor);
     for (double x { -1.8 }; x <= 1.8; x += 0.45) {
         drawLineLocal(renderer, camera, body, { x, -1.25 }, { x, -0.90 }, mintColor);
     }
 
     // 3. Turret cupola & long cannon barrel
-    const vehicle_sim::math::Vec2 turret[] {
-        { 0.7, -0.45 }, { 0.7, 0.45 }, { -0.5, 0.55 }, { -0.6, -0.55 }
-    };
+    const vehicle_sim::math::Vec2 turret[] { { 0.7, -0.45 }, { 0.7, 0.45 }, { -0.5, 0.55 }, { -0.6, -0.55 } };
     drawPolyLocal(renderer, camera, body, turret, 4, true, mintColor);
 
     const bool recoiling { tank.getTelemetry().isRecoiling };
@@ -575,42 +511,32 @@ void WireframeRenderer::drawTrackedTank(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawAntiGravityRacer(SDL_Renderer* renderer,
-                                            const MotionLabCamera& camera,
-                                            const vehicle_sim::dynamics::AntiGravityRacerDynamics& antiGravity,
-                                            const vehicle_sim::physics::RigidBody2D& body,
-                                            double animTimer) noexcept
+void WireframeRenderer::drawAntiGravityRacer(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::AntiGravityRacerDynamics& antiGravity, const vehicle_sim::physics::RigidBody2D& body,
+    double animTimer) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color cyanColor { 101, 141, 160, 255 };
     const SDL_Color airbrakeColor { 255, 223, 147, 255 };
 
     // 1. Tapered aerodynamic fuselage & winglets
-    const vehicle_sim::math::Vec2 hull[] {
-        { 2.4, 0.0 }, { 1.2, 0.55 }, { -0.2, 0.95 }, { -1.8, 1.20 },
-        { -2.2, 0.80 }, { -2.0, 0.35 }, { -2.0, -0.35 }, { -2.2, -0.80 },
-        { -1.8, -1.20 }, { -0.2, -0.95 }, { 1.2, -0.55 }
-    };
+    const vehicle_sim::math::Vec2 hull[] { { 2.4, 0.0 }, { 1.2, 0.55 }, { -0.2, 0.95 }, { -1.8, 1.20 }, { -2.2, 0.80 },
+        { -2.0, 0.35 }, { -2.0, -0.35 }, { -2.2, -0.80 }, { -1.8, -1.20 }, { -0.2, -0.95 }, { 1.2, -0.55 } };
     drawPolyLocal(renderer, camera, body, hull, 11, true, mintColor);
 
     // 2. Cockpit canopy
-    const vehicle_sim::math::Vec2 canopy[] {
-        { 0.8, 0.0 }, { 0.2, 0.25 }, { -0.6, 0.20 }, { -0.6, -0.20 }, { 0.2, -0.25 }
-    };
+    const vehicle_sim::math::Vec2 canopy[] { { 0.8, 0.0 }, { 0.2, 0.25 }, { -0.6, 0.20 }, { -0.6, -0.20 },
+        { 0.2, -0.25 } };
     drawPolyLocal(renderer, camera, body, canopy, 5, true, mintColor);
 
     // 3. Maglev repulsor field coils (pulsing)
     const double pulsePhase { std::sin(animTimer * 12.0) * 0.05 };
-    const vehicle_sim::math::Vec2 coilFL[] {
-        { 0.7 + pulsePhase, 0.35 }, { 0.7 + pulsePhase, 0.65 },
-        { 0.2 + pulsePhase, 0.65 }, { 0.2 + pulsePhase, 0.35 }
-    };
+    const vehicle_sim::math::Vec2 coilFL[] { { 0.7 + pulsePhase, 0.35 }, { 0.7 + pulsePhase, 0.65 },
+        { 0.2 + pulsePhase, 0.65 }, { 0.2 + pulsePhase, 0.35 } };
     drawPolyLocal(renderer, camera, body, coilFL, 4, true, cyanColor);
 
-    const vehicle_sim::math::Vec2 coilFR[] {
-        { 0.7 + pulsePhase, -0.35 }, { 0.7 + pulsePhase, -0.65 },
-        { 0.2 + pulsePhase, -0.65 }, { 0.2 + pulsePhase, -0.35 }
-    };
+    const vehicle_sim::math::Vec2 coilFR[] { { 0.7 + pulsePhase, -0.35 }, { 0.7 + pulsePhase, -0.65 },
+        { 0.2 + pulsePhase, -0.65 }, { 0.2 + pulsePhase, -0.35 } };
     drawPolyLocal(renderer, camera, body, coilFR, 4, true, cyanColor);
 
     // 4. Deployable differential airbrakes
@@ -621,8 +547,10 @@ void WireframeRenderer::drawAntiGravityRacer(SDL_Renderer* renderer,
     const SDL_Color leftColor = leftActive ? airbrakeColor : mintColor;
     const SDL_Color rightColor = rightActive ? airbrakeColor : mintColor;
 
-    drawLineLocal(renderer, camera, body, { -0.8, 0.90 }, { leftActive ? -0.5 : -0.8, leftActive ? 1.45 : 1.15 }, leftColor);
-    drawLineLocal(renderer, camera, body, { -0.8, -0.90 }, { rightActive ? -0.5 : -0.8, rightActive ? -1.45 : -1.15 }, rightColor);
+    drawLineLocal(
+        renderer, camera, body, { -0.8, 0.90 }, { leftActive ? -0.5 : -0.8, leftActive ? 1.45 : 1.15 }, leftColor);
+    drawLineLocal(renderer, camera, body, { -0.8, -0.90 }, { rightActive ? -0.5 : -0.8, rightActive ? -1.45 : -1.15 },
+        rightColor);
 
     // 5. Twin ion thrusters & animated exhaust plume
     drawLineLocal(renderer, camera, body, { -2.0, 0.30 }, { -2.2, 0.30 }, mintColor);
@@ -638,29 +566,22 @@ void WireframeRenderer::drawAntiGravityRacer(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawDriftCar(SDL_Renderer* renderer,
-                                    const MotionLabCamera& camera,
-                                    const vehicle_sim::dynamics::DriftCarDynamics& driftCar,
-                                    const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawDriftCar(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::DriftCarDynamics& driftCar, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color amberColor { 255, 223, 147, 255 };
     const SDL_Color hotTireColor { 242, 138, 114, 255 };
 
     // 1. Widebody sports coupe silhouette
-    const vehicle_sim::math::Vec2 coupe[] {
-        { 2.1, 0.75 }, { 2.2, 0.0 }, { 2.1, -0.75 },
-        { 1.4, -0.85 }, { -1.3, -0.85 }, { -1.9, -0.80 },
-        { -2.1, -0.70 }, { -2.1, 0.70 }, { -1.9, 0.80 },
-        { -1.3, 0.85 }, { 1.4, 0.85 }
-    };
+    const vehicle_sim::math::Vec2 coupe[] { { 2.1, 0.75 }, { 2.2, 0.0 }, { 2.1, -0.75 }, { 1.4, -0.85 },
+        { -1.3, -0.85 }, { -1.9, -0.80 }, { -2.1, -0.70 }, { -2.1, 0.70 }, { -1.9, 0.80 }, { -1.3, 0.85 },
+        { 1.4, 0.85 } };
     drawPolyLocal(renderer, camera, body, coupe, 11, true, mintColor);
 
     // 2. Windshield, roof, and rear window
-    const vehicle_sim::math::Vec2 greenhouse[] {
-        { 0.7, 0.65 }, { -0.3, 0.65 }, { -1.1, 0.60 },
-        { -1.1, -0.60 }, { -0.3, -0.65 }, { 0.7, -0.65 }
-    };
+    const vehicle_sim::math::Vec2 greenhouse[] { { 0.7, 0.65 }, { -0.3, 0.65 }, { -1.1, 0.60 }, { -1.1, -0.60 },
+        { -0.3, -0.65 }, { 0.7, -0.65 } };
     drawPolyLocal(renderer, camera, body, greenhouse, 6, true, mintColor);
     drawLineLocal(renderer, camera, body, { -0.3, 0.65 }, { -0.3, -0.65 }, mintColor);
 
@@ -675,10 +596,7 @@ void WireframeRenderer::drawDriftCar(SDL_Renderer* renderer,
 
     for (std::size_t i { 0 }; i < 4; ++i) {
         const double steerAngle { wheels[i].steerAngle };
-        const vehicle_sim::math::Vec2 half {
-            0.36 * std::cos(steerAngle),
-            0.36 * std::sin(steerAngle)
-        };
+        const vehicle_sim::math::Vec2 half { 0.36 * std::cos(steerAngle), 0.36 * std::sin(steerAngle) };
         const auto localPos = wheels[i].localOffset;
 
         SDL_Color wheelCol = mintColor;
@@ -695,25 +613,19 @@ void WireframeRenderer::drawDriftCar(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawMonsterTruck(SDL_Renderer* renderer,
-                                        const MotionLabCamera& camera,
-                                        const vehicle_sim::dynamics::MonsterCarDynamics& monsterCar,
-                                        const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawMonsterTruck(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::MonsterCarDynamics& monsterCar, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color amberColor { 255, 223, 147, 255 };
 
     // 1. Truck chassis body and cab
-    const vehicle_sim::math::Vec2 cab[] {
-        { 2.0, 0.70 }, { 2.0, -0.70 }, { 0.6, -0.75 }, { -1.8, -0.75 },
-        { -2.0, -0.65 }, { -2.0, 0.65 }, { -1.8, 0.75 }, { 0.6, 0.75 }
-    };
+    const vehicle_sim::math::Vec2 cab[] { { 2.0, 0.70 }, { 2.0, -0.70 }, { 0.6, -0.75 }, { -1.8, -0.75 },
+        { -2.0, -0.65 }, { -2.0, 0.65 }, { -1.8, 0.75 }, { 0.6, 0.75 } };
     drawPolyLocal(renderer, camera, body, cab, 8, true, mintColor);
 
     // Windshield & roof
-    const vehicle_sim::math::Vec2 roof[] {
-        { 0.6, 0.60 }, { 0.6, -0.60 }, { -0.6, -0.60 }, { -0.6, 0.60 }
-    };
+    const vehicle_sim::math::Vec2 roof[] { { 0.6, 0.60 }, { 0.6, -0.60 }, { -0.6, -0.60 }, { -0.6, 0.60 } };
     drawPolyLocal(renderer, camera, body, roof, 4, true, mintColor);
 
     // Bed rollbar
@@ -727,9 +639,7 @@ void WireframeRenderer::drawMonsterTruck(SDL_Renderer* renderer,
 
     // 2. 4 massive oversized wheels with knobby chevron treads
     const double steerAngle { monsterCar.getInput().steer * 0.50 };
-    const vehicle_sim::math::Vec2 wheelOffsets[] {
-        { 1.25, 1.15 }, { 1.25, -1.15 }, { -1.25, 1.15 }, { -1.25, -1.15 }
-    };
+    const vehicle_sim::math::Vec2 wheelOffsets[] { { 1.25, 1.15 }, { 1.25, -1.15 }, { -1.25, 1.15 }, { -1.25, -1.15 } };
 
     for (std::size_t i { 0 }; i < 4; ++i) {
         const double steer = (i < 2) ? steerAngle : 0.0;
@@ -737,12 +647,8 @@ void WireframeRenderer::drawMonsterTruck(SDL_Renderer* renderer,
         const vehicle_sim::math::Vec2 lateral { -0.22 * std::sin(steer), 0.22 * std::cos(steer) };
 
         const auto center = wheelOffsets[i];
-        const vehicle_sim::math::Vec2 tireBox[] {
-            center + forward + lateral,
-            center + forward - lateral,
-            center - forward - lateral,
-            center - forward + lateral
-        };
+        const vehicle_sim::math::Vec2 tireBox[] { center + forward + lateral, center + forward - lateral,
+            center - forward - lateral, center - forward + lateral };
         drawPolyLocal(renderer, camera, body, tireBox, 4, true, mintColor);
 
         // Suspension linkage from chassis to wheel
@@ -752,10 +658,9 @@ void WireframeRenderer::drawMonsterTruck(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawArticulatedTruck(SDL_Renderer* renderer,
-                                            const MotionLabCamera& camera,
-                                            const vehicle_sim::dynamics::ArticulatedTruckDynamics& truck,
-                                            const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawArticulatedTruck(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::ArticulatedTruckDynamics& truck,
+    const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color amberColor { 255, 223, 147, 255 };
@@ -764,10 +669,8 @@ void WireframeRenderer::drawArticulatedTruck(SDL_Renderer* renderer,
     const auto& telem = truck.getTelemetry();
 
     // 1. Heavy tractor cab
-    const vehicle_sim::math::Vec2 tractor[] {
-        { 2.5, 1.15 }, { 2.5, -1.15 }, { 0.8, -1.20 }, { -2.4, -1.20 },
-        { -2.4, 1.20 }, { 0.8, 1.20 }
-    };
+    const vehicle_sim::math::Vec2 tractor[] { { 2.5, 1.15 }, { 2.5, -1.15 }, { 0.8, -1.20 }, { -2.4, -1.20 },
+        { -2.4, 1.20 }, { 0.8, 1.20 } };
     drawPolyLocal(renderer, camera, body, tractor, 6, true, mintColor);
 
     // Tractor cab windshield
@@ -796,7 +699,8 @@ void WireframeRenderer::drawArticulatedTruck(SDL_Renderer* renderer,
     // 2. Fifth-wheel kingpin plate
     const vehicle_sim::math::Vec2 kingpinLocal { -1.8, 0.0 };
     const auto worldPin = body.toWorldPoint(kingpinLocal);
-    const SDL_Color hitchColor = telem.isJackknifed ? alertRed : (std::abs(telem.hitchAngle) > 0.6 ? amberColor : mintColor);
+    const SDL_Color hitchColor
+        = telem.isJackknifed ? alertRed : (std::abs(telem.hitchAngle) > 0.6 ? amberColor : mintColor);
 
     // 3. 53-ft Articulated Semi-Trailer (rendered in world space using trailer heading)
     const double trailerHeading { telem.trailerHeading };
@@ -807,20 +711,16 @@ void WireframeRenderer::drawArticulatedTruck(SDL_Renderer* renderer,
     const double trailerFrontDist { 1.2 };
     const double trailerRearDist { 10.2 };
 
-    const vehicle_sim::math::Vec2 tCornersWorld[] {
-        worldPin + uTrailer * trailerFrontDist + vTrailer * trailerHalfW,
+    const vehicle_sim::math::Vec2 tCornersWorld[] { worldPin + uTrailer * trailerFrontDist + vTrailer * trailerHalfW,
         worldPin + uTrailer * trailerFrontDist - vTrailer * trailerHalfW,
         worldPin - uTrailer * trailerRearDist - vTrailer * trailerHalfW,
-        worldPin - uTrailer * trailerRearDist + vTrailer * trailerHalfW
-    };
+        worldPin - uTrailer * trailerRearDist + vTrailer * trailerHalfW };
 
     for (std::size_t i { 0 }; i < 4; ++i) {
         const auto p1 = camera.worldToScreen(tCornersWorld[i]);
         const auto p2 = camera.worldToScreen(tCornersWorld[(i + 1) % 4]);
-        drawLine(renderer,
-                 static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
-                 static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)),
-                 hitchColor);
+        drawLine(renderer, static_cast<int>(std::round(p1.x)), static_cast<int>(std::round(p1.y)),
+            static_cast<int>(std::round(p2.x)), static_cast<int>(std::round(p2.y)), hitchColor);
     }
 
     // Trailer rear tandem wheels
@@ -834,30 +734,28 @@ void WireframeRenderer::drawArticulatedTruck(SDL_Renderer* renderer,
     const auto sB1L_A = camera.worldToScreen(bogie1L - uTrailer * 0.40);
     const auto sB1L_B = camera.worldToScreen(bogie1L + uTrailer * 0.40);
     drawLine(renderer, static_cast<int>(std::round(sB1L_A.x)), static_cast<int>(std::round(sB1L_A.y)),
-             static_cast<int>(std::round(sB1L_B.x)), static_cast<int>(std::round(sB1L_B.y)), hitchColor);
+        static_cast<int>(std::round(sB1L_B.x)), static_cast<int>(std::round(sB1L_B.y)), hitchColor);
 
     const auto sB1R_A = camera.worldToScreen(bogie1R - uTrailer * 0.40);
     const auto sB1R_B = camera.worldToScreen(bogie1R + uTrailer * 0.40);
     drawLine(renderer, static_cast<int>(std::round(sB1R_A.x)), static_cast<int>(std::round(sB1R_A.y)),
-             static_cast<int>(std::round(sB1R_B.x)), static_cast<int>(std::round(sB1R_B.y)), hitchColor);
+        static_cast<int>(std::round(sB1R_B.x)), static_cast<int>(std::round(sB1R_B.y)), hitchColor);
 
     const auto sB2L_A = camera.worldToScreen(bogie2L - uTrailer * 0.40);
     const auto sB2L_B = camera.worldToScreen(bogie2L + uTrailer * 0.40);
     drawLine(renderer, static_cast<int>(std::round(sB2L_A.x)), static_cast<int>(std::round(sB2L_A.y)),
-             static_cast<int>(std::round(sB2L_B.x)), static_cast<int>(std::round(sB2L_B.y)), hitchColor);
+        static_cast<int>(std::round(sB2L_B.x)), static_cast<int>(std::round(sB2L_B.y)), hitchColor);
 
     const auto sB2R_A = camera.worldToScreen(bogie2R - uTrailer * 0.40);
     const auto sB2R_B = camera.worldToScreen(bogie2R + uTrailer * 0.40);
     drawLine(renderer, static_cast<int>(std::round(sB2R_A.x)), static_cast<int>(std::round(sB2R_A.y)),
-             static_cast<int>(std::round(sB2R_A.y)), static_cast<int>(std::round(sB2R_B.y)), hitchColor);
+        static_cast<int>(std::round(sB2R_A.y)), static_cast<int>(std::round(sB2R_B.y)), hitchColor);
 
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawForklift(SDL_Renderer* renderer,
-                                    const MotionLabCamera& camera,
-                                    const vehicle_sim::dynamics::ForkliftDynamics& forklift,
-                                    const vehicle_sim::physics::RigidBody2D& body) noexcept
+void WireframeRenderer::drawForklift(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::ForkliftDynamics& forklift, const vehicle_sim::physics::RigidBody2D& body) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color amberColor { 255, 223, 147, 255 };
@@ -867,16 +765,12 @@ void WireframeRenderer::drawForklift(SDL_Renderer* renderer,
     const SDL_Color chassisCol = tipped ? alertRed : mintColor;
 
     // 1. Counterweight chassis hull
-    const vehicle_sim::math::Vec2 chassis[] {
-        { 0.9, 0.55 }, { 0.9, -0.55 }, { 0.2, -0.60 }, { -1.0, -0.60 },
-        { -1.4, -0.40 }, { -1.4, 0.40 }, { -1.0, 0.60 }, { 0.2, 0.60 }
-    };
+    const vehicle_sim::math::Vec2 chassis[] { { 0.9, 0.55 }, { 0.9, -0.55 }, { 0.2, -0.60 }, { -1.0, -0.60 },
+        { -1.4, -0.40 }, { -1.4, 0.40 }, { -1.0, 0.60 }, { 0.2, 0.60 } };
     drawPolyLocal(renderer, camera, body, chassis, 8, true, chassisCol);
 
     // Operator overhead guard cage
-    const vehicle_sim::math::Vec2 cage[] {
-        { 0.3, 0.45 }, { 0.3, -0.45 }, { -0.7, -0.45 }, { -0.7, 0.45 }
-    };
+    const vehicle_sim::math::Vec2 cage[] { { 0.3, 0.45 }, { 0.3, -0.45 }, { -0.7, -0.45 }, { -0.7, 0.45 } };
     drawPolyLocal(renderer, camera, body, cage, 4, true, chassisCol);
 
     // 2. Fixed front drive wheels
@@ -905,20 +799,16 @@ void WireframeRenderer::drawForklift(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::drawQuadcopterDrone(SDL_Renderer* renderer,
-                                          const MotionLabCamera& camera,
-                                          const vehicle_sim::dynamics::QuadcopterDroneDynamics& drone,
-                                          const vehicle_sim::physics::RigidBody2D& body,
-                                          double animTimer) noexcept
+void WireframeRenderer::drawQuadcopterDrone(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::QuadcopterDroneDynamics& drone, const vehicle_sim::physics::RigidBody2D& body,
+    double animTimer) noexcept
 {
     const SDL_Color mintColor { 140, 230, 197, 255 };
     const SDL_Color cyanColor { 101, 141, 160, 255 };
     const SDL_Color amberColor { 255, 223, 147, 255 };
 
     // 1. Central flight controller & battery pod
-    const vehicle_sim::math::Vec2 pod[] {
-        { 0.22, 0.12 }, { 0.22, -0.12 }, { -0.22, -0.12 }, { -0.22, 0.12 }
-    };
+    const vehicle_sim::math::Vec2 pod[] { { 0.22, 0.12 }, { 0.22, -0.12 }, { -0.22, -0.12 }, { -0.22, 0.12 } };
     drawPolyLocal(renderer, camera, body, pod, 4, true, mintColor);
 
     // Forward direction arrow on top of pod
@@ -927,10 +817,10 @@ void WireframeRenderer::drawQuadcopterDrone(SDL_Renderer* renderer,
 
     // 2. 'X'-frame carbon fiber boom arms to 4 rotor hubs
     const vehicle_sim::math::Vec2 motorHubs[] {
-        { 0.45, 0.45 },   // 0: FL
-        { 0.45, -0.45 },  // 1: FR
-        { -0.45, 0.45 },  // 2: RL
-        { -0.45, -0.45 }  // 3: RR
+        { 0.45, 0.45 }, // 0: FL
+        { 0.45, -0.45 }, // 1: FR
+        { -0.45, 0.45 }, // 2: RL
+        { -0.45, -0.45 } // 3: RR
     };
 
     drawLineLocal(renderer, camera, body, { 0.15, 0.10 }, motorHubs[0], mintColor);
@@ -957,28 +847,20 @@ void WireframeRenderer::drawQuadcopterDrone(SDL_Renderer* renderer,
     drawComAndVelocity(renderer, camera, body, mintColor);
 }
 
-void WireframeRenderer::renderScene(SDL_Renderer* renderer,
-                                   const MotionLabCamera& camera,
-                                   const vehicle_sim::dynamics::MotionLabCarDynamics& car,
-                                   const vehicle_sim::physics::RigidBody2D& body,
-                                   const SkidRibbonBuffer& skids,
-                                   const TrailParticleBuffer& trail,
-                                   bool barrierActive) noexcept
+void WireframeRenderer::renderScene(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const vehicle_sim::dynamics::MotionLabCarDynamics& car, const vehicle_sim::physics::RigidBody2D& body,
+    const SkidRibbonBuffer& skids, const TrailParticleBuffer& trail, bool barrierActive) noexcept
 {
-    VehicleRenderContext context { };
+    VehicleRenderContext context {};
     context.type = MotionLabVehicleType::ClassicCar;
     context.terrain = car.getSurfaceMaterial().type;
     context.car = &car;
     renderScene(renderer, camera, context, body, skids, trail, barrierActive);
 }
 
-void WireframeRenderer::renderScene(SDL_Renderer* renderer,
-                                   const MotionLabCamera& camera,
-                                   const VehicleRenderContext& context,
-                                   const vehicle_sim::physics::RigidBody2D& body,
-                                   const SkidRibbonBuffer& skids,
-                                   const TrailParticleBuffer& trail,
-                                   bool barrierActive) noexcept
+void WireframeRenderer::renderScene(SDL_Renderer* renderer, const MotionLabCamera& camera,
+    const VehicleRenderContext& context, const vehicle_sim::physics::RigidBody2D& body, const SkidRibbonBuffer& skids,
+    const TrailParticleBuffer& trail, bool barrierActive) noexcept
 {
     if (renderer == nullptr) {
         return;

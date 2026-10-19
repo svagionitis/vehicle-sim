@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace vehicle_sim::telemetry {
 
@@ -53,7 +54,7 @@ bool KlvTelemetryExporter::encodePacket(const TelemetryFrame2D& frame, std::vect
     payload.push_back(2);
     payload.push_back(8);
     for (int i { 7 }; i >= 0; --i) {
-        payload.push_back(static_cast<std::uint8_t>((usec >> (static_cast<unsigned int>(i) * 8U)) & 0xFFU));
+        payload.push_back(static_cast<std::uint8_t>((usec >> (static_cast<std::uint32_t>(i) * 8U)) & 0xFFU));
     }
 
     // Tag 5: Platform Heading Angle (2 bytes uint, [0, 360) deg -> [0, 65535])
@@ -82,7 +83,7 @@ bool KlvTelemetryExporter::encodePacket(const TelemetryFrame2D& frame, std::vect
     payload.push_back(4);
     for (int i { 3 }; i >= 0; --i) {
         payload.push_back(static_cast<std::uint8_t>(
-            (static_cast<std::uint32_t>(latVal) >> (static_cast<unsigned int>(i) * 8U)) & 0xFFU));
+            (static_cast<std::uint32_t>(latVal) >> (static_cast<std::uint32_t>(i) * 8U)) & 0xFFU));
     }
 
     // Tag 14: Sensor Longitude (4 bytes int, [-180, 180] deg -> [-2147483647, 2147483647])
@@ -95,7 +96,7 @@ bool KlvTelemetryExporter::encodePacket(const TelemetryFrame2D& frame, std::vect
     payload.push_back(4);
     for (int i { 3 }; i >= 0; --i) {
         payload.push_back(static_cast<std::uint8_t>(
-            (static_cast<std::uint32_t>(lonVal) >> (static_cast<unsigned int>(i) * 8U)) & 0xFFU));
+            (static_cast<std::uint32_t>(lonVal) >> (static_cast<std::uint32_t>(i) * 8U)) & 0xFFU));
     }
 
     // Tag 15: Sensor True Altitude (2 bytes uint, [-900, 19000] m -> [0, 65535])

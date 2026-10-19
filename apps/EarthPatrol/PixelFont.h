@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include <SDL2/SDL.h>
@@ -19,8 +20,8 @@ public:
     /// @param[in] y Screen Y coordinate in pixels for the top-left origin.
     /// @param[in] scale Pixel magnification factor (1 = 3x5, 2 = 6x10, etc.).
     /// @param[in] color RGBA tint color for the font pixels.
-    static void drawText(SDL_Renderer* renderer, const std::string& text,
-        int x, int y, int scale, SDL_Color color) noexcept;
+    static void drawText(
+        SDL_Renderer* renderer, const std::string& text, int x, int y, int scale, SDL_Color color) noexcept;
 
     /// @brief Calculates the horizontal pixel width required to render a string.
     /// @param[in] text Text string to measure.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include "libs/VehicleSimCore/dynamics/IVehicleDynamics.h"
 #include "libs/VehicleSimCore/math/MathUtils.h"
@@ -15,11 +16,11 @@ namespace vehicle_sim::dynamics {
 
 /// @enum VTOLFlightMode
 /// @brief Current operational flight mode based on nacelle conversion angle.
-enum class VTOLFlightMode : unsigned char {
-    Hover = 0U,         ///< Nacelles vertical (75 deg to 90 deg); pure rotor lift.
-    ConversionForward,  ///< Nacelles transitioning from hover to airplane cruise.
-    ConversionAft,      ///< Nacelles transitioning from airplane cruise to hover.
-    AirplaneCruise      ///< Nacelles horizontal (0 deg to 15 deg); fixed-wing flight.
+enum class VTOLFlightMode : std::uint8_t {
+    Hover = 0U, ///< Nacelles vertical (75 deg to 90 deg); pure rotor lift.
+    ConversionForward, ///< Nacelles transitioning from hover to airplane cruise.
+    ConversionAft, ///< Nacelles transitioning from airplane cruise to hover.
+    AirplaneCruise ///< Nacelles horizontal (0 deg to 15 deg); fixed-wing flight.
 };
 
 /// @struct VTOLTiltRotorConfig
@@ -191,11 +192,11 @@ public:
     [[nodiscard]] VTOLFlightMode getFlightMode() const noexcept;
 
 private:
-    VTOLTiltRotorConfig mConfig { };
-    VTOLTiltRotorInput mInput { };
-    VTOLTiltRotorTelemetry mTelemetry { };
+    VTOLTiltRotorConfig mConfig {};
+    VTOLTiltRotorInput mInput {};
+    VTOLTiltRotorTelemetry mTelemetry {};
 
-    math::SlewRateLimiter mTiltLimiter { };
+    math::SlewRateLimiter mTiltLimiter {};
     double mRotorRpm { 0.0 };
     double mActiveNacelleAngle { 1.5707963 };
 };

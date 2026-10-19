@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace vehicle_sim::audio {
 
@@ -25,7 +26,9 @@ double EngineSynthesizer::process(double rpm, double throttle, double sampleRate
         const double combustion { cylinderSynth_.process(rpm, throttle, sampleRate) };
         const double induction { inductionSynth_.process(rpm, throttle, sampleRate) };
         lastInduction_ = induction;
-        const double pops { profile_.hasOverrunPops ? popSynth_.process(rpm, throttle, profile_.overrunPopIntensity, sampleRate) : 0.0 };
+        const double pops {
+            profile_.hasOverrunPops ? popSynth_.process(rpm, throttle, profile_.overrunPopIntensity, sampleRate) : 0.0
+        };
 
         const double raw { (0.68 * combustion) + (0.45 * induction) + (0.50 * pops) };
         return std::clamp(raw, -1.0, 1.0);
@@ -128,7 +131,8 @@ void TireSlipSynthesizer::reset() noexcept
 
 // --- RotorSynthesizer ---
 
-double RotorSynthesizer::process(double rotorRpm, int bladeCount, double thrustLoad, double sampleRate) noexcept
+double RotorSynthesizer::process(
+    double rotorRpm, std::int32_t bladeCount, double thrustLoad, double sampleRate) noexcept
 {
     if (sampleRate <= 0.0 || rotorRpm < 10.0) {
         return 0.0;

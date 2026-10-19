@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstdint>
 #include <vector>
 
 #include "libs/VehicleSimCore/math/AABB2D.h"

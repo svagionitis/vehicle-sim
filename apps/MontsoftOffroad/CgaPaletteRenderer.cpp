@@ -2,19 +2,20 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 
 namespace montsoft_offroad {
 
 namespace {
 
-[[nodiscard]] inline int colorDistSq(ColorRgba c1, ColorRgba c2) noexcept
-{
-    const int dr { static_cast<int>(c1.r) - static_cast<int>(c2.r) };
-    const int dg { static_cast<int>(c1.g) - static_cast<int>(c2.g) };
-    const int db { static_cast<int>(c1.b) - static_cast<int>(c2.b) };
-    return dr * dr + dg * dg + db * db;
-}
+    [[nodiscard]] inline int colorDistSq(ColorRgba c1, ColorRgba c2) noexcept
+    {
+        const int dr { static_cast<int>(c1.r) - static_cast<int>(c2.r) };
+        const int dg { static_cast<int>(c1.g) - static_cast<int>(c2.g) };
+        const int db { static_cast<int>(c1.b) - static_cast<int>(c2.b) };
+        return dr * dr + dg * dg + db * db;
+    }
 
 } // namespace
 
@@ -32,12 +33,7 @@ bool CgaPaletteRenderer::initialize(SDL_Renderer* renderer) noexcept
     }
 
     SDL_Texture* tex { SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        kNativeWidth,
-        kNativeHeight
-    ) };
+        renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, kNativeWidth, kNativeHeight) };
 
     if (tex == nullptr) {
         return false;
@@ -100,7 +96,7 @@ ColorRgba CgaPaletteRenderer::getPixel(int x, int y) const noexcept
         const std::size_t index { static_cast<std::size_t>(y * kNativeWidth + x) };
         return ColorRgba::fromUint32(backbuffer_[index]);
     }
-    return ColorRgba{ 0, 0, 0, 255 };
+    return ColorRgba { 0, 0, 0, 255 };
 }
 
 void CgaPaletteRenderer::drawLine(int x0, int y0, int x1, int y1, ColorRgba color) noexcept
@@ -231,8 +227,7 @@ void CgaPaletteRenderer::fillCircle(int cx, int cy, int radius, ColorRgba color)
 }
 
 void CgaPaletteRenderer::blitSprite(
-    int dstX, int dstY, int width, int height,
-    const ColorRgba* spritePixels, ColorRgba colorKey) noexcept
+    int dstX, int dstY, int width, int height, const ColorRgba* spritePixels, ColorRgba colorKey) noexcept
 {
     if (spritePixels == nullptr || width <= 0 || height <= 0) {
         return;
@@ -263,137 +258,137 @@ void CgaPaletteRenderer::blitSprite(
 
 namespace {
 
-// 5x7 font ROM for ASCII characters 32 (' ') to 95 ('_')
-constexpr std::uint8_t kFont5x7[64][7] = {
-    // 32 ' '
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
-    // 33 '!'
-    { 0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04 },
-    // 34 '"'
-    { 0x0A, 0x0A, 0x0A, 0x00, 0x00, 0x00, 0x00 },
-    // 35 '#'
-    { 0x0A, 0x0A, 0x1F, 0x0A, 0x1F, 0x0A, 0x0A },
-    // 36 '$'
-    { 0x04, 0x0F, 0x14, 0x0E, 0x05, 0x1E, 0x04 },
-    // 37 '%'
-    { 0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03 },
-    // 38 '&'
-    { 0x08, 0x14, 0x14, 0x08, 0x15, 0x12, 0x0D },
-    // 39 '\''
-    { 0x0C, 0x04, 0x08, 0x00, 0x00, 0x00, 0x00 },
-    // 40 '('
-    { 0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02 },
-    // 41 ')'
-    { 0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08 },
-    // 42 '*'
-    { 0x00, 0x04, 0x15, 0x0E, 0x15, 0x04, 0x00 },
-    // 43 '+'
-    { 0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00 },
-    // 44 ','
-    { 0x00, 0x00, 0x00, 0x00, 0x0C, 0x04, 0x08 },
-    // 45 '-'
-    { 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00 },
-    // 46 '.'
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C },
-    // 47 '/'
-    { 0x01, 0x02, 0x04, 0x08, 0x10, 0x00, 0x00 },
-    // 48 '0'
-    { 0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E },
-    // 49 '1'
-    { 0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E },
-    // 50 '2'
-    { 0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F },
-    // 51 '3'
-    { 0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E },
-    // 52 '4'
-    { 0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02 },
-    // 53 '5'
-    { 0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E },
-    // 54 '6'
-    { 0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E },
-    // 55 '7'
-    { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 },
-    // 56 '8'
-    { 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E },
-    // 57 '9'
-    { 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C },
-    // 58 ':'
-    { 0x00, 0x0C, 0x0C, 0x00, 0x0C, 0x0C, 0x00 },
-    // 59 ';'
-    { 0x00, 0x0C, 0x0C, 0x00, 0x0C, 0x04, 0x08 },
-    // 60 '<'
-    { 0x02, 0x04, 0x08, 0x10, 0x08, 0x04, 0x02 },
-    // 61 '='
-    { 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x00, 0x00 },
-    // 62 '>'
-    { 0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08 },
-    // 63 '?'
-    { 0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04 },
-    // 64 '@'
-    { 0x0E, 0x11, 0x01, 0x0D, 0x15, 0x15, 0x0E },
-    // 65 'A'
-    { 0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 },
-    // 66 'B'
-    { 0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E },
-    // 67 'C'
-    { 0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E },
-    // 68 'D'
-    { 0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C },
-    // 69 'E'
-    { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F },
-    // 70 'F'
-    { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10 },
-    // 71 'G'
-    { 0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F },
-    // 72 'H'
-    { 0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 },
-    // 73 'I'
-    { 0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E },
-    // 74 'J'
-    { 0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C },
-    // 75 'K'
-    { 0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11 },
-    // 76 'L'
-    { 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F },
-    // 77 'M'
-    { 0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11 },
-    // 78 'N'
-    { 0x11, 0x11, 0x19, 0x15, 0x13, 0x11, 0x11 },
-    // 79 'O'
-    { 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E },
-    // 80 'P'
-    { 0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10 },
-    // 81 'Q'
-    { 0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D },
-    // 82 'R'
-    { 0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11 },
-    // 83 'S'
-    { 0x0E, 0x11, 0x10, 0x0E, 0x01, 0x11, 0x0E },
-    // 84 'T'
-    { 0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 },
-    // 85 'U'
-    { 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E },
-    // 86 'V'
-    { 0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04 },
-    // 87 'W'
-    { 0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A },
-    // 88 'X'
-    { 0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11 },
-    // 89 'Y'
-    { 0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04 },
-    // 90 'Z'
-    { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F },
-    // 91 '['
-    { 0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E },
-    // 92 '\\'
-    { 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00 },
-    // 93 ']'
-    { 0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E },
-    // 94 '^'
-    { 0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00 },
-    // 95 '_'
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F }
-};
+    // 5x7 font ROM for ASCII characters 32 (' ') to 95 ('_')
+    constexpr std::uint8_t kFont5x7[64][7] = {
+        // 32 ' '
+        { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+        // 33 '!'
+        { 0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04 },
+        // 34 '"'
+        { 0x0A, 0x0A, 0x0A, 0x00, 0x00, 0x00, 0x00 },
+        // 35 '#'
+        { 0x0A, 0x0A, 0x1F, 0x0A, 0x1F, 0x0A, 0x0A },
+        // 36 '$'
+        { 0x04, 0x0F, 0x14, 0x0E, 0x05, 0x1E, 0x04 },
+        // 37 '%'
+        { 0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03 },
+        // 38 '&'
+        { 0x08, 0x14, 0x14, 0x08, 0x15, 0x12, 0x0D },
+        // 39 '\''
+        { 0x0C, 0x04, 0x08, 0x00, 0x00, 0x00, 0x00 },
+        // 40 '('
+        { 0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02 },
+        // 41 ')'
+        { 0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08 },
+        // 42 '*'
+        { 0x00, 0x04, 0x15, 0x0E, 0x15, 0x04, 0x00 },
+        // 43 '+'
+        { 0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00 },
+        // 44 ','
+        { 0x00, 0x00, 0x00, 0x00, 0x0C, 0x04, 0x08 },
+        // 45 '-'
+        { 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00 },
+        // 46 '.'
+        { 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C },
+        // 47 '/'
+        { 0x01, 0x02, 0x04, 0x08, 0x10, 0x00, 0x00 },
+        // 48 '0'
+        { 0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E },
+        // 49 '1'
+        { 0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E },
+        // 50 '2'
+        { 0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F },
+        // 51 '3'
+        { 0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E },
+        // 52 '4'
+        { 0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02 },
+        // 53 '5'
+        { 0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E },
+        // 54 '6'
+        { 0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E },
+        // 55 '7'
+        { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 },
+        // 56 '8'
+        { 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E },
+        // 57 '9'
+        { 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C },
+        // 58 ':'
+        { 0x00, 0x0C, 0x0C, 0x00, 0x0C, 0x0C, 0x00 },
+        // 59 ';'
+        { 0x00, 0x0C, 0x0C, 0x00, 0x0C, 0x04, 0x08 },
+        // 60 '<'
+        { 0x02, 0x04, 0x08, 0x10, 0x08, 0x04, 0x02 },
+        // 61 '='
+        { 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x00, 0x00 },
+        // 62 '>'
+        { 0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08 },
+        // 63 '?'
+        { 0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04 },
+        // 64 '@'
+        { 0x0E, 0x11, 0x01, 0x0D, 0x15, 0x15, 0x0E },
+        // 65 'A'
+        { 0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 },
+        // 66 'B'
+        { 0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E },
+        // 67 'C'
+        { 0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E },
+        // 68 'D'
+        { 0x1C, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1C },
+        // 69 'E'
+        { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F },
+        // 70 'F'
+        { 0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10 },
+        // 71 'G'
+        { 0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0F },
+        // 72 'H'
+        { 0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11 },
+        // 73 'I'
+        { 0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E },
+        // 74 'J'
+        { 0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C },
+        // 75 'K'
+        { 0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11 },
+        // 76 'L'
+        { 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F },
+        // 77 'M'
+        { 0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11 },
+        // 78 'N'
+        { 0x11, 0x11, 0x19, 0x15, 0x13, 0x11, 0x11 },
+        // 79 'O'
+        { 0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E },
+        // 80 'P'
+        { 0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10 },
+        // 81 'Q'
+        { 0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D },
+        // 82 'R'
+        { 0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11 },
+        // 83 'S'
+        { 0x0E, 0x11, 0x10, 0x0E, 0x01, 0x11, 0x0E },
+        // 84 'T'
+        { 0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 },
+        // 85 'U'
+        { 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E },
+        // 86 'V'
+        { 0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04 },
+        // 87 'W'
+        { 0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0A },
+        // 88 'X'
+        { 0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11 },
+        // 89 'Y'
+        { 0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04 },
+        // 90 'Z'
+        { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F },
+        // 91 '['
+        { 0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E },
+        // 92 '\\'
+        { 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00 },
+        // 93 ']'
+        { 0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E },
+        // 94 '^'
+        { 0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00 },
+        // 95 '_'
+        { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F }
+    };
 
 } // namespace
 
@@ -469,9 +464,7 @@ int CgaPaletteRenderer::getTextWidth(const std::string& text) const noexcept
 
 ColorRgba CgaPaletteRenderer::quantizeColor(ColorRgba in) const noexcept
 {
-    const std::size_t lutIndex {
-        static_cast<std::size_t>(((in.r >> 3) << 10) | ((in.g >> 3) << 5) | (in.b >> 3))
-    };
+    const std::size_t lutIndex { static_cast<std::size_t>(((in.r >> 3) << 10) | ((in.g >> 3) << 5) | (in.b >> 3)) };
     if (lutIndex < quantLut_.size()) {
         return quantLut_[lutIndex];
     }
@@ -501,18 +494,14 @@ void CgaPaletteRenderer::present(SDL_Renderer* renderer, int winWidth, int winHe
     }
 
     SDL_UpdateTexture(
-        streamingTexture_.get(),
-        nullptr,
-        backbuffer_.data(),
-        kNativeWidth * static_cast<int>(sizeof(std::uint32_t))
-    );
+        streamingTexture_.get(), nullptr, backbuffer_.data(), kNativeWidth * static_cast<int>(sizeof(std::uint32_t)));
 
     const ViewportRect vp { computeViewport(winWidth, winHeight) };
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    const SDL_Rect dstRect{ vp.x, vp.y, vp.width, vp.height };
+    const SDL_Rect dstRect { vp.x, vp.y, vp.width, vp.height };
     SDL_RenderCopy(renderer, streamingTexture_.get(), nullptr, &dstRect);
     SDL_RenderPresent(renderer);
 }
@@ -520,7 +509,7 @@ void CgaPaletteRenderer::present(SDL_Renderer* renderer, int winWidth, int winHe
 ViewportRect CgaPaletteRenderer::computeViewport(int winWidth, int winHeight) noexcept
 {
     if (winWidth <= 0 || winHeight <= 0) {
-        return ViewportRect{ 0, 0, kNativeWidth, kNativeHeight };
+        return ViewportRect { 0, 0, kNativeWidth, kNativeHeight };
     }
 
     const double scaleX { static_cast<double>(winWidth) / static_cast<double>(kNativeWidth) };
@@ -532,7 +521,7 @@ ViewportRect CgaPaletteRenderer::computeViewport(int winWidth, int winHeight) no
     const int dstX { (winWidth - dstWidth) / 2 };
     const int dstY { (winHeight - dstHeight) / 2 };
 
-    return ViewportRect{ dstX, dstY, dstWidth, dstHeight };
+    return ViewportRect { dstX, dstY, dstWidth, dstHeight };
 }
 
 const std::uint32_t* CgaPaletteRenderer::getRawBuffer() const noexcept
@@ -553,64 +542,64 @@ void CgaPaletteRenderer::populatePalette() noexcept
     case PaletteMode::CgaPalette1:
         // High Intensity Mode 1: Black, Cyan, Magenta, White
         activePalette_ = {
-            ColorRgba{   0,   0,   0, 255 }, // Black
-            ColorRgba{  85, 255, 255, 255 }, // Cyan
-            ColorRgba{ 255,  85, 255, 255 }, // Magenta
-            ColorRgba{ 255, 255, 255, 255 }  // White
+            ColorRgba { 0, 0, 0, 255 }, // Black
+            ColorRgba { 85, 255, 255, 255 }, // Cyan
+            ColorRgba { 255, 85, 255, 255 }, // Magenta
+            ColorRgba { 255, 255, 255, 255 } // White
         };
         break;
 
     case PaletteMode::CgaPalette0:
         // High Intensity Mode 0: Black, Green, Red, Yellow
         activePalette_ = {
-            ColorRgba{   0,   0,   0, 255 }, // Black
-            ColorRgba{  85, 255,  85, 255 }, // Green
-            ColorRgba{ 255,  85,  85, 255 }, // Red
-            ColorRgba{ 255, 255,  85, 255 }  // Yellow
+            ColorRgba { 0, 0, 0, 255 }, // Black
+            ColorRgba { 85, 255, 85, 255 }, // Green
+            ColorRgba { 255, 85, 85, 255 }, // Red
+            ColorRgba { 255, 255, 85, 255 } // Yellow
         };
         break;
 
     case PaletteMode::CompositeNtsc:
         // 16 Simulated NTSC Composite Artifact Colors
         activePalette_ = {
-            ColorRgba{   0,   0,   0, 255 }, // 0: Black
-            ColorRgba{   0,   0, 170, 255 }, // 1: Blue
-            ColorRgba{   0, 170,   0, 255 }, // 2: Green
-            ColorRgba{   0, 170, 170, 255 }, // 3: Cyan
-            ColorRgba{ 170,   0,   0, 255 }, // 4: Red
-            ColorRgba{ 170,   0, 170, 255 }, // 5: Magenta
-            ColorRgba{ 170,  85,   0, 255 }, // 6: Brown
-            ColorRgba{ 170, 170, 170, 255 }, // 7: Light Gray
-            ColorRgba{  85,  85,  85, 255 }, // 8: Dark Gray
-            ColorRgba{  85,  85, 255, 255 }, // 9: Bright Blue
-            ColorRgba{  85, 255,  85, 255 }, // 10: Bright Green
-            ColorRgba{  85, 255, 255, 255 }, // 11: Bright Cyan
-            ColorRgba{ 255,  85,  85, 255 }, // 12: Bright Red
-            ColorRgba{ 255,  85, 255, 255 }, // 13: Bright Magenta
-            ColorRgba{ 255, 255,  85, 255 }, // 14: Yellow
-            ColorRgba{ 255, 255, 255, 255 }  // 15: Bright White
+            ColorRgba { 0, 0, 0, 255 }, // 0: Black
+            ColorRgba { 0, 0, 170, 255 }, // 1: Blue
+            ColorRgba { 0, 170, 0, 255 }, // 2: Green
+            ColorRgba { 0, 170, 170, 255 }, // 3: Cyan
+            ColorRgba { 170, 0, 0, 255 }, // 4: Red
+            ColorRgba { 170, 0, 170, 255 }, // 5: Magenta
+            ColorRgba { 170, 85, 0, 255 }, // 6: Brown
+            ColorRgba { 170, 170, 170, 255 }, // 7: Light Gray
+            ColorRgba { 85, 85, 85, 255 }, // 8: Dark Gray
+            ColorRgba { 85, 85, 255, 255 }, // 9: Bright Blue
+            ColorRgba { 85, 255, 85, 255 }, // 10: Bright Green
+            ColorRgba { 85, 255, 255, 255 }, // 11: Bright Cyan
+            ColorRgba { 255, 85, 85, 255 }, // 12: Bright Red
+            ColorRgba { 255, 85, 255, 255 }, // 13: Bright Magenta
+            ColorRgba { 255, 255, 85, 255 }, // 14: Yellow
+            ColorRgba { 255, 255, 255, 255 } // 15: Bright White
         };
         break;
 
     case PaletteMode::EnhancedEga:
         // Enhanced 16-Color Retro Desert EGA
         activePalette_ = {
-            ColorRgba{   0,   0,   0, 255 }, // Black
-            ColorRgba{   0,   0, 170, 255 }, // Deep Blue
-            ColorRgba{   0, 170,   0, 255 }, // Sage Green
-            ColorRgba{   0, 170, 170, 255 }, // Desert Cyan
-            ColorRgba{ 170,   0,   0, 255 }, // Rust Red
-            ColorRgba{ 170,   0, 170, 255 }, // Plum
-            ColorRgba{ 170,  85,   0, 255 }, // Desert Sand / Brown
-            ColorRgba{ 170, 170, 170, 255 }, // Sandstone Gray
-            ColorRgba{  85,  85,  85, 255 }, // Basalt Charcoal
-            ColorRgba{  85,  85, 255, 255 }, // Sky Blue
-            ColorRgba{  85, 255,  85, 255 }, // Light Lime
-            ColorRgba{  85, 255, 255, 255 }, // Neon Cyan
-            ColorRgba{ 255,  85,  85, 255 }, // Terracotta
-            ColorRgba{ 255,  85, 255, 255 }, // Neon Magenta
-            ColorRgba{ 255, 255,  85, 255 }, // Dune Ochre
-            ColorRgba{ 255, 255, 255, 255 }  // Pure White
+            ColorRgba { 0, 0, 0, 255 }, // Black
+            ColorRgba { 0, 0, 170, 255 }, // Deep Blue
+            ColorRgba { 0, 170, 0, 255 }, // Sage Green
+            ColorRgba { 0, 170, 170, 255 }, // Desert Cyan
+            ColorRgba { 170, 0, 0, 255 }, // Rust Red
+            ColorRgba { 170, 0, 170, 255 }, // Plum
+            ColorRgba { 170, 85, 0, 255 }, // Desert Sand / Brown
+            ColorRgba { 170, 170, 170, 255 }, // Sandstone Gray
+            ColorRgba { 85, 85, 85, 255 }, // Basalt Charcoal
+            ColorRgba { 85, 85, 255, 255 }, // Sky Blue
+            ColorRgba { 85, 255, 85, 255 }, // Light Lime
+            ColorRgba { 85, 255, 255, 255 }, // Neon Cyan
+            ColorRgba { 255, 85, 85, 255 }, // Terracotta
+            ColorRgba { 255, 85, 255, 255 }, // Neon Magenta
+            ColorRgba { 255, 255, 85, 255 }, // Dune Ochre
+            ColorRgba { 255, 255, 255, 255 } // Pure White
         };
         break;
     }
@@ -628,7 +617,7 @@ void CgaPaletteRenderer::rebuildLut() noexcept
             const std::uint8_t realG { static_cast<std::uint8_t>((g * 255) / 31) };
             for (std::size_t b { 0 }; b < 32; ++b) {
                 const std::uint8_t realB { static_cast<std::uint8_t>((b * 255) / 31) };
-                const ColorRgba sample{ realR, realG, realB, 255 };
+                const ColorRgba sample { realR, realG, realB, 255 };
 
                 ColorRgba bestColor { activePalette_[0] };
                 int bestDist { colorDistSq(sample, bestColor) };

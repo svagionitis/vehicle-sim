@@ -19,4 +19,6 @@ Before presenting any C++17 code snippet or committing changes, internally verif
 12. Does code compile with zero warnings under `-Wall -Wextra -pedantic` (`-Werror`) and `/W4` on MSVC, with hardening flags applied?
 13. All the paths of the filenames in the docs should be relative.
 14. If there are diagrams involved, add both ASCII and mermaid diagrams.
+15. Are fixed-width integer types from `<cstdint>` used instead of platform-dependent basic types (`int`, `unsigned int`, `unsigned char`), directly included via `#include <cstdint>` (no transitive includes), and qualified in `namespace std::` (e.g., `std::uint32_t`, `std::int32_t`)?
+16. Are all headers and source files strictly compliant with Include-What-You-Use (IWYU), with 100% self-contained headers and zero leaky standard library dependencies?
 

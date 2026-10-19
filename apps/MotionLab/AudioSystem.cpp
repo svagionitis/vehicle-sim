@@ -2,13 +2,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 
 namespace motion_lab {
 
 namespace {
-constexpr int kSampleRate { 44100 };
-constexpr std::uint16_t kBufferSamples { 512 };
+    constexpr int kSampleRate { 44100 };
+    constexpr std::uint16_t kBufferSamples { 512 };
 } // namespace
 
 AudioSystem::AudioSystem() noexcept = default;
@@ -34,7 +35,7 @@ bool AudioSystem::initialize(bool headless) noexcept
         return false;
     }
 
-    SDL_AudioSpec desired { };
+    SDL_AudioSpec desired {};
     desired.freq = kSampleRate;
     desired.format = AUDIO_S16SYS;
     desired.channels = 1;
@@ -42,7 +43,7 @@ bool AudioSystem::initialize(bool headless) noexcept
     desired.callback = &AudioSystem::audioCallback;
     desired.userdata = this;
 
-    SDL_AudioSpec obtained { };
+    SDL_AudioSpec obtained {};
     deviceId_ = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
     if (deviceId_ == 0) {
         return false;
@@ -119,7 +120,7 @@ bool AudioSystem::isInitialized() const noexcept
 
 AudioChannelLevels AudioSystem::getLevels() const noexcept
 {
-    AudioChannelLevels levels { };
+    AudioChannelLevels levels {};
     levels.engineLevel = rmsEngine_.load(std::memory_order_relaxed);
     levels.tireLevel = rmsTire_.load(std::memory_order_relaxed);
     levels.rotorLevel = rmsRotor_.load(std::memory_order_relaxed);
@@ -313,8 +314,8 @@ void AudioSystem::processBuffer(std::int16_t* outStream, std::size_t sampleCount
         sumSqImpact += (impactSample * impactSample);
 
         // Master summer bus with calibrated channel gains
-        const double masterRaw { (0.40 * engSample) + (0.45 * tireSample) + (0.35 * rotorSample)
-            + (0.38 * thrustSample) + (0.48 * impactSample) + (0.30 * driveSample) };
+        const double masterRaw { (0.40 * engSample) + (0.45 * tireSample) + (0.35 * rotorSample) + (0.38 * thrustSample)
+            + (0.48 * impactSample) + (0.30 * driveSample) };
 
         // Zero-latency cubic soft-knee saturation
         const double limited { audio::AudioDspMath::softLimit(masterRaw) };

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 
 #include "libs/VehicleSimCore/math/Vec2.h"
 #include "libs/VehicleSimCore/physics/RigidBody2D.h"
@@ -12,10 +13,10 @@ namespace vehicle_sim::physics {
 /// @struct BarrierBounds2D
 /// @brief Axis-aligned rectangular arena boundary in world meters.
 struct BarrierBounds2D {
-    double left { -50.0 };   ///< Minimum X coordinate (left wall).
-    double right { 50.0 };   ///< Maximum X coordinate (right wall).
+    double left { -50.0 }; ///< Minimum X coordinate (left wall).
+    double right { 50.0 }; ///< Maximum X coordinate (right wall).
     double bottom { -50.0 }; ///< Minimum Y coordinate (bottom wall).
-    double top { 50.0 };      ///< Maximum Y coordinate (top wall).
+    double top { 50.0 }; ///< Maximum Y coordinate (top wall).
 };
 
 /// @class BarrierSolver2D
@@ -29,7 +30,7 @@ public:
     /// @brief Internal representation of an inward planar barrier edge.
     struct BarrierEdge {
         math::Vec2 normal { 0.0, 0.0 }; ///< Inward-facing boundary normal.
-        double plane { 0.0 };            ///< Boundary plane offset threshold.
+        double plane { 0.0 }; ///< Boundary plane offset threshold.
     };
 
     /// @brief Solves boundary penetrations and contact impulses for a rigid body.
@@ -39,18 +40,13 @@ public:
     /// @param[in] supportFn Callback returning the body's furthest surface point facing normal.
     /// @return Maximum contact impulse magnitude in N*s resolved during this step.
     template <typename SupportFn>
-    static double solveInside(RigidBody2D& body,
-                             const BarrierBounds2D& bounds,
-                             SupportFn&& supportFn,
-                             double restitution = 0.55) noexcept
+    static double solveInside(
+        RigidBody2D& body, const BarrierBounds2D& bounds, SupportFn&& supportFn, double restitution = 0.55) noexcept
     {
         double maxImpulse { 0.0 };
-        const std::array<BarrierEdge, 4> barrierEdges {{
-            { math::Vec2 { 1.0, 0.0 }, bounds.left },
-            { math::Vec2 { -1.0, 0.0 }, -bounds.right },
-            { math::Vec2 { 0.0, 1.0 }, bounds.bottom },
-            { math::Vec2 { 0.0, -1.0 }, -bounds.top }
-        }};
+        const std::array<BarrierEdge, 4> barrierEdges { { { math::Vec2 { 1.0, 0.0 }, bounds.left },
+            { math::Vec2 { -1.0, 0.0 }, -bounds.right }, { math::Vec2 { 0.0, 1.0 }, bounds.bottom },
+            { math::Vec2 { 0.0, -1.0 }, -bounds.top } } };
 
         // Execute 4 sequential passes to resolve simultaneous multi-corner penetrations
         for (std::size_t pass { 0 }; pass < 4; ++pass) {
