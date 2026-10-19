@@ -12,6 +12,7 @@ namespace montsoft_offroad {
 enum class SystemAction : std::uint8_t {
     None,
     CyclePalette,
+    CycleZoom,
     SetPaletteMode1,
     SetPaletteMode0,
     SetPaletteComposite,

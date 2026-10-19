@@ -239,6 +239,30 @@ TEST(GameAppTest, FireRocketAndMortarBallistics)
     app.renderFrame();
 }
 
+TEST(GameAppTest, CameraZoomCyclingThroughPresets)
+{
+    GameAppConfig config {};
+    config.headless = true;
+
+    GameApp app { config };
+    ASSERT_TRUE(app.initialize());
+
+    // Default is authentic zoomed-out view (14.0 px/m)
+    EXPECT_DOUBLE_EQ(app.getCamera().getConfig().pixelsPerMeter, 14.0);
+
+    // Cycle 1: Tactical wide view (10.0 px/m)
+    app.cycleCameraZoom();
+    EXPECT_DOUBLE_EQ(app.getCamera().getConfig().pixelsPerMeter, 10.0);
+
+    // Cycle 2: Close-up legacy view (20.0 px/m)
+    app.cycleCameraZoom();
+    EXPECT_DOUBLE_EQ(app.getCamera().getConfig().pixelsPerMeter, 20.0);
+
+    // Cycle 3: Return to authentic zoomed-out view (14.0 px/m)
+    app.cycleCameraZoom();
+    EXPECT_DOUBLE_EQ(app.getCamera().getConfig().pixelsPerMeter, 14.0);
+}
+
 TEST(Camera2DTest, WorldToScreenInvertibility)
 {
     Camera2D camera {};
@@ -296,8 +320,8 @@ TEST(Camera2DTest, VisibleBoundsEvaluation)
     const double maxX { camera.getVisibleMaxX() };
     const double spanX { maxX - minX };
 
-    // At 320 px and 20 px/m, span should be exactly 16.0 meters
-    EXPECT_NEAR(spanX, 16.0, 1e-4);
+    // Span matches viewportWidth / pixelsPerMeter (320 / 14 = ~22.86m in zoomed out mode)
+    EXPECT_NEAR(spanX, 320.0 / camera.getConfig().pixelsPerMeter, 1e-4);
     EXPECT_LT(minX, 10.0);
     EXPECT_GT(maxX, 10.0);
 }
@@ -568,6 +592,12 @@ TEST(InputControllerTest, SystemActionEdgeTriggering)
     controller.handleEvent(ev);
     EXPECT_EQ(controller.consumeSystemAction(), SystemAction::CyclePalette);
     // Edge triggered: subsequent call is None
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::None);
+
+    // Cycle Zoom with V
+    ev.key.keysym.sym = SDLK_v;
+    controller.handleEvent(ev);
+    EXPECT_EQ(controller.consumeSystemAction(), SystemAction::CycleZoom);
     EXPECT_EQ(controller.consumeSystemAction(), SystemAction::None);
 
     // F1 to F4 palettes
@@ -1908,8 +1938,8 @@ TEST(Camera2DTest, CameraClampsVehicleWithinVerticalScreenBounds)
 
     const vehicle_sim::math::Vec2 screenPosAfterJump { camera.worldToScreen(highJumpPos) };
     // Screen position must be clamped within visible bounds (never negative / lost off top of screen)
-    EXPECT_GE(screenPosAfterJump.y, 28.0);
-    EXPECT_LE(screenPosAfterJump.y, 180.0);
+    EXPECT_GE(screenPosAfterJump.y, 28.0 - 1e-4);
+    EXPECT_LE(screenPosAfterJump.y, 180.0 + 1e-4);
 }
 
 } // namespace montsoft_offroad

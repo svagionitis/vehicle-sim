@@ -154,6 +154,9 @@ void GameApp::updateSimulation(double dt) noexcept
     case SystemAction::CyclePalette:
         cgaRenderer_.cyclePaletteMode();
         break;
+    case SystemAction::CycleZoom:
+        cycleCameraZoom();
+        break;
     case SystemAction::SetPaletteMode1:
         cgaRenderer_.setPaletteMode(PaletteMode::CgaPalette1);
         break;
@@ -466,6 +469,19 @@ const Camera2D& GameApp::getCamera() const noexcept
 Camera2D& GameApp::getCamera() noexcept
 {
     return camera_;
+}
+
+void GameApp::cycleCameraZoom() noexcept
+{
+    CameraConfig cfg { camera_.getConfig() };
+    if (cfg.pixelsPerMeter >= 18.0) {
+        cfg.pixelsPerMeter = 14.0; // Authentic Zoomed-Out Default
+    } else if (cfg.pixelsPerMeter >= 13.0) {
+        cfg.pixelsPerMeter = 10.0; // Tactical Wide View
+    } else {
+        cfg.pixelsPerMeter = 20.0; // Close-up Legacy View
+    }
+    camera_.setConfig(cfg);
 }
 
 const CourseManager& GameApp::getCourse() const noexcept

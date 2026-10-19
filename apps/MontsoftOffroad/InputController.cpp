@@ -42,8 +42,11 @@ void InputController::handleEvent(const SDL_Event& event) noexcept
             jumpPressed_ = true;
             truckInput_.jump = true;
             break;
-        case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+        case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
             pendingAction_ = SystemAction::CyclePalette;
+            break;
+        case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+            pendingAction_ = SystemAction::CycleZoom;
             break;
         case SDL_CONTROLLER_BUTTON_START:
             pendingAction_ = SystemAction::TogglePause;
@@ -157,6 +160,9 @@ void InputController::handleKeyDown(SDL_Keycode key) noexcept
     case SDLK_c:
     case SDLK_TAB:
         pendingAction_ = SystemAction::CyclePalette;
+        break;
+    case SDLK_v:
+        pendingAction_ = SystemAction::CycleZoom;
         break;
     case SDLK_F1:
         pendingAction_ = SystemAction::SetPaletteMode1;

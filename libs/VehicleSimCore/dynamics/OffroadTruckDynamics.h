@@ -23,10 +23,10 @@ namespace vehicle_sim::dynamics {
 struct OffroadAxleConfig {
     double longitudinalOffset { 0.0 };     ///< Chassis X offset from CoM in meters.
     double restLength { 0.70 };            ///< Uncompressed suspension strut length in meters.
-    double springStiffness { 28000.0 };    ///< Suspension spring constant k in N/m.
-    double dampingCoeff { 2200.0 };        ///< Viscous damping coefficient c in N*s/m.
-    double bumpStopStiffness { 150000.0 }; ///< Non-linear elastomer bump stop stiffness in N/m^2.
-    double bumpStopDistance { 0.22 };     ///< Strut deflection threshold activating bump stop.
+    double springStiffness { 65000.0 };    ///< Suspension spring constant k in N/m (firm offroad rate).
+    double dampingCoeff { 7500.0 };        ///< Viscous damping coefficient c in N*s/m (well-damped).
+    double bumpStopStiffness { 250000.0 }; ///< Non-linear elastomer bump stop stiffness in N/m^2.
+    double bumpStopDistance { 0.25 };      ///< Strut deflection threshold activating bump stop.
     double tireRadius { 0.42 };            ///< Off-road knobby tire radius in meters.
     double tireWidth { 0.28 };             ///< Tire contact patch width in meters.
 };
@@ -47,13 +47,13 @@ struct OffroadTruckConfig {
     double jumpSpeed { 6.8 };              ///< Upward takeoff impulse speed in m/s.
     double jumpImpulse { 0.0 };            ///< Optional explicit vertical impulse in N*s (0 uses mass * jumpSpeed).
     double pitchStabGain { 1600.0 };       ///< Mid-air attitude stabilization torque gain.
-    double antiRollTorqueGain { 3500.0 };  ///< Anti-roll pitch stiffness coupling axles.
+    double antiRollTorqueGain { 7000.0 };  ///< Anti-roll pitch stiffness coupling axles.
     double groundFriction { 1.0 };         ///< Default ground surface friction coefficient.
     bool enableBekkerRutting { true };     ///< Enable Bekker terramechanics compaction drag.
 
     std::array<OffroadAxleConfig, 2> axles {
-        OffroadAxleConfig{ -1.20, 0.70, 28000.0, 2200.0, 150000.0, 0.22, 0.42, 0.28 }, // Rear
-        OffroadAxleConfig{  1.20, 0.70, 28000.0, 2200.0, 150000.0, 0.22, 0.42, 0.28 }  // Front
+        OffroadAxleConfig{ -1.20, 0.70, 65000.0, 7500.0, 250000.0, 0.25, 0.42, 0.28 }, // Rear
+        OffroadAxleConfig{  1.20, 0.70, 65000.0, 7500.0, 250000.0, 0.25, 0.42, 0.28 }  // Front
     };
 };
 

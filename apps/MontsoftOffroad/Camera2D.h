@@ -7,11 +7,11 @@ namespace montsoft_offroad {
 /// @struct CameraConfig
 /// @brief Configuration settings for 2D viewport tracking and world projection.
 struct CameraConfig {
-    double pixelsPerMeter { 20.0 };      ///< Scale factor from world meters to pixels.
+    double pixelsPerMeter { 14.0 };      ///< Scale factor from world meters to pixels (authentic zoomed-out view).
     double screenFractionX { 0.28 };     ///< Viewport anchor fraction along X (0.28 = 89.6 px).
     double screenFractionY { 0.72 };     ///< Viewport anchor fraction along Y (0.72 = 144.0 px).
     double lookaheadLead { 0.25 };       ///< Velocity lead time coefficient in seconds.
-    double maxLookahead { 3.5 };         ///< Maximum horizontal lookahead distance in meters.
+    double maxLookahead { 4.5 };         ///< Maximum horizontal lookahead distance in meters.
     double followRateX { 5.0 };          ///< Exponential follow rate along X in 1/s.
     double followRateY { 2.5 };          ///< Exponential follow rate along Y in 1/s.
     int viewportWidth { 320 };           ///< Native virtual viewport width in pixels.

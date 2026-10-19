@@ -214,18 +214,27 @@ void TruckRenderer::renderChassisBody(
                       static_cast<int>(pBedRear.x), static_cast<int>(pBedRear.y), bodyMagenta);
 
     // Fill inner bodywork with Magenta paneling
+    const double ppm { camera.getConfig().pixelsPerMeter };
+    const double scale { ppm / 20.0 };
+
     const Vec2 pCenter { toScreen(0.0, 0.15) };
     const int cx { static_cast<int>(pCenter.x) };
     const int cy { static_cast<int>(pCenter.y) };
-    renderer.fillRect(cx - 18, cy - 4, 36, 8, bodyMagenta);
+    const int bodyW { std::max(10, static_cast<int>(std::round(36.0 * scale))) };
+    const int bodyH { std::max(4, static_cast<int>(std::round(8.0 * scale))) };
+    renderer.fillRect(cx - bodyW / 2, cy - bodyH / 2, bodyW, bodyH, bodyMagenta);
 
     // 2. Cockpit Windshield Glass (Cyan) & Pilot Silhouette (Black)
     const Vec2 pGlassTop { toScreen(0.35, 0.70) };
     const int gx { static_cast<int>(pGlassTop.x) };
     const int gy { static_cast<int>(pGlassTop.y) };
-    renderer.fillRect(gx - 3, gy + 1, 10, 6, glassCyan);
+    const int gw { std::max(4, static_cast<int>(std::round(10.0 * scale))) };
+    const int gh { std::max(3, static_cast<int>(std::round(6.0 * scale))) };
+    renderer.fillRect(gx - 3, gy + 1, gw, gh, glassCyan);
     // Pilot silhouette
-    renderer.fillRect(gx, gy + 2, 4, 4, darkBlack);
+    const int pw { std::max(2, static_cast<int>(std::round(4.0 * scale))) };
+    const int ph { std::max(2, static_cast<int>(std::round(4.0 * scale))) };
+    renderer.fillRect(gx, gy + 2, pw, ph, darkBlack);
 
     // 3. Rollbar & Roll-cage Truss
     const Vec2 pRollbarTop { toScreen(-0.25, 0.75) };
@@ -237,31 +246,40 @@ void TruckRenderer::renderChassisBody(
 
     // 4. Spare Tire Mounted in Bed
     const Vec2 pSpare { toScreen(-0.85, 0.35) };
-    renderer.fillCircle(static_cast<int>(pSpare.x), static_cast<int>(pSpare.y), 4, darkBlack);
-    renderer.drawCircle(static_cast<int>(pSpare.x), static_cast<int>(pSpare.y), 4, highlightWhite);
+    const int spareR { std::max(2, static_cast<int>(std::round(4.0 * scale))) };
+    renderer.fillCircle(static_cast<int>(pSpare.x), static_cast<int>(pSpare.y), spareR, darkBlack);
+    renderer.drawCircle(static_cast<int>(pSpare.x), static_cast<int>(pSpare.y), spareR, highlightWhite);
 
     // 5. Front Tubular Bull-Bar Bumper & Spotlights
     const Vec2 pBumperUpper { toScreen(1.75, 0.25) };
     const Vec2 pBumperLower { toScreen(1.75, -0.15) };
     renderer.drawLine(static_cast<int>(pBumperUpper.x), static_cast<int>(pBumperUpper.y),
                       static_cast<int>(pBumperLower.x), static_cast<int>(pBumperLower.y), highlightWhite);
-    renderer.drawCircle(static_cast<int>(pBumperUpper.x), static_cast<int>(pBumperUpper.y), 2, sparkYellow);
+    const int spotR { std::max(1, static_cast<int>(std::round(2.0 * scale))) };
+    renderer.drawCircle(static_cast<int>(pBumperUpper.x), static_cast<int>(pBumperUpper.y), spotR, sparkYellow);
 
     // 6. Rear Whip Antenna with Flag
     const Vec2 pAntennaBase { toScreen(-1.55, 0.35) };
     const Vec2 pAntennaTip { toScreen(-1.75, 0.95) };
     renderer.drawLine(static_cast<int>(pAntennaBase.x), static_cast<int>(pAntennaBase.y),
                       static_cast<int>(pAntennaTip.x), static_cast<int>(pAntennaTip.y), highlightWhite);
-    renderer.fillRect(static_cast<int>(pAntennaTip.x), static_cast<int>(pAntennaTip.y), 4, 3, sparkYellow);
+    const int flagW { std::max(2, static_cast<int>(std::round(4.0 * scale))) };
+    const int flagH { std::max(2, static_cast<int>(std::round(3.0 * scale))) };
+    renderer.fillRect(static_cast<int>(pAntennaTip.x), static_cast<int>(pAntennaTip.y), flagW, flagH, sparkYellow);
 
     // 7. Undercarriage Jump Thruster Nozzle
     const Vec2 pThruster { toScreen(0.0, -0.12) };
     const int tx { static_cast<int>(pThruster.x) };
     const int ty { static_cast<int>(pThruster.y) };
-    renderer.fillRect(tx - 3, ty, 6, 2, highlightWhite);
+    const int thW { std::max(3, static_cast<int>(std::round(6.0 * scale))) };
+    const int thH { std::max(1, static_cast<int>(std::round(2.0 * scale))) };
+    renderer.fillRect(tx - thW / 2, ty, thW, thH, highlightWhite);
     if (jumpThrusterActive) {
-        renderer.fillRect(tx - 4, ty + 2, 8, 3, sparkYellow);
-        renderer.fillRect(tx - 2, ty + 5, 4, 2, highlightWhite);
+        const int flameW { std::max(4, static_cast<int>(std::round(8.0 * scale))) };
+        const int flameH { std::max(2, static_cast<int>(std::round(3.0 * scale))) };
+        renderer.fillRect(tx - flameW / 2, ty + thH, flameW, flameH, sparkYellow);
+        const int coreW { std::max(2, static_cast<int>(std::round(4.0 * scale))) };
+        renderer.fillRect(tx - coreW / 2, ty + thH + flameH, coreW, 2, highlightWhite);
     }
 }
 
@@ -283,6 +301,8 @@ void TruckRenderer::renderWeapons(
 
     const ColorRgba weaponWhite{ 255, 255, 255, 255 };
     const ColorRgba weaponCyan{ 85, 255, 255, 255 };
+    const double ppm { camera.getConfig().pixelsPerMeter };
+    const double scale { ppm / 20.0 };
 
     // 1. Forward Heavy Rocket Launch Tube (Horizontal along hood)
     const Vec2 pRocketBase { toScreen(0.85, 0.28) };
@@ -294,7 +314,9 @@ void TruckRenderer::renderWeapons(
 
     renderer.drawLine(rbx, rby, rmx, rmy, weaponWhite);
     renderer.drawLine(rbx, rby - 1, rmx, rmy - 1, weaponCyan);
-    renderer.fillRect(rmx - 1, rmy - 2, 3, 4, weaponWhite); // Muzzle bell
+    const int muzzW { std::max(2, static_cast<int>(std::round(3.0 * scale))) };
+    const int muzzH { std::max(2, static_cast<int>(std::round(4.0 * scale))) };
+    renderer.fillRect(rmx - 1, rmy - muzzH / 2, muzzW, muzzH, weaponWhite); // Muzzle bell
 
     // 2. High-Angle Anti-Air Mortar Tube (65 degrees elevation behind cabin)
     constexpr double kMortarAngle { 1.134464 }; // ~65 deg in radians
@@ -311,7 +333,8 @@ void TruckRenderer::renderWeapons(
 
     renderer.drawLine(mbx, mby, mmx, mmy, weaponWhite);
     renderer.drawLine(mbx + 1, mby, mmx + 1, mmy, weaponCyan);
-    renderer.fillRect(mmx - 1, mmy - 1, 3, 3, weaponWhite); // Mortar muzzle
+    const int mortMuzz { std::max(2, static_cast<int>(std::round(3.0 * scale))) };
+    renderer.fillRect(mmx - 1, mmy - 1, mortMuzz, mortMuzz, weaponWhite); // Mortar muzzle
 }
 
 } // namespace montsoft_offroad

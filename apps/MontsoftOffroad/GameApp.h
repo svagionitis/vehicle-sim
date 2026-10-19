@@ -151,6 +151,9 @@ public:
     /// @return Mutable reference to Camera2D.
     [[nodiscard]] Camera2D& getCamera() noexcept;
 
+    /// @brief Cycles camera zoom between authentic zoomed out, wide, and close-up.
+    void cycleCameraZoom() noexcept;
+
     /// @brief Gets active course and terrain coordinator.
     /// @return Constant reference to CourseManager.
     [[nodiscard]] const CourseManager& getCourse() const noexcept;

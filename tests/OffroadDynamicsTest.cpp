@@ -62,6 +62,38 @@ TEST(OffroadTruckDynamicsTest, SuspensionEquilibriumOnFlatGround)
     EXPECT_GT(frontAxle.normalForce, 1000.0);
     EXPECT_GT(rearAxle.compression, 0.0);
     EXPECT_GT(frontAxle.compression, 0.0);
+    // Harder suspension has limited static deflection (firm ~0.11m sag, not bottomed out in bump stop)
+    EXPECT_LT(rearAxle.compression, 0.16);
+    EXPECT_LT(frontAxle.compression, 0.16);
+    EXPECT_GT(rearAxle.compression, 0.08);
+    EXPECT_GT(frontAxle.compression, 0.08);
+}
+
+TEST(OffroadTruckDynamicsTest, HardSuspensionRapidDampingWithoutElasticBounce)
+{
+    OffroadTruckDynamics truck {};
+    terrain::Heightfield1D terrain {};
+    terrain.setBaseHeight(0.0);
+    truck.setTerrain(&terrain);
+
+    physics::RigidBodyConfig bodyConfig {};
+    bodyConfig.mass = 1450.0;
+    bodyConfig.inertia = 1200.0;
+    // Drop from 0.4m above equilibrium
+    bodyConfig.position = math::Vec2 { 10.0, 1.40 };
+    physics::RigidBody2D body { bodyConfig };
+
+    constexpr double dt { 1.0 / 60.0 };
+    for (int i { 0 }; i < 60; ++i) {
+        truck.step(body, dt);
+        physics::Integrator2D::integrate(body, dt);
+        body.clearForces();
+    }
+
+    // After 1 second (60 frames), heavy damping should have fully dissipated bounce
+    EXPECT_TRUE(truck.isGrounded());
+    EXPECT_NEAR(body.getLinearVelocity().y, 0.0, 0.08);
+    EXPECT_NEAR(body.getAngularVelocity(), 0.0, 0.05);
 }
 
 TEST(OffroadTruckDynamicsTest, BumpStopStiffnessActivation)
