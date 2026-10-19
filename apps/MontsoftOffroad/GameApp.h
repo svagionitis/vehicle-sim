@@ -34,7 +34,7 @@ struct GameAppConfig {
     double targetFps { 60.0 }; ///< Display refresh target framerate.
     double fixedDt { 1.0 / 60.0 }; ///< Invariant physics simulation timestep in seconds.
     bool headless { false }; ///< True to execute without opening an SDL window.
-    PaletteMode initialPalette { PaletteMode::CgaPalette1 }; ///< Starting retro color mode.
+    PaletteMode initialPalette { PaletteMode::CgaPalette0 }; ///< Starting retro color mode (authentic green CGA).
     bool audioMuted { true }; ///< True to silence audio and music playback by default.
 };
 

@@ -387,31 +387,31 @@ void CampaignManager::renderTitleScreen(CgaPaletteRenderer& renderer) const noex
     renderer.clear(ColorRgba{ 0, 0, 0, 255 });
 
     // Decorative double border
-    renderer.drawRect(4, 4, 312, 192, ColorRgba{ 85, 255, 255, 255 });
-    renderer.drawRect(6, 6, 308, 188, ColorRgba{ 255, 85, 255, 255 });
+    renderer.drawRect(4, 4, 312, 192, ColorRgba{ 85, 255, 85, 255 });
+    renderer.drawRect(6, 6, 308, 188, ColorRgba{ 255, 85, 85, 255 });
 
     // Title header
-    renderer.drawText(68, 22, "M O N T S O F T   O F F R O A D", ColorRgba{ 255, 255, 255, 255 });
-    renderer.drawText(56, 34, "TERRESTRIAL COMBAT DESERT SIMULATOR", ColorRgba{ 85, 255, 255, 255 });
-    renderer.drawLine(20, 46, 300, 46, ColorRgba{ 255, 85, 255, 255 });
+    renderer.drawText(68, 22, "M O N T S O F T   O F F R O A D", ColorRgba{ 255, 255, 85, 255 });
+    renderer.drawText(56, 34, "TERRESTRIAL COMBAT DESERT SIMULATOR", ColorRgba{ 85, 255, 85, 255 });
+    renderer.drawLine(20, 46, 300, 46, ColorRgba{ 255, 85, 85, 255 });
 
     // Historical copyright and credits
-    renderer.drawText(44, 60, "(C) 1988 MONTE VARIAKOJIS - SHAREWARE", ColorRgba{ 255, 255, 255, 255 });
-    renderer.drawText(50, 72, "REIMAGINED IN C++17 VEHICLESIM ENGINE", ColorRgba{ 85, 255, 255, 255 });
+    renderer.drawText(44, 60, "(C) 1988 MONTE VARIAKOJIS - SHAREWARE", ColorRgba{ 255, 85, 85, 255 });
+    renderer.drawText(50, 72, "REIMAGINED IN C++17 VEHICLESIM ENGINE", ColorRgba{ 85, 255, 85, 255 });
 
     // Truck wireframe silhouette
-    renderer.drawRect(120, 92, 80, 20, ColorRgba{ 255, 255, 255, 255 });
-    renderer.drawRect(132, 82, 40, 10, ColorRgba{ 85, 255, 255, 255 });
-    renderer.drawCircle(135, 115, 8, ColorRgba{ 255, 85, 255, 255 });
-    renderer.drawCircle(185, 115, 8, ColorRgba{ 255, 85, 255, 255 });
+    renderer.drawRect(120, 92, 80, 20, ColorRgba{ 255, 85, 85, 255 });
+    renderer.drawRect(132, 82, 40, 10, ColorRgba{ 255, 255, 85, 255 });
+    renderer.drawCircle(135, 115, 8, ColorRgba{ 255, 255, 85, 255 });
+    renderer.drawCircle(185, 115, 8, ColorRgba{ 255, 255, 85, 255 });
 
     // Instructions
-    renderer.drawText(82, 134, "PRESS  SPACE  TO START", ColorRgba{ 255, 255, 255, 255 });
-    renderer.drawText(88, 148, "[H] VIEW HIGH SCORES", ColorRgba{ 85, 255, 255, 255 });
+    renderer.drawText(82, 134, "PRESS  SPACE  TO START", ColorRgba{ 255, 255, 85, 255 });
+    renderer.drawText(88, 148, "[H] VIEW HIGH SCORES", ColorRgba{ 85, 255, 85, 255 });
 
     // Control summary
-    renderer.drawText(24, 168, "KEYS: A/D ACCEL  SPACE JUMP  Z ROCKET  X MORTAR", ColorRgba{ 255, 255, 255, 255 });
-    renderer.drawText(36, 180, "F1 CGA-1  F2 CGA-0  F3 NTSC  F4 EGA  P PAUSE", ColorRgba{ 255, 85, 255, 255 });
+    renderer.drawText(24, 168, "KEYS: A/D ACCEL  SPACE JUMP  Z ROCKET  X MORTAR", ColorRgba{ 255, 255, 85, 255 });
+    renderer.drawText(36, 180, "F1 CGA-1  F2 CGA-0  F3 NTSC  F4 EGA  P PAUSE", ColorRgba{ 255, 85, 85, 255 });
 }
 
 void CampaignManager::renderMissionBriefing(CgaPaletteRenderer& renderer, const CourseManager& course) const noexcept
@@ -457,7 +457,7 @@ void CampaignManager::renderInGameHud(CgaPaletteRenderer& renderer,
 {
     // Top background bar
     renderer.fillRect(0, 0, 320, 12, ColorRgba{ 0, 0, 0, 255 });
-    renderer.drawLine(0, 12, 320, 12, ColorRgba{ 85, 255, 255, 255 });
+    renderer.drawLine(0, 12, 320, 12, ColorRgba{ 85, 255, 85, 255 });
 
     // Format telemetry items
     const int score { course.getScore() };
@@ -473,34 +473,34 @@ void CampaignManager::renderInGameHud(CgaPaletteRenderer& renderer,
         << "T:" << std::setw(2) << timeLeft << "s "
         << static_cast<int>(speedKmh) << "KM/H ";
 
-    renderer.drawText(4, 3, hud.str(), ColorRgba{ 255, 255, 255, 255 });
+    renderer.drawText(4, 3, hud.str(), ColorRgba{ 255, 255, 85, 255 });
 
-    // Lives icons (represented as small 'O' blocks)
-    renderer.drawText(268, 3, "L:", ColorRgba{ 85, 255, 255, 255 });
+    // Lives icons
+    renderer.drawText(268, 3, "TRK:", ColorRgba{ 255, 85, 85, 255 });
     for (int i { 0 }; i < std::min(5, lives_); ++i) {
-        renderer.fillRect(282 + (i * 7), 4, 5, 5, ColorRgba{ 255, 85, 255, 255 });
+        renderer.fillRect(296 + (i * 4), 4, 3, 5, ColorRgba{ 255, 85, 85, 255 });
     }
 
     // Bottom telemetry guide
     renderer.fillRect(0, 190, 320, 10, ColorRgba{ 0, 0, 0, 255 });
-    renderer.drawLine(0, 190, 320, 190, ColorRgba{ 255, 85, 255, 255 });
+    renderer.drawLine(0, 190, 320, 190, ColorRgba{ 85, 255, 85, 255 });
 
     std::ostringstream bottomGuide {};
     const double distNext { course.getDistanceToNext() };
     bottomGuide << "[Z:RKT] [X:MTR]   NEXT "
                 << course.getNextCheckpointLetter() << ": "
                 << static_cast<int>(distNext) << "M";
-    renderer.drawText(6, 192, bottomGuide.str(), ColorRgba{ 255, 255, 255, 255 });
+    renderer.drawText(6, 192, bottomGuide.str(), ColorRgba{ 255, 255, 85, 255 });
 
     // Checkpoint banner overlay if bannerTimer_ is active
     if (bannerTimer_ > 0.0) {
         renderer.fillRect(50, 40, 220, 26, ColorRgba{ 0, 0, 0, 255 });
-        renderer.drawRect(50, 40, 220, 26, ColorRgba{ 85, 255, 255, 255 });
+        renderer.drawRect(50, 40, 220, 26, ColorRgba{ 85, 255, 85, 255 });
 
         std::ostringstream bannerText {};
         bannerText << "POINT " << lastCheckpointLetter_ << " ATTAINED!";
-        renderer.drawText(92, 45, bannerText.str(), ColorRgba{ 255, 255, 255, 255 });
-        renderer.drawText(82, 54, "+15 SEC   +1,000 PTS", ColorRgba{ 255, 85, 255, 255 });
+        renderer.drawText(92, 45, bannerText.str(), ColorRgba{ 255, 255, 85, 255 });
+        renderer.drawText(82, 54, "+15 SEC   +1,000 PTS", ColorRgba{ 255, 85, 85, 255 });
     }
 }
 

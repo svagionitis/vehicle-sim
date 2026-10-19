@@ -138,8 +138,8 @@ void TruckRenderer::renderKnobbyTire(
     }
 
     const ColorRgba tireRubber{ 0, 0, 0, 255 };       // Black rubber
-    const ColorRgba treadColor{ 255, 255, 255, 255 };  // White outer tread/lugs
-    const ColorRgba rimColor{ 85, 255, 255, 255 };     // Cyan hub & wheel rim
+    const ColorRgba treadColor{ 255, 255, 85, 255 };  // Yellow outer tread/lugs
+    const ColorRgba rimColor{ 255, 255, 85, 255 };    // Yellow hub & wheel rim
 
     // Solid rubber core
     renderer.fillCircle(hx, hy, radiusPx, tireRubber);

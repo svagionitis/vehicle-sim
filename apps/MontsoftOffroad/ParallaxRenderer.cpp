@@ -22,14 +22,14 @@ struct BiomePalette {
 BiomePalette getBiomePalette(int stageIndex) noexcept
 {
     switch (stageIndex) {
-    case 1: // Mojave Dunes
+    case 1: // Mojave Dunes (Authentic 1988 Montsoft Offroad)
         return BiomePalette{
             ColorRgba{ 0, 0, 0, 255 },        // Sky: Black
-            ColorRgba{ 255, 255, 255, 255 },  // Sun: White
-            ColorRgba{ 255, 85, 255, 255 },   // Mesa: Magenta
-            ColorRgba{ 85, 255, 255, 255 },   // Dune: Cyan
-            ColorRgba{ 255, 255, 255, 255 },  // Track: White
-            ColorRgba{ 85, 255, 255, 255 }    // Soil: Cyan
+            ColorRgba{ 255, 255, 85, 255 },   // Sun: Yellow
+            ColorRgba{ 255, 85, 85, 255 },    // Mesa: Red
+            ColorRgba{ 255, 85, 85, 255 },    // Dune: Red
+            ColorRgba{ 85, 255, 85, 255 },    // Track: Green
+            ColorRgba{ 85, 255, 85, 255 }     // Soil: Green
         };
     case 2: // Red Rock Arroyo
         return BiomePalette{
@@ -132,9 +132,11 @@ void ParallaxRenderer::renderSky(CgaPaletteRenderer& cga, int stageIndex) noexce
     cga.clear(pal.sky);
 
     // Subtle dithered horizontal scanlines near the upper horizon
-    for (int y { 0 }; y < 50; y += 4) {
-        for (int x { (y % 8 == 0) ? 0 : 2 }; x < CgaPaletteRenderer::kNativeWidth; x += 4) {
-            cga.setPixel(x, y, pal.dune);
+    if (stageIndex != 1) {
+        for (int y { 0 }; y < 50; y += 4) {
+            for (int x { (y % 8 == 0) ? 0 : 2 }; x < CgaPaletteRenderer::kNativeWidth; x += 4) {
+                cga.setPixel(x, y, pal.dune);
+            }
         }
     }
 }
@@ -178,8 +180,14 @@ void ParallaxRenderer::renderDistantMesas(
         }
 
         const int topY { std::clamp(static_cast<int>(rawProfile), 30, 150) };
-        for (int y { topY }; y < CgaPaletteRenderer::kNativeHeight; ++y) {
-            cga.setPixel(x, y, pal.mesa);
+        if (stageIndex == 1) {
+            // Authentic 1988 Montsoft wireframe mountain contour ridge
+            cga.setPixel(x, topY, pal.mesa);
+            cga.setPixel(x, topY + 1, pal.mesa);
+        } else {
+            for (int y { topY }; y < CgaPaletteRenderer::kNativeHeight; ++y) {
+                cga.setPixel(x, y, pal.mesa);
+            }
         }
     }
 }
@@ -191,14 +199,16 @@ void ParallaxRenderer::renderMidgroundDunes(
     constexpr double kDuneParallaxScale { 0.25 };
     const double offsetX { camera.getPosition().x * kDuneParallaxScale * camera.getConfig().pixelsPerMeter };
 
-    for (int x { 0 }; x < CgaPaletteRenderer::kNativeWidth; ++x) {
-        const double worldCol { static_cast<double>(x) + offsetX };
+    if (stageIndex != 1) {
+        for (int x { 0 }; x < CgaPaletteRenderer::kNativeWidth; ++x) {
+            const double worldCol { static_cast<double>(x) + offsetX };
 
-        const double duneWave { 108.0 + 14.0 * std::sin(worldCol * 0.032) + 7.0 * std::sin(worldCol * 0.075) };
-        const int topY { std::clamp(static_cast<int>(duneWave), 60, 160) };
+            const double duneWave { 108.0 + 14.0 * std::sin(worldCol * 0.032) + 7.0 * std::sin(worldCol * 0.075) };
+            const int topY { std::clamp(static_cast<int>(duneWave), 60, 160) };
 
-        for (int y { topY }; y < CgaPaletteRenderer::kNativeHeight; ++y) {
-            cga.setPixel(x, y, pal.dune);
+            for (int y { topY }; y < CgaPaletteRenderer::kNativeHeight; ++y) {
+                cga.setPixel(x, y, pal.dune);
+            }
         }
     }
 
@@ -207,13 +217,15 @@ void ParallaxRenderer::renderMidgroundDunes(
     const int startPropIdx { static_cast<int>(std::floor((offsetX - 40.0) / propInterval)) };
     const int endPropIdx { static_cast<int>(std::ceil((offsetX + CgaPaletteRenderer::kNativeWidth + 40.0) / propInterval)) };
 
+    const ColorRgba propColor { (stageIndex == 1) ? pal.track : pal.mesa };
+
     for (int idx { startPropIdx }; idx <= endPropIdx; ++idx) {
         const int propScreenX { static_cast<int>(static_cast<double>(idx * propInterval) - offsetX) };
         if (propScreenX >= -20 && propScreenX < CgaPaletteRenderer::kNativeWidth + 20) {
             const double worldCol { static_cast<double>(propScreenX) + offsetX };
             const int groundY { static_cast<int>(108.0 + 14.0 * std::sin(worldCol * 0.032) + 7.0 * std::sin(worldCol * 0.075)) };
             const int propType { std::abs(idx) % 3 };
-            renderSilhouetteProp(cga, propScreenX, groundY, propType, pal.mesa);
+            renderSilhouetteProp(cga, propScreenX, groundY, propType, propColor);
         }
     }
 }
@@ -266,7 +278,9 @@ void ParallaxRenderer::renderForegroundTrack(
         // Solid soil strata extending all the way down to y = 199 to eliminate buffer smearing
         for (int y { clampedY + 1 }; y < CgaPaletteRenderer::kNativeHeight; ++y) {
             // Authentic dithered strata bands
-            if ((y - clampedY) <= 3) {
+            if (stageIndex == 1) {
+                cga.setPixel(col, y, pal.track);
+            } else if ((y - clampedY) <= 3) {
                 cga.setPixel(col, y, pal.track);
             } else if (((col + y) % 4 == 0) || ((col - y) % 8 == 0)) {
                 cga.setPixel(col, y, pal.soil);

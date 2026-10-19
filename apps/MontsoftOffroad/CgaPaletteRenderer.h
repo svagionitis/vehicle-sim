@@ -83,7 +83,7 @@ public:
     static constexpr int kNativeHeight { 200 };
     static constexpr std::size_t kPixelCount { 320 * 200 };
 
-    /// @brief Default constructor initializing Mode 1.
+    /// @brief Default constructor initializing authentic Mode 0.
     CgaPaletteRenderer() noexcept;
 
     /// @brief Destructor.
@@ -222,7 +222,7 @@ private:
     void rebuildLut() noexcept;
     void populatePalette() noexcept;
 
-    PaletteMode mode_ { PaletteMode::CgaPalette1 };
+    PaletteMode mode_ { PaletteMode::CgaPalette0 };
     std::array<std::uint32_t, kPixelCount> backbuffer_ {};
     UniqueTexture streamingTexture_ { nullptr };
     std::vector<ColorRgba> activePalette_ {};

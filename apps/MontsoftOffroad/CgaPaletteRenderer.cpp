@@ -60,17 +60,17 @@ PaletteMode CgaPaletteRenderer::getPaletteMode() const noexcept
 void CgaPaletteRenderer::cyclePaletteMode() noexcept
 {
     switch (mode_) {
-    case PaletteMode::CgaPalette1:
-        setPaletteMode(PaletteMode::CgaPalette0);
-        break;
     case PaletteMode::CgaPalette0:
+        setPaletteMode(PaletteMode::CgaPalette1);
+        break;
+    case PaletteMode::CgaPalette1:
         setPaletteMode(PaletteMode::CompositeNtsc);
         break;
     case PaletteMode::CompositeNtsc:
         setPaletteMode(PaletteMode::EnhancedEga);
         break;
     case PaletteMode::EnhancedEga:
-        setPaletteMode(PaletteMode::CgaPalette1);
+        setPaletteMode(PaletteMode::CgaPalette0);
         break;
     }
 }

@@ -37,11 +37,11 @@ TEST(SDLWrappersTest, ContextLifecycleAndNullDeleters)
 TEST(CgaRendererTest, PaletteModeCyclingAndSetting)
 {
     CgaPaletteRenderer renderer {};
-    EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::CgaPalette1);
+    EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::CgaPalette0);
     EXPECT_EQ(renderer.getActivePalette().size(), 4U);
 
     renderer.cyclePaletteMode();
-    EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::CgaPalette0);
+    EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::CgaPalette1);
     EXPECT_EQ(renderer.getActivePalette().size(), 4U);
 
     renderer.cyclePaletteMode();
@@ -53,7 +53,7 @@ TEST(CgaRendererTest, PaletteModeCyclingAndSetting)
     EXPECT_EQ(renderer.getActivePalette().size(), 16U);
 
     renderer.cyclePaletteMode();
-    EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::CgaPalette1);
+    EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::CgaPalette0);
 
     renderer.setPaletteMode(PaletteMode::EnhancedEga);
     EXPECT_EQ(renderer.getPaletteMode(), PaletteMode::EnhancedEga);

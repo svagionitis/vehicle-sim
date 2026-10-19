@@ -9,7 +9,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
         config.windowWidth = 1280;
         config.windowHeight = 800;
         config.windowTitle = "Montsoft Offroad (1988) - C++17 & SDL2";
-        config.initialPalette = montsoft_offroad::PaletteMode::CgaPalette1;
+        config.initialPalette = montsoft_offroad::PaletteMode::CgaPalette0;
 
         montsoft_offroad::GameApp app(config);
         if (!app.initialize()) {
