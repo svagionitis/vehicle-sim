@@ -67,8 +67,7 @@ void WaveGrid1D::step(double dt) noexcept
     const double validWaveSpeed { std::max(0.1, mConfig.waveSpeed) };
     const double maxStableDt { 0.70 / (validWaveSpeed * mInvCellSize) };
 
-    const std::size_t subStepCount { std::max<std::size_t>(
-        1U, static_cast<std::size_t>(std::ceil(dt / maxStableDt))) };
+    const std::size_t subStepCount { std::max<std::size_t>(1U, static_cast<std::size_t>(std::ceil(dt / maxStableDt))) };
     const double subDt { dt / static_cast<double>(subStepCount) };
 
     mLastSubDt = subDt;
@@ -127,7 +126,7 @@ void WaveGrid1D::injectImpulse(double x, double radius, double impulse) noexcept
 
     const double startCoord { mConfig.originX };
     const double clampedMin { std::max(startCoord, minX) };
-    const double clampedMax { std::min(startCoord + ((mCellCount - 1U) * mConfig.cellSize), maxX) };
+    const double clampedMax { std::min(startCoord + (static_cast<double>(mCellCount - 1U) * mConfig.cellSize), maxX) };
 
     if (clampedMin > clampedMax) {
         return;

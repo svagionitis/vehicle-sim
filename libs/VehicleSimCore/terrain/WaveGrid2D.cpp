@@ -65,8 +65,7 @@ void WaveGrid2D::step(double dt) noexcept
     constexpr double kSqrt2 { 1.41421356237309504880 };
     const double maxStableDt { 0.70 / (validWaveSpeed * mInvCellSize * kSqrt2) };
 
-    const std::size_t subStepCount { std::max<std::size_t>(
-        1U, static_cast<std::size_t>(std::ceil(dt / maxStableDt))) };
+    const std::size_t subStepCount { std::max<std::size_t>(1U, static_cast<std::size_t>(std::ceil(dt / maxStableDt))) };
     const double subDt { dt / static_cast<double>(subStepCount) };
 
     mLastSubDt = subDt;
@@ -88,20 +87,16 @@ void WaveGrid2D::executeSubstep(double dt) noexcept
                 const double effectiveDamping { mConfig.damping + mSpongeDamping[idx] };
                 const double alpha { 0.5 * effectiveDamping * dt };
 
-                const double orthogonalSum { mElevationCurr[getIndex(x + 1U, y)]
-                    + mElevationCurr[getIndex(x - 1U, y)]
-                    + mElevationCurr[getIndex(x, y + 1U)]
-                    + mElevationCurr[getIndex(x, y - 1U)] };
+                const double orthogonalSum { mElevationCurr[getIndex(x + 1U, y)] + mElevationCurr[getIndex(x - 1U, y)]
+                    + mElevationCurr[getIndex(x, y + 1U)] + mElevationCurr[getIndex(x, y - 1U)] };
                 const double diagonalSum { mElevationCurr[getIndex(x + 1U, y + 1U)]
-                    + mElevationCurr[getIndex(x - 1U, y + 1U)]
-                    + mElevationCurr[getIndex(x + 1U, y - 1U)]
+                    + mElevationCurr[getIndex(x - 1U, y + 1U)] + mElevationCurr[getIndex(x + 1U, y - 1U)]
                     + mElevationCurr[getIndex(x - 1U, y - 1U)] };
                 const double center { mElevationCurr[idx] };
 
                 const double laplacian { ((4.0 * orthogonalSum) + diagonalSum - (20.0 * center)) * invDx2Div6 };
 
-                const double numerator { (2.0 * center) - ((1.0 - alpha) * mElevationPrev[idx])
-                    + (c2dt2 * laplacian) };
+                const double numerator { (2.0 * center) - ((1.0 - alpha) * mElevationPrev[idx]) + (c2dt2 * laplacian) };
                 mElevationNext[idx] = numerator / (1.0 + alpha);
             }
         }
@@ -112,11 +107,9 @@ void WaveGrid2D::executeSubstep(double dt) noexcept
                 const double effectiveDamping { mConfig.damping + mSpongeDamping[idx] };
                 const double alpha { 0.5 * effectiveDamping * dt };
 
-                const double laplacian { (mElevationCurr[getIndex(x + 1U, y)]
-                                            + mElevationCurr[getIndex(x - 1U, y)]
-                                            + mElevationCurr[getIndex(x, y + 1U)]
-                                            + mElevationCurr[getIndex(x, y - 1U)]
-                                            - (4.0 * mElevationCurr[idx]))
+                const double laplacian { (mElevationCurr[getIndex(x + 1U, y)] + mElevationCurr[getIndex(x - 1U, y)]
+                                             + mElevationCurr[getIndex(x, y + 1U)] + mElevationCurr[getIndex(x, y - 1U)]
+                                             - (4.0 * mElevationCurr[idx]))
                     * invDx2 };
 
                 const double numerator { (2.0 * mElevationCurr[idx]) - ((1.0 - alpha) * mElevationPrev[idx])
@@ -168,8 +161,8 @@ void WaveGrid2D::injectImpulse(const math::Vec2& position, double radius, double
 
     const double startX { mConfig.origin.x };
     const double startY { mConfig.origin.y };
-    const double boundMaxX { startX + ((mWidth - 1U) * mConfig.cellSize) };
-    const double boundMaxY { startY + ((mHeight - 1U) * mConfig.cellSize) };
+    const double boundMaxX { startX + (static_cast<double>(mWidth - 1U) * mConfig.cellSize) };
+    const double boundMaxY { startY + (static_cast<double>(mHeight - 1U) * mConfig.cellSize) };
 
     const double clampedMinX { std::clamp(minX, startX, boundMaxX) };
     const double clampedMaxX { std::clamp(maxX, startX, boundMaxX) };
@@ -228,8 +221,8 @@ void WaveGrid2D::applyWakeStamp(const WaterWakeStamp2D& stamp) noexcept
 
     const double startX { mConfig.origin.x };
     const double startY { mConfig.origin.y };
-    const double boundMaxX { startX + ((mWidth - 1U) * mConfig.cellSize) };
-    const double boundMaxY { startY + ((mHeight - 1U) * mConfig.cellSize) };
+    const double boundMaxX { startX + (static_cast<double>(mWidth - 1U) * mConfig.cellSize) };
+    const double boundMaxY { startY + (static_cast<double>(mHeight - 1U) * mConfig.cellSize) };
 
     const double clampedMinX { std::clamp(minX, startX, boundMaxX) };
     const double clampedMaxX { std::clamp(maxX, startX, boundMaxX) };
@@ -313,8 +306,7 @@ WaveSample2D WaveGrid2D::getSample(const math::Vec2& position) const noexcept
     const double h01 { mElevationCurr[getIndex(x0, y1)] };
     const double h11 { mElevationCurr[getIndex(x1, y1)] };
 
-    const double eta { ((1.0 - tx) * ((1.0 - ty) * h00 + ty * h01))
-        + (tx * ((1.0 - ty) * h10 + ty * h11)) };
+    const double eta { ((1.0 - tx) * ((1.0 - ty) * h00 + ty * h01)) + (tx * ((1.0 - ty) * h10 + ty * h11)) };
 
     // Gradient dh/dx and dh/dy
     const double dhdx { (((1.0 - ty) * (h10 - h00)) + (ty * (h11 - h01))) * mInvCellSize };

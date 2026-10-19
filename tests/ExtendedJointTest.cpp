@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstring>
 
 #include "libs/VehicleSimCore/math/Angle2D.h"
 #include "libs/VehicleSimCore/math/Vec2.h"
@@ -396,9 +397,7 @@ TEST(ExtendedJointTest, WeldBreakForceRupture)
 
     WeldJoint2D weld { weldCfg };
     bool breakCallbackInvoked { false };
-    weld.setOnBreakCallback([&breakCallbackInvoked](WeldJoint2D&) {
-        breakCallbackInvoked = true;
-    });
+    weld.setOnBreakCallback([&breakCallbackInvoked](WeldJoint2D&) { breakCallbackInvoked = true; });
 
     world.addJoint(weld);
 

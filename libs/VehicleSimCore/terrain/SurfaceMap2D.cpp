@@ -193,8 +193,7 @@ void SurfaceMap2D::addCircleZone(const math::Vec2& center, double radius, Materi
     addCircleZone(center, radius, SurfaceMaterial::getPreset(materialType));
 }
 
-void SurfaceMap2D::stampMaterialDisc(
-    const math::Vec2& center, double radius, const SurfaceMaterial& material)
+void SurfaceMap2D::stampMaterialDisc(const math::Vec2& center, double radius, const SurfaceMaterial& material)
 {
     addCircleZone(center, radius, material);
 }
@@ -589,14 +588,10 @@ double SurfaceMap2D::getWaterDepth(double x, double y) const noexcept
     const double gx = (x - mGridOrigin.x) / mCellSize.x;
     const double gy = (y - mGridOrigin.y) / mCellSize.y;
 
-    const auto x0 = static_cast<std::size_t>(
-        std::clamp(std::floor(gx), 0.0, static_cast<double>(mGridWidth - 1U)));
-    const auto x1 = static_cast<std::size_t>(
-        std::clamp(x0 + 1U, 0ULL, static_cast<unsigned long long>(mGridWidth - 1U)));
-    const auto y0 = static_cast<std::size_t>(
-        std::clamp(std::floor(gy), 0.0, static_cast<double>(mGridHeight - 1U)));
-    const auto y1 = static_cast<std::size_t>(
-        std::clamp(y0 + 1U, 0ULL, static_cast<unsigned long long>(mGridHeight - 1U)));
+    const auto x0 = static_cast<std::size_t>(std::clamp(std::floor(gx), 0.0, static_cast<double>(mGridWidth - 1U)));
+    const auto x1 = static_cast<std::size_t>(std::clamp(x0 + 1U, std::size_t { 0U }, mGridWidth - 1U));
+    const auto y0 = static_cast<std::size_t>(std::clamp(std::floor(gy), 0.0, static_cast<double>(mGridHeight - 1U)));
+    const auto y1 = static_cast<std::size_t>(std::clamp(y0 + 1U, std::size_t { 0U }, mGridHeight - 1U));
 
     const double fx = std::clamp(gx - std::floor(gx), 0.0, 1.0);
     const double fy = std::clamp(gy - std::floor(gy), 0.0, 1.0);
